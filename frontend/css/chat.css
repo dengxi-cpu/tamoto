@@ -238,7 +238,7 @@
 @media (max-width: 640px) {
     .chat-panel {
         width: 95%;
-        height: 60vh;
+        height: 80vh;
     }
 
     .chat-message-content {
@@ -278,3 +278,4 @@
         transform: translateX(-50%) translateY(0);
     }
 }
+

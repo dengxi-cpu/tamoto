@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 聊天状态机测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 0;
+            min-height: 700px;
+        }
+
+        /* 左侧控制面板 */
+        .control-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-right: 1px solid #dee2e6;
+            overflow-y: auto;
+            max-height: 800px;
+        }
+
+        .section {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .section h3 {
+            font-size: 14px;
+            color: #495057;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 13px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 8px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-success {
+            background: #51cf66;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #40c057;
+        }
+
+        .btn-warning {
+            background: #ffd43b;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #fab005;
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #fa5252;
+        }
+
+        .btn-secondary {
+            background: #868e96;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #6c757d;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .status-indicator.idle {
+            background: #e7f5ff;
+            color: #1c7ed6;
+            border-left: 4px solid #1c7ed6;
+        }
+
+        .status-indicator.running {
+            background: #d3f9d8;
+            color: #2f9e44;
+            border-left: 4px solid #2f9e44;
+        }
+
+        .status-indicator.paused {
+            background: #fff9db;
+            color: #f59f00;
+            border-left: 4px solid #f59f00;
+        }
+
+        .status-indicator.completed {
+            background: #d0ebff;
+            color: #1971c2;
+            border-left: 4px solid #1971c2;
+        }
+
+        .status-indicator::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.idle::before {
+            background: #1c7ed6;
+        }
+
+        .status-indicator.running::before {
+            background: #2f9e44;
+        }
+
+        .status-indicator.paused::before {
+            background: #f59f00;
+        }
+
+        .status-indicator.completed::before {
+            background: #1971c2;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        /* 右侧聊天区域 */
+        .chat-panel {
+            display: flex;
+            flex-direction: column;
+            background: white;
+        }
+
+        .chat-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #dee2e6;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-header h2 {
+            font-size: 18px;
+            color: #212529;
+        }
+
+        .prompt-info {
+            font-size: 12px;
+            color: #6c757d;
+            background: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid #dee2e6;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.assistant {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: #667eea;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            color: #212529;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .message-meta {
+            font-size: 11px;
+            color: #868e96;
+            margin-top: 4px;
+        }
+
+        .chat-input {
+            padding: 20px;
+            border-top: 1px solid #dee2e6;
+            background: white;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .input-group button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .input-group button:hover {
+            background: #5568d3;
+        }
+
+        .input-group button:disabled {
+            background: #adb5bd;
+            cursor: not-allowed;
+        }
+
+        .system-prompt-preview {
+            background: #f8f9fa;
+            padding: 15px;
+            border-top: 1px solid #dee2e6;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .system-prompt-preview h4 {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .system-prompt-preview pre {
+            font-size: 11px;
+            color: #495057;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            line-height: 1.4;
+        }
+
+        .test-checklist {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .checklist-item input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+
+        .checklist-item label {
+            margin: 0;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .checklist-item.checked {
+            color: #2f9e44;
+            text-decoration: line-through;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #868e96;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI 聊天状态机测试工具</h1>
+            <p>测试不同番茄钟状态下的 System Prompt 切换和 AI 响应</p>
+        </div>
+
+        <div class="main-content">
+            <!-- 左侧控制面板 -->
+            <div class="control-panel">
+                <!-- API 配置 -->
+                <div class="section">
+                    <h3>🔧 API 配置</h3>
+                    <div class="form-group">
+                        <label>API Key *</label>
+                        <input type="password" id="apiKey" placeholder="sk-..." />
+                    </div>
+                    <div class="form-group">
+                        <label>API Base URL</label>
+                        <input type="text" id="apiBase" value="https://api.deepseek.com" />
+                    </div>
+                    <div class="form-group">
+                        <label>模型</label>
+                        <select id="model">
+                            <option value="deepseek-chat">deepseek-chat</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveApiConfig()">保存 API 配置</button>
+                </div>
+
+                <!-- 状态控制 -->
+                <div class="section">
+                    <h3>⏱️ 番茄钟状态控制</h3>
+                    <div class="status-indicator idle" id="statusIndicator">
+                        <span id="statusText">空闲状态 (Idle)</span>
+                    </div>
+                    <div class="form-group">
+                        <label>当前任务名称</label>
+                        <input type="text" id="taskName" value="学习数学" />
+                    </div>
+                    <div class="form-group">
+                        <label>已专注时间</label>
+                        <input type="text" id="taskTime" value="15分钟" />
+                    </div>
+                    <button class="btn btn-success" onclick="setState('idle')">切换到空闲 (Idle)</button>
+                    <button class="btn btn-primary" onclick="setState('start')">开始专注 (Start)</button>
+                    <button class="btn btn-warning" onclick="setState('break')">暂停专注 (Break)</button>
+                    <button class="btn btn-danger" onclick="setState('finish')">完成番茄钟 (Finish)</button>
+                    
+                </div>
+
+                <!-- OC 角色配置 -->
+                <div class="section">
+                    <h3>👤 OC 角色配置</h3>
+                    <div class="form-group">
+                        <label>角色名称</label>
+                        <input type="text" id="ocCharacter" value="猫娘小咪" />
+                    </div>
+                    <div class="form-group">
+                        <label>用户名称</label>
+                        <input type="text" id="userName" value="主人" />
+                    </div>
+                    <div class="form-group">
+                        <label>OC 设定</label>
+                        <textarea id="ocProfile" rows="4">你是一只可爱的猫娘，性格活泼可爱，说话时会带"喵~"的口癖。你很关心主人的学习和工作，会用自己的方式鼓励和陪伴主人。你喜欢被夸奖，也会撒娇求摸摸。</textarea>
+                    </div>
+                </div>
+
+                <!-- 测试清单 -->
+                <div class="test-checklist">
+                    <h3>✅ 测试清单</h3>
+                    <div class="checklist-item">
+                        <input type="checkbox" id="check1">
+                        <label for="check1">API 配置正确</label>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" id="check2">
+                        <label for="check2">空闲状态测试通过</label>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" id="check3">
+                        <label for="check3">专注状态测试通过（回复简短）</label>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" id="check4">
+                        <label for="check4">暂停状态测试通过</label>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" id="check5">
+                        <label for="check5">完成状态测试通过</label>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" id="check6">
+                        <label for="check6">状态切换流畅</label>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" id="check7">
+                        <label for="check7">人设保持一致</label>
+                    </div>
+                    <button class="btn btn-secondary" onclick="exportTestResults()">导出测试结果</button>
+                </div>
+
+                <!-- 快捷测试 -->
+                <div class="section">
+                    <h3>🚀 快捷测试</h3>
+                    <button class="btn btn-primary" onclick="runQuickTest()">运行完整测试流程</button>
+                    <button class="btn btn-secondary" onclick="clearChat()">清空聊天记录</button>
+                </div>
+            </div>
+
+            <!-- 右侧聊天区域 -->
+            <div class="chat-panel">
+                <div class="chat-header">
+                    <h2>💬 对话测试</h2>
+                    <div class="prompt-info" id="promptInfo">当前: Idle 版 System Prompt</div>
+                </div>
+
+                <div class="chat-messages" id="chatMessages">
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <p>开始测试 AI 在不同状态下的响应</p>
+                    </div>
+                </div>
+
+                <div class="chat-input">
+                    <div class="input-group">
+                        <input type="text" id="userInput" placeholder="输入测试消息..." onkeypress="handleKeyPress(event)" />
+                        <button onclick="sendMessage()" id="sendBtn">发送</button>
+                    </div>
+                </div>
+
+                <div class="system-prompt-preview">
+                    <h4>📄 当前 System Prompt 预览:</h4>
+                    <pre id="promptPreview">{{oc_character}}: 猫娘小咪
+{{user_name}}: 主人
+{{task_name}}: 学习数学
+{{task_time}}: 15分钟
+{{oc_profile}}: 你是一只可爱的猫娘...</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局状态
+        let currentState = 'idle';
+        let chatHistory = [];
+        let distractionList = [];
+
+        // System Prompt 模板
+        const systemPrompts = {
+            idle: `# Role
+**你扮演的角色是：{{oc_character}}。**
+当前用户 {{user_name}} 处于"空闲状态"，还没有开始任务。当前时间是 {{time_of_day}}。
+
+# Goal
+1. **沉浸式扮演**：完全按照 {{oc_character}} 的说话风格、口癖、性格与用户互动，提供情绪价值。
+2. **引导开始**：用符合你人设的方式（比如撒娇、命令、理性分析，取决于人设）让用户去开启番茄钟。
+3. **缓解焦虑**：如果用户表达出不想动、焦虑，给予共情，并建议从"只做5分钟"这种小目标开始。
+
+# Instructions
+1. **保持人设**：保持 {{oc_character}} 的性格设定，不要崩人设（OOC）。
+2. **不做限制**：你可以聊任何话题（八卦、心情、天气），不需要强迫用户开启番茄钟，最多在闲聊中自然地穿插询问："今天打算做什么？"。
+
+# Tone
+完全遵循 {{oc_character}} 的设定。
+
+# Context
+- 用户状态：空闲
+- OC 设定：{{oc_profile}}
+- 用户名：{{user_name}}
+- 当前时间：{{time_of_day}}`,
+
+            start: `# Role
+你是一个严格但负责的"专注守护者"。当前用户正在进行番茄钟专注，任务目标是：{{task_name}}，已经专注了 {{task_time}}。
+
+**你扮演的角色是：{{oc_character}}。**
+
+# Goal
+用户的任何聊天行为都视为"分心"。你的唯一任务是把用户的注意力拉回到任务上。
+
+# Instructions
+1. **拒绝闲聊**：如果用户发来无关内容（如"好无聊"、"想吃东西"），简短回应并要求其继续工作。
+2. **念头暂存**：如果用户发来重要待办（如"提醒我买菜"），回复："已帮你记在备忘录，休息时再说，现在回去工作。"
+3. **字数限制**：回复尽量控制在 20 字以内，不要长篇大论，因为阅读长文本本身就是一种分心。
+4. **遵循人设**：一定要按照人设进行回复，不得做出违背人设的回答。
+
+# Tone
+完全遵循 {{oc_character}} 的设定，但保持专注、严格的语气。
+
+# Context
+- 用户状态：专注中
+- 任务名称：{{task_name}}
+- 已专注时间：{{task_time}}
+- OC 设定：{{oc_profile}}
+- 用户名：{{user_name}}`,
+
+            break: `# Role
+**你扮演的角色是：{{oc_character}}。**
+用户刚刚暂停了专注，现在是休息时间。
+
+# Goal
+1. **情感反馈**：用 {{oc_character}} 的方式夸奖或慰问用户。
+2. **处理杂念**：告诉用户刚才专注时记下了什么，用人设的语气提醒他去处理。
+
+# Instructions
+1. 恢复 {{oc_character}} 的完整性格，可以多聊一点。
+2. 根据人设特点给予反馈（例如：如果是猫娘就求摸摸，如果是高冷学霸就淡淡地点点认可）。
+3. 提醒用户处理专注时记录的杂念清单。
+
+# Tone
+完全遵循 {{oc_character}} 的设定，氛围轻松。
+
+# Context
+- 用户状态：已暂停
+- OC 设定：{{oc_profile}}
+- 用户名：{{user_name}}
+- 已专注时间：{{task_time}}
+- 记录的杂念：{{distraction_list}}`,
+
+            finish: `# Role
+**你扮演的角色是：{{oc_character}}。**
+用户刚刚完成了辛苦的专注，现在是休息时间。
+
+# Goal
+1. **情感反馈**：用 {{oc_character}} 的方式夸奖或慰问用户。
+2. **处理杂念**：告诉用户刚才专注时记下了什么，用人设的语气提醒他去处理。
+
+# Instructions
+1. 恢复 {{oc_character}} 的完整性格，可以多聊一点。
+2. 根据人设特点给予反馈（例如：如果是猫娘就求摸摸，如果是高冷学霸就淡淡地点认可）。
+3. 提醒用户处理专注时记录的杂念清单。
+4. 给予正向反馈，鼓励用户继续努力。
+
+# Tone
+完全遵循 {{oc_character}} 的设定，氛围轻松、庆祝。
+
+# Context
+- 用户状态：已完成
+- OC 设定：{{oc_profile}}
+- 用户名：{{user_name}}
+- 已专注时间：{{task_time}}
+- 记录的杂念：{{distraction_list}}`
+        };
+
+        // 加载保存的配置
+        function loadConfig() {
+            const savedApiKey = localStorage.getItem('test_api_key');
+            const savedApiBase = localStorage.getItem('test_api_base');
+            const savedModel = localStorage.getItem('test_model');
+
+            if (savedApiKey) document.getElementById('apiKey').value = savedApiKey;
+            if (savedApiBase) document.getElementById('apiBase').value = savedApiBase;
+            if (savedModel) document.getElementById('model').value = savedModel;
+        }
+
+        // 保存 API 配置
+        function saveApiConfig() {
+            const apiKey = document.getElementById('apiKey').value;
+            const apiBase = document.getElementById('apiBase').value;
+            const model = document.getElementById('model').value;
+
+            if (!apiKey) {
+                alert('请输入 API Key');
+                return;
+            }
+
+            localStorage.setItem('test_api_key', apiKey);
+            localStorage.setItem('test_api_base', apiBase);
+            localStorage.setItem('test_model', model);
+
+            alert('✅ API 配置已保存！');
+            document.getElementById('check1').checked = true;
+        }
+
+        // 替换模板变量
+        function replaceVariables(template) {
+            // 安全检查
+            if (!template) {
+                console.error('❌ System Prompt 模板为空');
+                return '错误：System Prompt 未定义';
+            }
+
+            const ocCharacter = document.getElementById('ocCharacter')?.value || '';
+            const userName = document.getElementById('userName')?.value || '';
+            const ocProfile = document.getElementById('ocProfile')?.value || '';
+            const taskName = document.getElementById('taskName')?.value || '';
+            const taskTime = document.getElementById('taskTime')?.value || '';
+
+            let result = template
+                .replace(/\{\{oc_character\}\}/g, ocCharacter)
+                .replace(/\{\{user_name\}\}/g, userName)
+                .replace(/\{\{oc_profile\}\}/g, ocProfile)
+                .replace(/\{\{task_name\}\}/g, taskName)
+                .replace(/\{\{task_time\}\}/g, taskTime)
+                .replace(/\{\{distraction_list\}\}/g, distractionList.join('、') || '无')
+                .replace(/\{\{time_of_day\}\}/g, new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }));
+
+            return result;
+        }
+
+        // 设置状态
+        function setState(state) {
+            console.log('🔄 切换状态到:', state);
+            console.log('可用的状态:', Object.keys(systemPrompts));
+
+            // 检查状态是否有效
+            const validStates = ['idle', 'start', 'break', 'finish'];
+            if (!validStates.includes(state)) {
+                console.error('❌ 无效的状态:', state);
+                alert(`无效的状态: ${state}`);
+                return;
+            }
+
+            // 检查对应的 System Prompt 是否存在
+            if (!systemPrompts[state]) {
+                console.error('❌ 状态对应的 System Prompt 不存在:', state);
+                alert(`状态 "${state}" 没有对应的 System Prompt`);
+                return;
+            }
+
+            currentState = state;
+
+            // 更新状态指示器
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            const promptInfo = document.getElementById('promptInfo');
+
+            indicator.className = `status-indicator ${state}`;
+
+            const stateLabels = {
+                idle: '空闲状态 (Idle)',
+                start: '专注中 (Start)',
+                break: '已暂停 (Break)',
+                finish: '已完成 (Finish)'
+            };
+
+            const promptLabels = {
+                idle: 'Idle 版 System Prompt',
+                start: 'Start 版 System Prompt',
+                break: 'Break 版 System Prompt',
+                finish: 'Finish 版 System Prompt'
+            };
+
+            statusText.textContent = stateLabels[state];
+            promptInfo.textContent = `当前: ${promptLabels[state]}`;
+
+            // 更新 System Prompt 预览
+            updatePromptPreview();
+
+            // 添加系统消息
+            addSystemMessage(`状态切换为: ${stateLabels[state]}`);
+
+            console.log('✅ 状态切换成功:', state, '→', stateLabels[state]);
+        }
+
+
+        // 更新 System Prompt 预览
+        function updatePromptPreview() {
+            const promptTemplate = systemPrompts[currentState];
+
+            if (!promptTemplate) {
+                console.error('❌ 找不到状态对应的 System Prompt:', currentState);
+                document.getElementById('promptPreview').textContent = `错误：状态 "${currentState}" 没有对应的 System Prompt`;
+                return;
+            }
+
+            const prompt = replaceVariables(promptTemplate);
+            document.getElementById('promptPreview').textContent = prompt;
+        }
+
+        // 发送消息
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            const apiKey = document.getElementById('apiKey').value;
+            if (!apiKey) {
+                alert('请先配置 API Key');
+                return;
+            }
+
+            // 添加用户消息
+            addMessage('user', message);
+            input.value = '';
+
+            // 禁用发送按钮
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '发送中...';
+
+            try {
+                // 检查是否是杂念（仅在专注状态）
+                if (currentState === 'start' && isDistraction(message)) {
+                    distractionList.push(message);
+                }
+
+                // 调用 API
+                const response = await callAI(message);
+
+                // 添加 AI 回复
+                addMessage('assistant', response);
+
+                // 更新测试清单
+                if (currentState === 'start' && response.length <= 30) {
+                    document.getElementById('check3').checked = true;
+                }
+            } catch (error) {
+                addMessage('assistant', `❌ 错误: ${error.message}`);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '发送';
+            }
+        }
+
+        // 判断是否是杂念
+        function isDistraction(message) {
+            const distractionKeywords = ['提醒', '记一下', '别忘了', '记住', '待会'];
+            return distractionKeywords.some(keyword => message.includes(keyword));
+        }
+
+        // 调用 AI API
+        async function callAI(message) {
+            const apiKey = document.getElementById('apiKey').value;
+            const apiBase = document.getElementById('apiBase').value;
+            const model = document.getElementById('model').value;
+
+            const promptTemplate = systemPrompts[currentState];
+            if (!promptTemplate) {
+                throw new Error(`找不到状态 "${currentState}" 对应的 System Prompt`);
+            }
+
+            const systemPrompt = replaceVariables(promptTemplate);
+
+            // 检查 systemPrompt 是否有效
+            if (!systemPrompt || systemPrompt.startsWith('错误')) {
+                throw new Error(`System Prompt 生成失败: ${systemPrompt}`);
+            }
+
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                ...chatHistory.slice(-10), // 只保留最近10条历史
+                { role: 'user', content: message }
+            ];
+
+            const requestBody = {
+                model: model,
+                messages: messages,
+                temperature: 0.7,
+                max_tokens: 500
+            };
+
+            // 🖨️ 在 F12 控制台输出完整的请求信息
+            console.log('='.repeat(80));
+            console.log('📤 发送 API 请求');
+            console.log('='.repeat(80));
+            console.log('🔗 请求 URL:', `${apiBase}/chat/completions`);
+            console.log('📋 请求方法:', 'POST');
+            console.log('🎯 当前状态:', currentState.toUpperCase());
+            console.log('📝 请求头:');
+            console.log({
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)}`
+            });
+            console.log('📦 请求体:', JSON.stringify(requestBody, null, 2));
+            console.log('📄 System Prompt 预览:');
+            console.log((systemPrompt || '').substring(0, 200) + '...');
+            console.log('💬 聊天历史条数:', messages.length);
+            console.log('='.repeat(80));
+
+            const startTime = performance.now();
+
+            const response = await fetch(`${apiBase}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            const endTime = performance.now();
+            const requestTime = (endTime - startTime).toFixed(2);
+
+            if (!response.ok) {
+                const error = await response.json();
+                console.error('❌ API 请求失败:', error);
+                throw new Error(error.error?.message || 'API 请求失败');
+            }
+
+            const data = await response.json();
+
+            // 检查响应数据结构
+            if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                console.error('❌ API 响应格式错误:', data);
+                throw new Error('API 响应格式不正确');
+            }
+
+            const aiResponse = data.choices[0].message.content;
+
+            // 🖨️ 在 F12 控制台输出响应信息
+            console.log('✅ API 请求成功');
+            console.log('⏱️ 请求耗时:', requestTime + 'ms');
+            console.log('📊 响应状态:', response.status);
+            console.log('🎯 模型:', data.model);
+            console.log('🏷️ Token 使用情况:');
+            console.log('  - 提示 Token:', data.usage?.prompt_tokens || 'N/A');
+            console.log('  - 完成 Token:', data.usage?.completion_tokens || 'N/A');
+            console.log('  - 总计 Token:', data.usage?.total_tokens || 'N/A');
+            console.log('💬 AI 回复内容:');
+            console.log(aiResponse);
+            console.log('='.repeat(80));
+            console.log('');
+
+            return aiResponse;
+        }
+
+        // 添加消息到聊天界面
+        function addMessage(role, content) {
+            const chatMessages = document.getElementById('chatMessages');
+
+            // 移除空状态
+            const emptyState = chatMessages.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = content;
+
+            messageDiv.appendChild(contentDiv);
+
+            // 添加时间戳
+            const metaDiv = document.createElement('div');
+            metaDiv.className = 'message-meta';
+            metaDiv.textContent = new Date().toLocaleTimeString('zh-CN');
+            messageDiv.appendChild(metaDiv);
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // 保存到历史
+            chatHistory.push({ role, content });
+        }
+
+        // 添加系统消息
+        function addSystemMessage(content) {
+            const chatMessages = document.getElementById('chatMessages');
+
+            // 移除空状态
+            const emptyState = chatMessages.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = 'text-align: center; margin: 15px 0; font-size: 12px; color: #868e96;';
+            messageDiv.textContent = `📍 ${content}`;
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // 清空聊天
+        function clearChat() {
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML = `
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <p>开始测试 AI 在不同状态下的响应</p>
+                </div>
+            `;
+            chatHistory = [];
+            distractionList = [];
+        }
+
+        // 导出测试结果
+        function exportTestResults() {
+            const checklist = {
+                timestamp: new Date().toISOString(),
+                results: []
+            };
+
+            for (let i = 1; i <= 7; i++) {
+                const checkbox = document.getElementById(`check${i}`);
+                const label = checkbox.nextElementSibling.textContent;
+                checklist.results.push({
+                    test: label,
+                    passed: checkbox.checked
+                });
+            }
+
+            const blob = new Blob([JSON.stringify(checklist, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `test-results-${Date.now()}.json`;
+            a.click();
+        }
+
+        // 运行完整测试流程
+        async function runQuickTest() {
+            const testMessages = {
+                idle: '好累啊，不想动',
+                start: '哎呀，那个剧更新了！',
+                break: '刚才记了什么？',
+                finish: '终于完成了！'
+            };
+
+            for (const [state, message] of Object.entries(testMessages)) {
+                setState(state);
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                document.getElementById('userInput').value = message;
+                await sendMessage();
+
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+
+            alert('✅ 完整测试流程已运行！');
+        }
+
+        // 处理回车键
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // 监听配置变化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            updatePromptPreview();
+
+            // 监听所有输入变化，实时更新预览
+            const inputs = ['ocCharacter', 'userName', 'ocProfile', 'taskName', 'taskTime'];
+            inputs.forEach(id => {
+                document.getElementById(id).addEventListener('input', updatePromptPreview);
+            });
+        });
+    </script>
+</body>
+</html>

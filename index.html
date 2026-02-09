@@ -1,0 +1,4126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>伴柠番茄钟</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script>Chart.register(ChartDataLabels);</script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+
+.status-gift-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+}
+
+        
+        .status-gift-card {
+            border: 2px solid rgba(139, 92, 246, 0.2);
+            border-radius: 16px;
+            padding: 16px 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.6);
+            position: relative;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+        }
+        .status-gift-card:hover {
+            border-color: rgba(139, 92, 246, 0.4);
+            background: rgba(139, 92, 246, 0.05);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+        }
+
+        .status-gift-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+.status-gift-icon {
+    font-size: 20px;
+}
+
+.status-gift-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.status-gift-preview {
+    flex: 1;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.4;
+    margin: 4px 0;
+}
+
+.status-gift-edit-indicator {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.custom-status-card {
+    border: 2px dashed rgba(139, 92, 246, 0.4);
+    background: rgba(139, 92, 246, 0.05);
+    text-align: center;
+    justify-content: center;
+}
+
+.custom-status-card:hover {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: rgba(139, 92, 246, 0.6);
+}
+
+.custom-status-card .status-gift-icon {
+    font-size: 24px;
+    color: #8b5cf6;
+}
+
+.custom-status-delete {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 20px;
+    height: 20px;
+    background: rgba(239, 68, 68, 0.1);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.status-gift-card:hover .custom-status-delete {
+    opacity: 1;
+}
+
+.custom-status-delete:hover {
+    background: rgba(239, 68, 68, 0.2);
+    transform: scale(1.1);
+}
+
+/* 状态礼物编辑弹窗 */
+.status-gift-editor-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.status-gift-editor-modal.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.status-gift-editor-content {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 24px;
+    margin: 16px;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+    width: 90%;
+}
+
+.status-gift-editor-modal.show .status-gift-editor-content {
+    transform: scale(1);
+}
+
+.status-gift-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.status-gift-editor-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-gift-editor-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(148, 163, 184, 0.1);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease;
+}
+
+.status-gift-editor-close:hover {
+    background: rgba(148, 163, 184, 0.2);
+}
+
+.status-gift-editor-textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 12px;
+    border: 2px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    line-height: 1.6;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+.status-gift-editor-textarea:focus {
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+.status-gift-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.status-gift-editor-btn {
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.status-gift-editor-cancel {
+    background: rgba(148, 163, 184, 0.2);
+    color: #64748b;
+}
+
+.status-gift-editor-cancel:hover {
+    background: rgba(148, 163, 184, 0.3);
+}
+
+.status-gift-editor-save {
+    background: linear-gradient(to right, #8b5cf6, #ec4899);
+    color: white;
+}
+
+.status-gift-editor-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+@media (max-width: 768px) {
+    .status-gift-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px; /* 减小间距以适应小屏幕 */
+    }
+}
+@media (max-width: 480px) {
+    .status-gift-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px; /* 进一步减小间距 */
+    }
+    
+    .status-gift-card {
+        padding: 12px 8px; /* 减小内边距 */
+        min-height: 80px; /* 减小最小高度 */
+    }
+    
+    .status-gift-name {
+        font-size: 12px; /* 减小字体 */
+    }
+    
+    .status-gift-preview {
+        font-size: 10px; /* 减小预览文字 */
+    }
+}
+
+
+
+
+
+        * {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            background: linear-gradient(145deg, #faf7ff 0%, #f1eeff 50%, #e8ddff 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 
+                0 8px 32px rgba(139, 92, 246, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
+        
+        .button-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .button-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 12px 40px rgba(139, 92, 246, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
+        
+        .gradient-purple {
+            background: linear-gradient(135deg, #8b5cf6, #a855f7);
+        }
+        
+        .gradient-pink {
+            background: linear-gradient(135deg, #ec4899, #f472b6);
+        }
+        
+        /* 动画效果 */
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+        
+        .sparkle {
+            animation: sparkle 2s ease-in-out infinite;
+        }
+        
+        .breathe {
+            animation: breathe 3s ease-in-out infinite;
+        }
+        
+        .bounce-soft {
+            animation: bounce-soft 2s ease-in-out infinite;
+        }
+        
+        @keyframes floating {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes sparkle {
+            0%, 100% { opacity: 0.4; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+        
+        @keyframes breathe {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.02); }
+        }
+        
+        @keyframes bounce-soft {
+            0%, 100% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-3px) scale(1.02); }
+        }
+        
+        /* 肉垫特效 */
+        .paw-button {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .paw-button::before {
+            content: '🐾';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5rem;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        .paw-button:hover::before {
+            opacity: 0.8;
+            animation: paw-bounce 0.6s ease;
+        }
+        
+        @keyframes paw-bounce {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.3); }
+        }
+        
+        /* 专注页面特定样式 */
+        .mode-active {
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            color: white;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+        
+        .heartbeat-pulse {
+            animation: heartbeat-pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes heartbeat-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        /* 状态图标动画 */
+        .status-work {
+            animation: work-bounce 1.5s ease-in-out infinite;
+        }
+        
+        .status-study {
+            animation: study-wiggle 2s ease-in-out infinite;
+        }
+        
+        .status-rest {
+            animation: rest-rotate 3s ease-in-out infinite;
+        }
+        
+        @keyframes work-bounce {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-3px); }
+        }
+        
+        @keyframes study-wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-5deg); }
+            75% { transform: rotate(5deg); }
+        }
+        
+        /* 优化后的心跳线条样式 */
+        .heartbeat-line-left, .heartbeat-line-right {
+            width: 80px;
+            height: 50px;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        
+        .heartbeat-line-left svg, .heartbeat-line-right svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .heartbeat-path-left {
+            stroke: #ec4899;
+            stroke-width: 2;
+            fill: none;
+            stroke-dasharray: 150;
+            stroke-dashoffset: 150;
+            animation: heartbeat-draw-left 4s ease-in-out infinite;
+        }
+        
+        .heartbeat-path-right {
+            stroke: #ec4899;
+            stroke-width: 2;
+            fill: none;
+            stroke-dasharray: 150;
+            stroke-dashoffset: 150;
+            animation: heartbeat-draw-right 4s ease-in-out infinite;
+        }
+        
+        /* 静止状态的心跳线条 */
+        .heartbeat-path-left.static,
+        .heartbeat-path-right.static {
+            animation: none;
+            stroke-dashoffset: 150;
+            opacity: 0.3;
+        }
+        
+        /* 左边心跳线条：0-50%时间段跳动 */
+        @keyframes heartbeat-draw-left {
+            0% { stroke-dashoffset: 150; opacity: 0.3; }
+            10% { stroke-dashoffset: 0; opacity: 1; }
+            25% { stroke-dashoffset: -150; opacity: 0.8; }
+            50% { stroke-dashoffset: -300; opacity: 0.3; }
+            51%, 100% { stroke-dashoffset: 150; opacity: 0.3; }
+        }
+        
+        /* 右边心跳线条：30-100%时间段跳动 */
+        @keyframes heartbeat-draw-right {
+            0%, 30% { stroke-dashoffset: 150; opacity: 0.3; }
+            40% { stroke-dashoffset: 0; opacity: 1; }
+            65% { stroke-dashoffset: -150; opacity: 0.8; }
+            100% { stroke-dashoffset: -300; opacity: 0.3; }
+        }
+        
+        /* OC语区域样式 - 调整位置更靠近OC状态 */
+        .oc-message-area {
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 20px;
+            position: relative;
+            margin-top: -10px; /* 向上移动靠近OC状态 */
+        }
+        
+        .oc-message-text {
+            color: #6b46c1;
+            font-size: 15px;
+            font-weight: 500;
+            text-align: center;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+            transition: all 0.4s ease;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* 优化：只让纯文字部分居中 */
+        .oc-message-text-wrapper {
+            display: inline-block;
+            position: relative;
+        }
+        
+        .oc-status-text-wrapper {
+            display: inline-block;
+            position: relative;
+        }
+        
+        .oc-message-text.encourage {
+            color: #6b46c1;
+        }
+        
+        .oc-message-text.rest {
+            color: #059669;
+        }
+        
+        .oc-message-text.remind-normal {
+            color: #3b82f6;
+        }
+        
+        .oc-message-text.remind-annoyed {
+            color: #f97316;
+        }
+        
+        .oc-message-text.remind-angry {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        
+        /* 新增：不理你了状态 */
+        .oc-message-text.ignore {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        
+        .oc-message-text.fade-out {
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+        }
+        
+        .oc-message-text.slide-up {
+            animation: slide-up-fast 0.3s ease-in-out;
+        }
+        
+        @keyframes slide-up-fast {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-30px); }
+        }
+        
+        /* 响应式OC头像大小 - 增强呼吸动画 */
+        .oc-avatar {
+            width: 70vw;
+            height: 70vw;
+            max-width: 16rem;
+            max-height: 16rem;
+            min-width: 8rem;
+            min-height: 8rem;
+            aspect-ratio: 1 / 1;
+            border-radius: 50%;
+            overflow: hidden;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 2;
+            border: 3px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 
+                0 0 0 2px rgba(236, 72, 153, 0.15),
+                0 0 20px rgba(236, 72, 153, 0.2),
+                0 0 40px rgba(236, 72, 153, 0.1),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+            animation: avatar-glow-breathe 4.1s ease-in-out infinite;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .oc-avatar:hover {
+            transform: scale(1.02);
+        }
+        
+        .oc-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        
+        /* 增强OC头像呼吸发光动画 */
+        @keyframes avatar-glow-breathe {
+            0%, 100% { 
+                box-shadow: 
+                    0 0 0 2px rgba(236, 72, 153, 0.15),
+                    0 0 20px rgba(236, 72, 153, 0.2),
+                    0 0 40px rgba(236, 72, 153, 0.1),
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 
+                    0 0 0 3px rgba(236, 72, 153, 0.25),
+                    0 0 30px rgba(236, 72, 153, 0.3),
+                    0 0 60px rgba(236, 72, 153, 0.15),
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+                transform: scale(1.08);
+            }
+        }
+        
+        .timer-text {
+            font-size: clamp(2.5rem, 8vw, 4rem);
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .focus-container {
+            padding: 6px 1rem 1rem 1rem;
+        }
+        
+        .focus-section {
+            padding: clamp(1rem, 4vw, 1.5rem);
+        }
+        
+        /* 状态选择样式 - 优化响应速度 */
+        .status-selector {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease;
+            z-index: 50;
+            min-width: 280px;
+        }
+        
+        .status-selector.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .status-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 8px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            min-height: 60px;
+            justify-content: center;
+        }
+        
+        .status-option:hover {
+            background: rgba(139, 92, 246, 0.1);
+        }
+        
+        .status-option.active {
+            background: rgba(139, 92, 246, 0.2);
+        }
+        
+        .status-icon {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+        
+        .status-text {
+            font-size: 12px;
+            text-align: center;
+            color: #374151;
+            font-weight: 500;
+        }
+        
+        /* 自定义状态输入框样式 */
+        #customStatusInput {
+            border-top: 1px solid rgba(139, 92, 246, 0.2);
+            padding-top: 12px;
+            margin-top: 8px;
+        }
+        
+        #customStatusInput input {
+            font-size: 14px;
+        }
+        
+        #customStatusInput button {
+            font-size: 12px;
+            padding: 6px 12px;
+        }
+        
+        /* 时间选择器样式 */
+        .time-selector {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 60;
+            min-width: 200px;
+        }
+        
+        .time-selector.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .time-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            margin: 4px 0;
+        }
+        
+        .time-option:hover {
+            background: rgba(139, 92, 246, 0.1);
+        }
+        
+        .time-option.active {
+            background: rgba(139, 92, 246, 0.2);
+        }
+        
+        .custom-time-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            border-radius: 12px;
+            background: rgba(139, 92, 246, 0.05);
+            margin: 8px 0;
+        }
+        
+        .task-option {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            margin: 4px 0;
+        }
+        
+        .task-option:hover {
+            background: rgba(139, 92, 246, 0.1);
+        }
+        
+        .task-option.active {
+            background: rgba(139, 92, 246, 0.2);
+        }
+        
+        /* 任务相关样式 - 移除拖拽功能 */
+        .task-item {
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 12px;
+            padding: 12px;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+        
+        .task-item.completed {
+            background: rgba(148, 163, 184, 0.3);
+            color: #64748b;
+            order: 999;
+            border-left-color: #64748b;
+        }
+        
+        .task-item.completed .task-title {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+        
+        .task-item.pending, .task-item.in-progress {
+            border-left-color: #3b82f6;
+        }
+        
+        .task-checkbox {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+        
+        .task-checkbox.pending, .task-checkbox.in-progress {
+            border-color: #3b82f6;
+            background: transparent;
+        }
+        
+        .task-checkbox.in-progress {
+            animation: sparkle 2s ease-in-out infinite;
+        }
+        
+        .task-checkbox.completed {
+            border-color: #64748b;
+            background: #64748b;
+        }
+        
+        .task-checkbox:hover {
+            transform: scale(1.1);
+        }
+        
+        .task-title {
+            font-weight: 500;
+            color: #1e293b;
+            flex: 1;
+            margin: 0 8px;
+        }
+        
+        .task-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .task-item:hover .task-actions {
+            opacity: 1;
+        }
+        
+        .task-action-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .task-edit-btn {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+        
+        .task-edit-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+            transform: scale(1.1);
+        }
+        
+        .task-delete-btn {
+            background: rgba(148, 163, 184, 0.1);
+            color: #64748b;
+        }
+        
+        .task-delete-btn:hover {
+            background: rgba(148, 163, 184, 0.2);
+            color: #475569;
+            transform: scale(1.1);
+        }
+        
+        /* 添加任务输入框 */
+        .add-task-input {
+            background: rgba(255, 255, 255, 0.8);
+            border: 2px dashed rgba(139, 92, 246, 0.4);
+            border-radius: 12px;
+            padding: 12px;
+            width: 100%;
+            outline: none;
+            font-size: 14px;
+            color: #1e293b;
+            transition: all 0.3s ease;
+        }
+        
+        .add-task-input:focus {
+            border-color: rgba(139, 92, 246, 0.8);
+            background: rgba(255, 255, 255, 0.95);
+        }
+        
+        .add-task-input::placeholder {
+            color: #94a3b8;
+        }
+        
+        /* 飘落动画 */
+        .falling-petals {
+            position: fixed;
+            top: -10px;
+            pointer-events: none;
+            z-index: 5;
+            font-size: 20px;
+            animation: fall linear infinite;
+        }
+        
+        @keyframes fall {
+            0% {
+                transform: translateY(-10px) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(calc(100vh + 10px)) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        /* 开始按钮提示文字样式 */
+        #startBtnHint {
+            animation: pulse-hint 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-hint {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+        
+        /* 三按钮布局 */
+        .three-button-layout {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            margin-top: 20px;
+        }
+        
+        .side-button {
+            background: rgba(148, 163, 184, 0.3);
+            color: #64748b;
+            border-radius: 16px;
+            padding: 16px;
+            transition: all 0.3s ease;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .side-button:hover {
+            background: rgba(148, 163, 184, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        .main-button {
+            border-radius: 20px;
+            padding: 16px 20px;
+            width: 80px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* 震动效果 */
+        .vibration {
+            animation: vibrate 0.5s ease-in-out;
+        }
+        
+        @keyframes vibrate {
+            0%, 100% { transform: translateX(0); }
+            10% { transform: translateX(-3px); }
+            20% { transform: translateX(3px); }
+            30% { transform: translateX(-3px); }
+            40% { transform: translateX(3px); }
+            50% { transform: translateX(-3px); }
+            60% { transform: translateX(3px); }
+            70% { transform: translateX(-3px); }
+            80% { transform: translateX(3px); }
+            90% { transform: translateX(-3px); }
+        }
+        
+        /* 愤怒震动效果 */
+        .angry-shake {
+            animation: angry-shake 0.6s ease-in-out;
+        }
+        
+        @keyframes angry-shake {
+            0%, 100% { transform: translateX(0) rotate(0deg); }
+            10% { transform: translateX(-6px) rotate(-2deg); }
+            20% { transform: translateX(6px) rotate(2deg); }
+            30% { transform: translateX(-6px) rotate(-2deg); }
+            40% { transform: translateX(6px) rotate(2deg); }
+            50% { transform: translateX(-6px) rotate(-2deg); }
+            60% { transform: translateX(6px) rotate(2deg); }
+            70% { transform: translateX(-6px) rotate(-2deg); }
+            80% { transform: translateX(6px) rotate(2deg); }
+            90% { transform: translateX(-6px) rotate(-2deg); }
+        }
+        
+        /* 完成庆祝动画 */
+        .celebration {
+            animation: celebration 1s ease-in-out;
+        }
+        
+        @keyframes celebration {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.1) rotate(-5deg); }
+            50% { transform: scale(1.15) rotate(0deg); }
+            75% { transform: scale(1.1) rotate(5deg); }
+        }
+        
+        /* 完成弹窗样式 */
+        .completion-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .completion-modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .completion-modal-content {
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            border-radius: 20px;
+            padding: 32px 24px;
+            margin: 16px;
+            max-width: 400px;
+            text-align: center;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .completion-modal.show .completion-modal-content {
+            transform: scale(1);
+        }
+        
+        .completion-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1e293b;
+            margin-bottom: 12px;
+        }
+        
+        .completion-gift {
+            font-size: 18px;
+            color: #6b46c1;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        
+        .completion-close-btn {
+            background: linear-gradient(135deg, #8b5cf6, #a855f7);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .completion-close-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
+        }
+        
+        /* 完成特效 - 星星钻石飘落 */
+        .celebration-particle {
+            position: fixed;
+            font-size: 24px;
+            pointer-events: none;
+            z-index: 999;
+            animation: celebration-fall 4s ease-in-out forwards;
+        }
+        
+        @keyframes celebration-fall {
+            0% {
+                transform: translateY(-100px) rotate(0deg) scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: translateY(50vh) rotate(180deg) scale(1.2);
+                opacity: 0.8;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg) scale(0.8);
+                opacity: 0;
+            }
+        }
+        
+        /* 礼物弹窗样式 */
+        .gift-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .gift-modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .gift-modal-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 24px;
+            margin: 16px;
+            max-width: 90vw;
+            max-height: 70vh;
+            overflow-y: auto;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        
+        .gift-modal.show .gift-modal-content {
+            transform: scale(1);
+        }
+
+        .gift-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px;
+            background: rgba(139, 92, 246, 0.05);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            border-left: 4px solid #8b5cf6;
+        }
+        
+        .gift-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .gift-time {
+            font-size: 12px;
+            color: #6b7280;
+            margin-left: auto;
+            white-space: nowrap;
+        }
+        
+        .gift-sender {
+            font-size: 12px;
+            color: #8b5cf6;
+            font-weight: 500;
+        }
+        
+        /* OC卡片页面样式 */
+        .oc-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
+            padding: 16px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .oc-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(139, 92, 246, 0.15);
+        }
+        
+        .oc-card-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid rgba(139, 92, 246, 0.3);
+        }
+        
+        .create-card {
+            border: 2px dashed rgba(139, 92, 246, 0.4);
+            background: rgba(139, 92, 246, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 120px;
+            text-align: center;
+        }
+        
+        .create-card:hover {
+            background: rgba(139, 92, 246, 0.1);
+            border-color: rgba(139, 92, 246, 0.6);
+        }
+        
+        /* OC设置页面样式 */
+        .setting-section {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        /* 优化设置页面头部在手机上的布局 */
+        .setting-section > div:first-child {
+            min-height: 50px;
+        }
+
+        @media (max-width: 640px) {
+            .setting-section > div:first-child {
+                flex-wrap: nowrap !important;
+                gap: 8px !important;
+            }
+
+            .setting-section > div:first-child > div:first-child {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .setting-section > div:first-child > div:first-child h3 {
+                font-size: 16px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .setting-section > div:first-child > div:first-child p {
+                font-size: 11px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsoid;
+            }
+
+            .setting-section > div:first-child > button {
+                flex-shrink: 0;
+                white-space: nowrap;
+                padding: 6px 10px !important;
+                font-size: 13px !important;
+            }
+
+            .setting-section > div:first-child > button svg {
+                width: 18px !important;
+                height: 18px !important;
+            }
+        }
+        
+        .avatar-upload {
+            width: 120px;
+            height: 120px;
+            min-width: 120px;
+            max-width: 120px;
+            min-height: 120px;
+            max-height: 120px;
+            border-radius: 50%;
+            border: 3px dashed rgba(139, 92, 246, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(139, 92, 246, 0.05);
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .avatar-upload:hover {
+            border-color: rgba(139, 92, 246, 0.6);
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .avatar-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            border-radius: 50% !important;
+        }
+        
+        /* 风格选择网格 */
+        .style-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 12px;
+        }
+        
+        .style-option {
+            border: 2px solid rgba(139, 92, 246, 0.2);
+            border-radius: 12px;
+            padding: 12px 12px 40px 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.5);
+            position: relative;
+        }
+        
+        .style-option:hover {
+            border-color: rgba(139, 92, 246, 0.4);
+            background: rgba(139, 92, 246, 0.05);
+            transform: translateY(-2px);
+        }
+        
+        .style-option.selected .style-selector-circle {
+            background: #8b5cf6;
+            border-color: #8b5cf6;
+        }
+        
+        .style-option.selected .style-selector-circle::after {
+            content: '✓';
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .style-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+        
+        .style-desc {
+            font-size: 10px;
+            color: #6b7280;
+            line-height: 1.3;
+        }
+        
+        /* 新增：风格选择圆圈 */
+        .style-selector-circle {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid rgba(139, 92, 246, 0.4);
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .style-selector-circle:hover {
+            border-color: rgba(139, 92, 246, 0.6);
+            transform: translateX(-50%) scale(1.1);
+        }
+        
+        /* 语句编辑弹窗 */
+        .style-editor-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .style-editor-modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .style-editor-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 24px;
+            margin: 16px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            width: 90%;
+        }
+        
+        .style-editor-modal.show .style-editor-content {
+            transform: scale(1);
+        }
+        
+        .style-editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .style-editor-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        
+        .style-editor-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(148, 163, 184, 0.1);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+        
+        .style-editor-close:hover {
+            background: rgba(148, 163, 184, 0.2);
+        }
+        
+        .style-editor-textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 12px;
+            border: 2px solid rgba(139, 92, 246, 0.2);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+        
+        .style-editor-textarea:focus {
+            border-color: rgba(139, 92, 246, 0.5);
+        }
+        
+        .style-editor-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        
+        .style-editor-btn {
+            padding: 8px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .style-editor-cancel {
+            background: rgba(148, 163, 184, 0.2);
+            color: #64748b;
+        }
+        
+        .style-editor-cancel:hover {
+            background: rgba(148, 163, 184, 0.3);
+        }
+        
+        .style-editor-save {
+            background: linear-gradient(135deg, #8b5cf6, #a855f7);
+            color: white;
+        }
+        
+        .style-editor-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+        
+        /* 自定义风格卡片 */
+        .custom-style-card {
+            border: 2px dashed rgba(139, 92, 246, 0.4);
+            background: rgba(139, 92, 246, 0.05);
+        }
+        
+        .custom-style-card:hover {
+            background: rgba(139, 92, 246, 0.1);
+            border-color: rgba(139, 92, 246, 0.6);
+        }
+        
+        /* 已完成任务弹窗样式 */
+        .completed-tasks-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .completed-tasks-modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .completed-tasks-modal-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 24px;
+            margin: 16px;
+            max-width: 90vw;
+            max-height: 70vh;
+            overflow-y: auto;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        
+        .completed-tasks-modal.show .completed-tasks-modal-content {
+            transform: scale(1);
+        }
+        
+        .completed-task-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            border-left: 4px solid #64748b;
+        }
+        
+        .completed-task-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .completed-task-title {
+            font-weight: 500;
+            color: #64748b;
+            flex: 1;
+            margin: 0 8px;
+            text-decoration: line-through;
+        }
+        
+        .undo-btn {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .undo-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+        
+        /* 统计数据点击效果 */
+        .stat-clickable {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-clickable:hover {
+            transform: translateY(-2px);
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 12px;
+        }
+        
+        /* 响应式设计 */
+        @media (max-height: 700px) {
+            .focus-container { padding: 6px 0.75rem 0.75rem 0.75rem; }
+            .oc-avatar { width: 65vw; height: 65vw; max-width: 12rem; max-height: 12rem; }
+            .three-button-layout { margin-bottom: 15px; margin-top: 15px; }
+        }
+        
+        @media (max-height: 600px) {
+            .oc-avatar { width: 60vw; height: 60vw; max-width: 10rem; max-height: 10rem; }
+            .focus-section { padding: 1rem; }
+            .three-button-layout { margin-bottom: 10px; margin-top: 10px; }
+        }
+        
+        @media (min-height: 800px) {
+            .oc-avatar { width: 70vw; height: 70vw; max-width: 18rem; max-height: 18rem; }
+            .three-button-layout { margin-bottom: 25px; margin-top: 25px; }
+        }
+        
+        @media (max-width: 360px) {
+            .oc-avatar { width: 65vw; height: 65vw; min-width: 7rem; min-height: 7rem; }
+            .focus-container { padding: 6px 0.5rem 0.5rem 0.5rem; }
+            .status-selector { min-width: 250px; }
+            .status-grid { grid-template-columns: repeat(2, 1fr); }
+            /* 风格卡片始终保持3列 */
+        }
+
+        @media (max-width: 320px) {
+            .status-selector { min-width: 220px; }
+            .status-grid { grid-template-columns: repeat(2, 1fr); }
+            /* 风格卡片始终保持3列 */
+        }
+        
+        /* 页面切换动画 */
+        .page {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(145deg, #faf7ff 0%, #f1eeff 50%, #e8ddff 100%);
+            transition: transform 0.3s ease-in-out;
+            z-index: 10;
+            overflow-y: auto;
+        }
+        
+        .page.hidden {
+            transform: translateX(100%);
+        }
+        
+        .page.show {
+            transform: translateX(0);
+        }
+        
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(139, 92, 246, 0.3);
+            border-radius: 2px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(139, 92, 246, 0.5);
+        }
+        
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .task-actions {
+                opacity: 1;
+            }
+            
+            .gift-modal-content {
+                margin: 8px;
+                padding: 16px;
+            }
+        }
+        
+        /* 新增：自定义风格删除按钮 */
+        .custom-style-delete {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 20px;
+            height: 20px;
+            background: rgba(239, 68, 68, 0.1);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        
+        .style-option:hover .custom-style-delete {
+            opacity: 1;
+        }
+        
+        .custom-style-delete:hover {
+            background: rgba(239, 68, 68, 0.2);
+            transform: scale(1.1);
+        }
+/* AI鼓励语设置相关样式 */
+.ai-encouragement-section {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.character-description-input {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border: 2px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    line-height: 1.6;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+.character-description-input:focus {
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+.char-counter {
+    font-size: 12px;
+    color: #6b7280;
+    text-align: right;
+    margin-top: 4px;
+}
+
+.char-counter.warning {
+    color: #f59e0b;
+}
+
+.char-counter.error {
+    color: #ef4444;
+}
+
+.generate-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+    flex-wrap: wrap;
+}
+
+.generate-btn {
+    background: linear-gradient(135deg, #8b5cf6, #a855f7);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 20px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.generate-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
+}
+
+.generate-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.generate-btn.loading {
+    position: relative;
+}
+
+.loading-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s linear infinite;
+}
+
+.loading-spinner-small {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(168, 85, 247, 0.3);
+    border-radius: 50%;
+    border-top-color: #a855f7;
+    animation: spin 1s linear infinite;
+}
+
+/* AI语录生成相关样式 */
+#generatePhrasesBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#generatingProgress .loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(168, 85, 247, 0.2);
+    border-radius: 50%;
+    border-top-color: #a855f7;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
+#generatedPhrasesResult {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#encouragementList .bg-green-50,
+#reminderList .bg-blue-50,
+#reminderList .bg-orange-50,
+#reminderList .bg-red-50 {
+    transition: all 0.2s ease;
+}
+
+#encouragementList .bg-green-50:hover,
+#reminderList .bg-blue-50:hover,
+#reminderList .bg-orange-50:hover,
+#reminderList .bg-red-50:hover {
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 语录卡片样式 */
+.phrase-card {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    padding-right: 40px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    border: 1px solid #e5e7eb;
+}
+
+.phrase-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateX(4px);
+}
+
+.phrase-card .delete-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #f3f4f6;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #9ca3af;
+}
+
+.phrase-card .delete-btn:hover {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+.phrase-card .phrase-content {
+    color: #374151;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.phrase-card .phrase-meta {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.phrase-card .phrase-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.phrase-card .tag-gentle { background: #fce7f3; color: #be185d; }
+.phrase-card .tag-tsundere { background: #fef3c7; color: #b45309; }
+.phrase-card .tag-cheerful { background: #dbeafe; color: #1e40af; }
+.phrase-card .tag-aloof { background: #e5e7eb; color: #374151; }
+.phrase-card .tag-mature { background: #d1fae5; color: #065f46; }
+.phrase-card .tag-cunning { background: #ede9fe; color: #6d28d9; }
+.phrase-card .tag-shy { background: #fef9c3; color: #a16207; }
+.phrase-card .tag-doting { background: #fecaca; color: #b91c1c; }
+
+.phrase-card .tag-normal { background: #dbeafe; color: #1e40af; }
+.phrase-card .tag-annoyed { background: #fed7aa; color: #c2410c; }
+.phrase-card .tag-angry { background: #fecaca; color: #b91c1c; }
+
+/* 标签按钮样式 */
+.preset-tab-btn,
+.ai-tab-btn {
+    transition: all 0.2s ease;
+}
+
+.preset-tab-btn:hover,
+.ai-tab-btn:hover {
+    transform: scale(1.05);
+}
+
+.preset-tab-btn.active,
+.ai-tab-btn.active {
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    color: white;
+}
+
+.style-filter-btn,
+.level-filter-btn,
+.ai-level-filter-btn {
+    transition: all 0.2s ease;
+}
+
+.style-filter-btn:hover,
+.level-filter-btn:hover,
+.ai-level-filter-btn:hover {
+    background: #e5e7eb;
+}
+
+.style-filter-btn.active,
+.level-filter-btn.active,
+.ai-level-filter-btn.active {
+    background: #a855f7;
+    color: white;
+}
+
+/* 滚动条样式 */
+#presetPhrasesContainer::-webkit-scrollbar,
+#aiPhrasesContainer::-webkit-scrollbar {
+    width: 6px;
+}
+
+#presetPhrasesContainer::-webkit-scrollbar-track,
+#aiPhrasesContainer::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 3px;
+}
+
+#presetPhrasesContainer::-webkit-scrollbar-thumb,
+#aiPhrasesContainer::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+}
+
+#presetPhrasesContainer::-webkit-scrollbar-thumb:hover,
+#aiPhrasesContainer::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* 风格选择网格 */
+.style-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.style-option {
+    border: 2px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
+    padding: 12px 12px 40px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.5);
+    position: relative;
+}
+
+.style-option:hover {
+    border-color: rgba(139, 92, 246, 0.4);
+    background: rgba(139, 92, 246, 0.05);
+    transform: translateY(-2px);
+}
+
+.style-option.selected .style-selector-circle {
+    background: #8b5cf6;
+    border-color: #8b5cf6;
+}
+
+.style-option.selected .style-selector-circle::after {
+    content: '✓';
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.style-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 4px;
+}
+
+.style-desc {
+    font-size: 10px;
+    color: #6b7280;
+    line-height: 1.3;
+}
+
+/* 风格选择圆圈 */
+.style-selector-circle {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid rgba(139, 92, 246, 0.4);
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.style-selector-circle:hover {
+    border-color: rgba(139, 92, 246, 0.6);
+    transform: translateX(-50%) scale(1.1);
+}
+
+/* 自定义风格卡片 */
+.custom-style-card {
+    border: 2px dashed rgba(139, 92, 246, 0.4);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.custom-style-card:hover {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: rgba(139, 92, 246, 0.6);
+}
+
+/* 自定义风格删除按钮 */
+.custom-style-delete {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.1);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0;
+}
+
+.style-option:hover .custom-style-delete {
+    opacity: 1;
+}
+
+.custom-style-delete:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+
+/* 语句编辑弹窗 */
+.style-editor-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.style-editor-modal.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.style-editor-content {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 24px;
+    margin: 16px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+    width: 90%;
+}
+
+.style-editor-modal.show .style-editor-content {
+    transform: scale(1);
+}
+
+.style-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.style-editor-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #1e293b;
+}
+
+.style-editor-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(148, 163, 184, 0.1);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease;
+}
+
+.style-editor-close:hover {
+    background: rgba(148, 163, 184, 0.2);
+}
+
+.style-editor-textarea {
+    width: 100%;
+    min-height: 300px;
+    padding: 12px;
+    border: 2px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    line-height: 1.6;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+.style-editor-textarea:focus {
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+.style-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.style-editor-btn {
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.style-editor-cancel {
+    background: rgba(148, 163, 184, 0.2);
+    color: #64748b;
+}
+
+.style-editor-cancel:hover {
+    background: rgba(148, 163, 184, 0.3);
+}
+
+.style-editor-save {
+    background: linear-gradient(to right, #8b5cf6, #ec4899);
+    color: white;
+}
+
+.style-editor-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+/* 响应式：移动端2列 */
+@media (max-width: 768px) {
+    /* 风格卡片始终保持3列 */
+}
+
+/* AI语录卡片样式 */
+.ai-phrase-card {
+    border: 2px solid rgba(168, 85, 247, 0.3);
+    border-radius: 16px;
+    padding: 24px 20px 20px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.05), rgba(236, 72, 153, 0.05));
+    position: relative;
+    overflow: hidden;
+}
+
+.ai-phrase-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #a855f7, #ec4899);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.ai-phrase-card:hover {
+    border-color: rgba(168, 85, 247, 0.6);
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(236, 72, 153, 0.1));
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(168, 85, 247, 0.2);
+}
+
+.ai-phrase-card:hover::before {
+    opacity: 1;
+}
+
+.ai-phrase-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    line-height: 1;
+}
+
+.ai-phrase-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 8px;
+}
+
+.ai-phrase-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: #a855f7;
+    margin-bottom: 8px;
+}
+
+.ai-phrase-desc {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+/* 聊天模式切换按钮 */
+.chat-mode-btn {
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.chat-mode-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    color: rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.chat-mode-btn.active {
+    background: rgba(168, 85, 247, 0.8);
+    border-color: rgba(168, 85, 247, 1);
+    color: white;
+    box-shadow: 0 2px 8px rgba(168, 85, 247, 0.4);
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.quantity-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.quantity-select {
+    padding: 8px 12px;
+    border: 2px solid rgba(139, 92, 246, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+}
+
+.quantity-select:focus {
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+.generated-results {
+    border: 2px solid rgba(139, 92, 246, 0.1);
+    border-radius: 12px;
+    background: rgba(248, 250, 252, 0.8);
+    min-height: 100px;
+    overflow-y: auto;
+    max-height: 400px;
+}
+
+.result-item {
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 10px;
+    padding: 12px;
+    margin: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.result-item:hover {
+    border-color: rgba(139, 92, 246, 0.4);
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.1);
+}
+
+.result-text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #374151;
+    margin-bottom: 8px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.result-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.result-btn {
+    padding: 4px 8px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.edit-btn {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+.edit-btn:hover {
+    background: rgba(59, 130, 246, 0.2);
+}
+
+.adopt-btn {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.adopt-btn:hover {
+    background: rgba(16, 185, 129, 0.2);
+}
+
+.regenerate-btn {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.regenerate-btn:hover {
+    background: rgba(245, 158, 11, 0.2);
+}
+
+.delete-btn {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.delete-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+
+.prompt-history {
+    margin-top: 12px;
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    margin: 4px 0;
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.history-item:hover {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.history-text {
+    flex: 1;
+    font-size: 13px;
+    color: #374151;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 8px;
+}
+
+.history-date {
+    font-size: 11px;
+    color: #6b7280;
+    margin-right: 8px;
+}
+
+.history-delete {
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.history-item:hover .history-delete {
+    opacity: 1;
+}
+
+.history-delete:hover {
+    background: rgba(239, 68, 68, 0.2);
+    transform: scale(1.1);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.help-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    cursor: help;
+}
+
+.collapsible-section {
+    transition: all 0.3s ease;
+}
+
+.collapse-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.collapse-toggle:hover {
+    color: #8b5cf6;
+}
+
+.collapse-icon {
+    transition: transform 0.3s ease;
+}
+
+.collapse-icon.collapsed {
+    transform: rotate(-90deg);
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: #6b7280;
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+/* AI相关响应式设计 */
+@media (max-width: 640px) {
+    .generate-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .generate-btn {
+        justify-content: center;
+    }
+
+    .quantity-selector {
+        justify-content: space-between;
+    }
+}
+
+/* 数据中心专用样式 */
+.oc-avatar-small {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #9373B7, #ec4899);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.oc-bubble {
+    background: white;
+    border-radius: 16px;
+    position: relative;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.oc-bubble::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 20px;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 8px 10px 8px 0;
+    border-color: transparent white transparent transparent;
+}
+
+.time-tab {
+    background: rgba(240, 240, 245, 0.8);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 2px;
+}
+
+.time-tab-btn {
+    padding: 8px 16px;
+    border-radius: 18px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    color: #9373B7;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+}
+
+.time-tab-active {
+    background: #9373B7;
+    color: white;
+    box-shadow: 0 2px 8px rgba(147, 115, 183, 0.4);
+}
+
+.chart-container {
+    position: relative;
+}
+
+.tomato-icon {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background: #ff6b6b;
+    border-radius: 50%;
+    position: relative;
+    margin: 0 2px;
+}
+
+.tomato-icon::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 6px;
+    background: #4ade80;
+    border-radius: 50%;
+}
+
+/* ============================================
+   API配置卡片样式
+   ============================================ */
+
+/* 卡片容器 - 纵向滚动 */
+.api-profiles-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 210px;
+    overflow-y: auto;
+    padding: 4px 2px;
+    scroll-snap-type: y mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 隐藏滚动条但保持功能 */
+.api-profiles-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.api-profiles-container::-webkit-scrollbar-track {
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 3px;
+}
+
+.api-profiles-container::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.2);
+    border-radius: 3px;
+}
+
+.api-profiles-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 92, 246, 0.4);
+}
+
+/* 卡片基础样式 */
+.api-profile-card {
+    width: 100%;
+    background: linear-gradient(135deg, rgba(245, 243, 255, 0.9) 0%, rgba(237, 233, 254, 0.9) 100%);
+    border: 2px solid rgba(139, 92, 246, 0.2);
+    border-radius: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(10px);
+    scroll-snap-align: start;
+}
+
+.api-profile-card:hover {
+    border-color: rgba(139, 92, 246, 0.4);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+}
+
+/* 激活状态 */
+.api-profile-card.active {
+    border-color: rgba(139, 92, 246, 0.6);
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.25);
+}
+
+/* 收起状态 */
+.api-profile-card.collapsed {
+    min-height: 60px;
+    max-height: 60px;
+    overflow: hidden;  /* 隐藏溢出内容 */
+}
+
+/* 展开状态 */
+.api-profile-card.expanded {
+    min-height: 480px;
+    overflow: visible;
+}
+
+/* 收起的内容 */
+.api-card-collapsed {
+    padding: 12px 16px;
+    cursor: pointer;
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.api-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+}
+
+.api-card-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.api-card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #475569;
+}
+
+/* 按钮 */
+.api-expand-btn,
+.api-collapse-btn,
+.api-action-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(139, 92, 246, 0.1);
+    border: none;
+    border-radius: 8px;
+    color: #8b5cf6;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+/* 收起状态的删除按钮 */
+.api-delete-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(239, 68, 68, 0.1);
+    border: none;
+    border-radius: 8px;
+    color: #ef4444;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.api-expand-btn:hover,
+.api-collapse-btn:hover,
+.api-action-btn:hover {
+    background: rgba(139, 92, 246, 0.2);
+    transform: scale(1.05);
+}
+
+.api-delete-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    transform: scale(1.05);
+}
+
+/* 收起状态的选择按钮 */
+.api-select-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(139, 92, 246, 0.1);
+    border: none;
+    border-radius: 8px;
+    color: #8b5cf6;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.api-select-btn:hover {
+    background: rgba(139, 92, 246, 0.2);
+    transform: scale(1.05);
+}
+
+.api-select-btn.active {
+    background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+}
+
+.api-select-btn.active:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+    transform: scale(1.05);
+}
+
+/* 展开的内容 */
+.api-card-expanded {
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+}
+
+.api-card-expanded .api-card-header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.api-card-name-input {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 600;
+    color: #475569;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 6px 10px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.api-card-name-input:hover {
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.api-card-name-input:focus {
+    background: white;
+    border-color: rgba(139, 92, 246, 0.4);
+}
+
+.api-card-actions {
+    display: flex;
+    gap: 4px;
+}
+
+/* 卡片主体 */
+.api-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.api-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.api-form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.api-form-input,
+.api-form-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    color: #475569;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.api-form-input:hover,
+.api-form-select:hover {
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.api-form-input:focus,
+.api-form-select:focus {
+    border-color: rgba(139, 92, 246, 0.5);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.api-form-input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.api-form-input-group .api-form-input {
+    padding-right: 40px;
+}
+
+.api-toggle-visibility-btn {
+    position: absolute;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: #8b5cf6;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.api-toggle-visibility-btn:hover {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+/* 卡片底部操作栏 */
+.api-card-footer {
+    display: flex;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.api-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.api-btn-primary {
+    background: linear-gradient(135deg, #8b5cf6, #a855f7);
+    color: white;
+}
+
+.api-btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.api-btn-success {
+    background: linear-gradient(135deg, #10b981, #34d399);
+    color: white;
+    cursor: default;
+}
+
+.api-btn-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.api-btn-danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+.api-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Toast提示 */
+.api-save-toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #1e293b, #334155);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    opacity: 0;
+    animation: slideUpFade 0.3s ease forwards;
+}
+
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* 响应式调整 */
+@media (max-width: 640px) {
+    .api-profiles-container {
+        max-height: 210px;
+    }
+}
+
+/* API配置弹窗样式 */
+.api-config-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.api-config-modal.show {
+    display: flex;
+}
+
+.api-config-modal-content {
+    background: white;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(139, 92, 246, 0.3);
+    animation: slideUp 0.3s ease;
+}
+
+.api-config-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(167, 139, 250, 0.05) 100%);
+}
+
+.api-config-modal-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #475569;
+    margin: 0;
+}
+
+.api-config-modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    max-height: calc(80vh - 80px);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+    </style>
+    <!-- 聊天样式 -->
+    <link rel="stylesheet" href="frontend/css/chat.css">
+</head>
+<body class="min-h-screen">
+    <!-- 背景装饰动画 -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <!-- 飘落樱花 -->
+        <div class="absolute top-16 left-12 text-pink-300/60 text-2xl floating">🌸</div>
+        <div class="absolute top-24 right-20 text-pink-200/50 text-xl floating" style="animation-delay: 1s;">🌸</div>
+        <div class="absolute top-40 left-1/3 text-pink-300/40 text-lg floating" style="animation-delay: 2s;">🌸</div>
+        <div class="absolute bottom-40 right-16 text-pink-200/60 text-xl floating" style="animation-delay: 0.5s;">🌸</div>
+        
+        <!-- 简单爱心改为樱花 -->
+        <div class="absolute top-32 right-12 text-pink-400/70 text-lg sparkle">🌸</div>
+        <div class="absolute bottom-32 left-16 text-pink-300/60 text-sm sparkle" style="animation-delay: 1s;">🌸</div>
+        <div class="absolute top-60 left-8 text-pink-400/50 text-lg sparkle" style="animation-delay: 1.5s;">🌸</div>
+    </div>
+
+    <!-- 首页 -->
+    <div id="homePage" class="page show">
+        <div class="flex flex-col min-h-screen p-4 relative z-10">
+            <!-- 顶部状态栏 -->
+            <div class="flex justify-between items-center pt-4 pb-2 px-2">
+                <div class="flex items-center space-x-2">
+                    <div class="w-2 h-2 bg-green-400 rounded-full breathe"></div>
+                    <span class="text-sm text-purple-600/70">在线</span>
+                </div>
+                <div class="text-sm text-purple-600/70" id="currentDate">
+                    2025年7月29日 星期二
+                </div>
+            </div>
+
+            <!-- 问候语和OC角色展示 -->
+            <div class="mb-4">
+                <div class="glass-card rounded-2xl p-6 bounce-soft cursor-pointer button-hover" onclick="goToOCCards()">
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <img id="currentOCAvatar" src="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=face" 
+                                 alt="OC角色" 
+                                 class="w-16 h-16 rounded-full object-cover border-2 border-purple-400/50 floating">
+                            <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
+                                <div class="w-2 h-2 bg-white rounded-full breathe"></div>
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <h2 id="currentOCGreeting" class="text-lg font-semibold text-slate-800 mb-1">早安，大小姐！</h2>
+                            <p class="text-sm text-purple-600/70">
+                                <span id="currentOCName">小艾</span>陪你度过专注的一天～ ✨
+                            </p>
+                        </div>
+                        <button class="glass-card rounded-xl p-2 button-hover">
+                            <svg class="w-5 h-5 text-purple-500" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 今日任务概览 -->
+            <div class="mb-4">
+                <div class="flex items-center justify-between mb-3 px-2">
+                    <h3 class="text-lg font-semibold text-slate-800">今日任务</h3>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm text-purple-600/70" id="taskProgress">0/0 完成</span>
+                        <button onclick="addNewTask()" class="w-6 h-6 bg-slate-300 rounded-full flex items-center justify-center hover:bg-slate-400 transition-colors">
+                            <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 任务列表容器 -->
+                <div class="glass-card rounded-xl p-4 max-h-60 overflow-y-auto" id="taskContainer">
+                    <div id="taskList" class="space-y-2">
+                        <!-- 任务项会通过JavaScript动态添加 -->
+                    </div>
+                </div>
+            </div>
+
+<!-- 主要操作按钮 -->
+<div class="mb-4">
+    <div class="mb-4">
+        <!-- 开始番茄钟 -->
+        <button onclick="goToFocus()" class="gradient-purple rounded-2xl p-4 text-center button-hover paw-button text-white w-full">
+            <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mx-auto mb-2">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
+            </div>
+            <h4 class="font-semibold mb-1 text-sm">开始番茄钟</h4>
+            <p class="text-xs opacity-80">立即专注</p>
+        </button>
+    </div>
+</div>
+
+
+            
+            <!-- 底部统计 -->
+            <div class="glass-card rounded-xl p-6 mb-4">
+                <div class="grid grid-cols-3 text-center">
+                    <div class="stat-clickable p-2" onclick="showGiftModal()">
+                        <div class="text-xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent" id="todayGifts">0</div>
+                        <div class="text-xs text-slate-500">今日礼物</div>
+                    </div>
+                    <div class="stat-clickable p-2" onclick="goToDataCenter()">
+                        <div class="text-xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent" id="focusTime">0m</div>
+                        <div class="text-xs text-slate-500">专注时长</div>
+                    </div>
+                    <div class="stat-clickable p-2" onclick="showCompletedTasksModal()">
+                        <div class="text-xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent" id="todayCompleted">0</div>
+                        <div class="text-xs text-slate-500">今日完成</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI API配置 -->
+            <div class="mb-4">
+                <div class="flex items-center justify-between mb-3 px-2">
+                    <h3 class="text-lg font-semibold text-slate-800">AI API配置</h3>
+                    <button onclick="addNewAPIProfile()" class="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center hover:bg-purple-600 transition-colors">
+                        <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- API配置卡片容器 -->
+                <div id="apiProfilesContainer" class="api-profiles-container">
+                    <!-- 动态生成的配置卡片 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API配置编辑弹窗 -->
+    <div id="apiConfigModal" class="api-config-modal">
+        <div class="api-config-modal-content">
+            <div class="api-config-modal-header">
+                <h3 class="text-lg font-semibold text-slate-800" id="apiConfigModalTitle">编辑API配置</h3>
+                <button onclick="closeAPIConfigModal()" class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center hover:bg-slate-300 transition-colors">
+                    <svg class="w-5 h-5 text-slate-600" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="apiConfigModalBody" class="api-config-modal-body">
+                <!-- 动态填充的表单内容 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 已完成任务弹窗 -->
+    <div id="completedTasksModal" class="completed-tasks-modal">
+        <div class="completed-tasks-modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-slate-800">今日已完成 </h3>
+                <button onclick="closeCompletedTasksModal()" class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center hover:bg-slate-300 transition-colors">
+                    <svg class="w-5 h-5 text-slate-600" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="completedTasksList" class="max-h-96 overflow-y-auto">
+                <div class="text-center text-slate-500 py-8">
+                 
+                    <p>今天还没有完成任何任务呢～<br>快去完成一些任务吧！</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 礼物弹窗 -->
+    <div id="giftModal" class="gift-modal">
+        <div class="gift-modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-slate-800">今日收到的礼物 🎁</h3>
+                <button onclick="closeGiftModal()" class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center hover:bg-slate-300 transition-colors">
+                    <svg class="w-5 h-5 text-slate-600" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="giftList" class="max-h-96 overflow-y-auto">
+                <div class="text-center text-slate-500 py-8">
+                    <div class="text-4xl mb-2">🎁</div>
+                    <p>今天还没有收到礼物呢～<br>完成番茄钟就能获得OC的礼物奖励！</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 状态礼物编辑弹窗 -->
+<div id="statusGiftEditorModal" class="status-gift-editor-modal">
+    <div class="status-gift-editor-content">
+        <div class="status-gift-editor-header">
+            <h3 class="status-gift-editor-title" id="statusGiftEditorTitle">
+                <span id="statusGiftEditorIcon">📚</span>
+                编辑学习礼物
+            </h3>
+            <button class="status-gift-editor-close" onclick="closeStatusGiftEditor()">
+                <svg class="w-5 h-5 text-slate-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+            </button>
+        </div>
+        <div class="mb-4">
+            <p class="text-sm text-slate-600 mb-2">每行一个礼物，建议格式：表情符号 + 礼物名称 + 鼓励语</p>
+            <p class="text-xs text-slate-500">例如：🏆 学习冠军奖杯！你的努力值得最好的奖励！</p>
+        </div>
+        <textarea id="statusGiftEditorTextarea" class="status-gift-editor-textarea" placeholder="输入礼物内容，每行一个..."></textarea>
+        <div class="status-gift-editor-actions">
+            <button class="status-gift-editor-btn status-gift-editor-cancel" onclick="closeStatusGiftEditor()">取消</button>
+            <button class="status-gift-editor-btn status-gift-editor-save" onclick="saveStatusGifts()">保存</button>
+        </div>
+    </div>
+</div>
+
+    <!-- OC卡片页面 -->
+    <div id="ocCardsPage" class="page hidden">
+        <div class="flex flex-col min-h-screen p-4 relative z-10">
+            <!-- 顶部导航栏 -->
+            <div class="flex items-center justify-between pt-4 pb-6 px-2">
+                <button onclick="goBackToHome()" class="glass-card rounded-full p-3 button-hover">
+                    <svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </button>
+                <h1 class="text-xl font-bold text-slate-800">你的OC卡池</h1>
+                <div class="w-12"></div>
+            </div>
+
+
+
+
+
+
+            <!-- OC卡片网格 -->
+            <div class="grid grid-cols-2 gap-4 mb-6" id="ocCardsGrid">
+                <!-- 创建新OC卡片 -->
+                <div class="oc-card create-card" onclick="createNewOC()">
+                    <div class="text-4xl text-purple-400 mb-2">+</div>
+                    <div class="text-sm text-purple-600 font-medium">创建新OC</div>
+                </div>
+                
+                <!-- 默认OC卡片 -->
+                <div class="oc-card" onclick="editOC(0)">
+                    <div class="flex items-center space-x-3">
+                        <img src="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=120&h=120&fit=crop&crop=face" 
+                             alt="小艾" class="oc-card-avatar">
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-slate-800 mb-1">小艾</h3>
+                            <p class="text-xs text-slate-500">你的学习搭子</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    
+    <!-- 角色设置页面 -->
+    <div id="ocSettingPage" class="page hidden">
+        <div class="flex flex-col min-h-screen p-4 relative z-10">
+            <!-- 顶部导航栏 -->
+            <div class="flex items-center justify-between pt-4 pb-6 px-2">
+                <button onclick="goBackToOCCards()" class="glass-card rounded-full p-3 button-hover">
+                    <svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </button>
+                <h1 class="text-xl font-bold text-slate-800">角色设置</h1>
+                <button onclick="saveOCSettings()" class="glass-card rounded-full p-3 button-hover">
+                    <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 头像设置 -->
+            <div class="setting-section">
+            
+                <div class="flex justify-center">
+                    <div class="avatar-upload" onclick="uploadAvatar()">
+                        <img id="avatarPreview" src="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=240&fit=crop&crop=face" 
+                             alt="头像预览" class="avatar-preview">
+                        <input type="file" id="avatarInput" accept="image/*" style="display: none;" onchange="previewAvatar(event)">
+                    </div>
+                </div>
+                <p class="text-sm text-slate-500 text-center mt-2">点击头像上传新图片</p>
+            </div>
+
+            <!-- 基本信息设置 -->
+            <div class="setting-section">
+                <h3 class="text-lg font-semibold text-slate-800 mb-4">基本信息</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">角色名字</label>
+                        <input type="text" id="ocNameInput"
+                               class="w-full px-4 py-3 rounded-xl border border-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/80"
+                               placeholder="给你的角色起个名字"
+                               value="小艾">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">对你的称呼</label>
+                        <input type="text" id="userTitleInput"
+                               class="w-full px-4 py-3 rounded-xl border border-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/80"
+                               placeholder="角色怎样称呼你"
+                               value="大小姐">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">问候语</label>
+                        <input type="text" id="customGreetingInput"
+                               class="w-full px-4 py-3 rounded-xl border border-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/80"
+                               placeholder="留空则根据时间自动生成（如：早安，大小姐！）"
+                               maxlength="100">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">和你的关系</label>
+                        <input type="text" id="relationshipInput"
+                               class="w-full px-4 py-3 rounded-xl border border-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/80"
+                               placeholder="例如：青梅竹马、恋人、学长学妹、朋友等"
+                               value="朋友">
+                    </div>
+
+
+
+                    <!-- AI 角色人设描述 -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">
+                            角色人设描述
+                        
+                        </label>
+                        <textarea
+                            id="characterDescription"
+                            class="w-full px-4 py-3 rounded-xl border border-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/80 h-32 resize-none"
+                            placeholder="例如：害羞内向"哼~"，喜欢在默默关注你，说话会脸红..."
+                            maxlength="500"
+                        ></textarea>
+                        <div class="flex justify-between items-center mt-2">
+                            <div id="charCounter" class="text-xs text-slate-500">0/500</div>
+                            <div class="flex items-center gap-2">
+                                <!-- 加载指示器 -->
+                                <div id="loadingIndicator" class="hidden">
+                                    <div class="loading-spinner-small"></div>
+                                </div>
+                                <!-- 成功指示器 -->
+                                <div id="successIndicator" class="hidden text-green-500 text-lg">✓</div>
+                                <!-- 确认按钮 -->
+                                <button onclick="saveCharacterDescription()"
+                                        class="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-medium rounded-lg button-hover shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
+                                    <svg class="w-3 h-3 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    确认
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 角色语录自动生成 -->
+            <div class="setting-section bg-white/80 rounded-2xl">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-slate-800">自动生成语录</h3>
+                        <p class="text-xs text-slate-600 mt-1">AI将基于角色人设描述生成专属的角色语录</p>
+                    </div>
+                    <button onclick="toggleAIPhrases()" class="flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-all duration-200">
+                        <svg id="aiPhrasesToggleIcon" class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                        <span id="aiPhrasesToggleText">展开</span>
+                    </button>
+                </div>
+
+                <!-- AI语录内容（默认折叠） -->
+                <div id="aiPhrasesContent" class="hidden">
+                <!-- 生成按钮 -->
+                <button id="generatePhrasesBtn"
+                            onclick="generateAIPhrasesOnly()"
+                            class="w-full px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-xl button-hover shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 mb-4">
+                        <svg class="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        开始生成角色语录
+                    </button>
+
+                    <!-- 生成进度 -->
+                    <div id="generatingProgress" class="hidden">
+                        <div class="flex items-center justify-center gap-3 py-4">
+                            <div class="loading-spinner"></div>
+                            <span class="text-purple-600 font-medium">正在生成中，请稍候...</span>
+                        </div>
+                    </div>
+
+                    <!-- 生成完成状态 -->
+                    <div id="generateSuccessIndicator" class="hidden">
+                        <div class="flex items-center justify-center gap-3 py-4 text-green-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <span class="font-medium">语录生成完成！</span>
+                        </div>
+                    </div>
+
+                    <!-- AI语录卡片 -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- 鼓励语卡片 -->
+                        <div class="style-option ai-phrase-style-card" onclick="showAIPhrasesEditor('encouragements')">
+                            <div class="style-title">💪 鼓励语</div>
+                            <div class="style-desc">
+                                <span id="encouragementCount">0条</span>
+                                <span class="mx-1">-</span>
+                                <span>专注过程中的加油鼓励，我会一直看着你~</span>
+                            </div>
+                        </div>
+
+                        <!-- 督促语卡片 -->
+                        <div class="style-option ai-phrase-style-card" onclick="showAIPhrasesEditor('reminders')">
+                            <div class="style-title">⏰ 督促语</div>
+                            <div class="style-desc">
+                                <span id="reminderCount">0条</span>
+                                <span class="mx-1">-</span>
+                                <span>3种程度的督促提醒，希望你专心学习！</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 预设语录库 -->
+            <div class="setting-section bg-white/80 rounded-2xl">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-slate-800">预设语录库</h3>
+                        <p class="text-xs text-slate-600 mt-1">若您选择不接入AI，则请自行选择角色的语言风格，这将影响角色与你的互动方式</p>
+                    </div>
+                    <button onclick="toggleStyleLibrary()" class="flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-all duration-200">
+                        <svg id="styleLibraryToggleIcon" class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                        <span id="styleLibraryToggleText">展开</span>
+                    </button>
+                </div>
+
+                <!-- 风格库内容（默认折叠） -->
+                    <div id="styleLibraryContent" class="hidden">
+                    <!-- 鼓励风格 -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-slate-700 mb-3">鼓励风格（可多选）</label>
+                    <div class="style-grid" id="encourageStyleGrid">
+                        <div class="style-option" data-style="gentle" onclick="handleStyleClick(event, 'gentle', 'encourage')">
+                            <div class="style-title">温柔守护型</div>
+                            <div class="style-desc">Ta存在的意义，就是为你隔绝一切风雨，默默守护你的方寸安宁。</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'gentle')"></div>
+                        </div>
+                        <div class="style-option" data-style="tsundere" onclick="handleStyleClick(event, 'tsundere', 'encourage')">
+                            <div class="style-title">傲娇毒舌型</div>
+                            <div class="style-desc">嘴硬心软的典范。Ta总是用嫌弃和吐槽来掩饰自己的关心。</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'tsundere')"></div>
+                        </div>
+                        <div class="style-option" data-style="cheerful" onclick="handleStyleClick(event, 'cheerful', 'encourage')">
+                            <div class="style-title">阳光开朗型</div>
+                            <div class="style-desc">Ta是你的专属啦啦队和能量源，用不竭的热情与喝彩，为你注入必胜的活力。</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'cheerful')"></div>
+                        </div>
+                        <div class="style-option" data-style="aloof" onclick="handleStyleClick(event, 'aloof', 'encourage')">
+                            <div class="style-title">淡漠深沉型</div>
+                            <div class="style-desc">Ta如同深海或静夜，表面波澜不惊，内里却蕴藏着只为你一人涌动的深情。</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'aloof')"></div>
+                        </div>
+                        <div class="style-option" data-style="mature" onclick="handleStyleClick(event, 'mature', 'encourage')">
+                            <div class="style-title">成熟包容型</div>
+                            <div class="style-desc">Ta像一座坚实的靠山，一片宁静的港湾。在Ta面前，你无需伪装坚强，可以安心地做最真实的自己。</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'mature')"></div>
+                        </div>
+                        <div class="style-option" data-style="cunning" onclick="handleStyleClick(event, 'cunning', 'encourage')">
+                            <div class="style-title">腹黑心机型</div>
+                            <div class="style-desc">学习在Ta眼中是一场游戏，而你，就是Ta志在必得的猎物与奖励。</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'cunning')"></div>
+                        </div>
+                        <div class="style-option" data-style="shy" onclick="handleStyleClick(event, 'shy', 'encourage')">
+                            <div class="style-title">纯情害羞型</div>
+                            <div class="style-desc">Ta每次和你说话，耳根都会悄悄泛红。Ta的世界很小，小到只能装下书本和你。</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'shy')"></div>
+                        </div>
+                        <div class="style-option" data-style="doting" onclick="handleStyleClick(event, 'doting', 'encourage')">
+                            <div class="style-title">无脑溺爱型</div>
+                            <div class="style-desc">这位的人生信条就是——我的宝贝，天下第一！学习？那是什么？我家宝宝想玩玩，那我就陪着呗！</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'doting')"></div>
+                        </div>
+                        <!-- 自定义风格卡片 -->
+                        <div class="style-option custom-style-card" data-style="custom-encourage" onclick="handleCustomStyleClick('encourage')">
+                            <div class="style-title">✏️ 自定义</div>
+                            <div class="style-desc">创建你独特的鼓励风格</div>
+                            <div class="style-selector-circle" onclick="event.stopPropagation(); handleStyleSelect(event, 'custom-encourage')"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 督促风格 -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-3">督促风格（可多选）</label>
+                    <div class="style-grid" id="reminderStyleGrid">
+                        <div class="style-option" data-style="guardian" onclick="handleStyleClick(event, 'guardian', 'remind')">
+                            <div class="style-title">守护者</div>
+                            <div class="style-desc">温和而坚定地守护你的学习时光</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'guardian')"></div>
+                        </div>
+                        <div class="style-option" data-style="pusher" onclick="handleStyleClick(event, 'pusher', 'remind')">
+                            <div class="style-title">鞭策者</div>
+                            <div class="style-desc">严格要求，用坚决的态度督促你前进</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'pusher')"></div>
+                        </div>
+                        <div class="style-option" data-style="cheerleader" onclick="handleStyleClick(event, 'cheerleader', 'remind')">
+                            <div class="style-title">应援者</div>
+                            <div class="style-desc">用热情的鼓励为你加油打气</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'cheerleader')"></div>
+                        </div>
+                        <div class="style-option" data-style="observer" onclick="handleStyleClick(event, 'observer', 'remind')">
+                            <div class="style-title">观察者</div>
+                            <div class="style-desc">默默关注，在合适的时机给出提醒</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'observer')"></div>
+                        </div>
+                        <div class="style-option" data-style="guide" onclick="handleStyleClick(event, 'guide', 'remind')">
+                            <div class="style-title">引导者</div>
+                            <div class="style-desc">循循善诱，用智慧引导你回到正轨</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'guide')"></div>
+                        </div>
+                        <div class="style-option" data-style="strategist" onclick="handleStyleClick(event, 'strategist', 'remind')">
+                            <div class="style-title">布局者</div>
+                            <div class="style-desc">精心计划，用策略帮你规划学习</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'strategist')"></div>
+                        </div>
+                        <div class="style-option" data-style="companion" onclick="handleStyleClick(event, 'companion', 'remind')">
+                            <div class="style-title">陪伴者</div>
+                            <div class="style-desc">静静陪伴，用温暖的存在支持你</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'companion')"></div>
+                        </div>
+                        <div class="style-option" data-style="believer" onclick="handleStyleClick(event, 'believer', 'remind')">
+                            <div class="style-title">溺爱者</div>
+                            <div class="style-desc">坚信你的能力，用信任激励你</div>
+                            <div class="style-selector-circle" onclick="handleStyleSelect(event, 'believer')"></div>
+                        </div>
+                        <!-- 自定义风格卡片 -->
+                        <div class="style-option custom-style-card" data-style="custom-remind" onclick="handleCustomStyleClick('remind')">
+                            <div class="style-title">✏️ 自定义</div>
+                            <div class="style-desc">创建你独特的督促风格</div>
+                            <div class="style-selector-circle" onclick="event.stopPropagation(); handleStyleSelect(event, 'custom-remind')"></div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+
+
+            <!-- 状态礼物设置 -->
+            <div class="setting-section bg-white/80 rounded-2xl">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-slate-800">状态礼物设置</h3>
+                        <p class="text-xs text-slate-600 mt-1">角色送你的专属礼物奖励，完成番茄钟时会随机获得</p>
+                    </div>
+                    <button onclick="toggleStatusGifts()" class="flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-all duration-200">
+                        <svg id="statusGiftsToggleIcon" class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                        <span id="statusGiftsToggleText">展开</span>
+                    </button>
+                </div>
+
+                <!-- 状态礼物内容（默认折叠） -->
+                <div id="statusGiftsContent" class="hidden">
+                <div class="status-gift-grid" id="statusGiftGrid">
+                <!-- 预设状态礼物卡片 -->
+                    <div class="status-gift-card" data-status="学习"onclick="editStatusGift('学习', '📚')" >
+                        <div class="status-gift-header">
+                            <span class="status-gift-icon">📚</span>
+                            <span class="status-gift-name">学习</span>
+                        </div>
+                        <div class="status-gift-preview">点击编辑礼物内容</div>
+                        <div class="status-gift-edit-indicator">✏️</div>
+                    </div>
+                    <div class="status-gift-card" data-status="工作"onclick="editStatusGift('学习', '📚')">
+                        <div class="status-gift-header">
+                            <span class="status-gift-icon">💼</span>
+                            <span class="status-gift-name">工作</span>
+                        </div>
+                        <div class="status-gift-preview">点击编辑礼物内容</div>
+                        <div class="status-gift-edit-indicator">✏️</div>
+                    </div>
+                    
+                    <div class="status-gift-card" data-status="冒险"onclick="editStatusGift('学习', '📚')">
+                        <div class="status-gift-header">
+                            <span class="status-gift-icon">🗺️</span>
+                            <span class="status-gift-name">冒险</span>
+                        </div>
+                        <div class="status-gift-preview">点击编辑礼物内容</div>
+                        <div class="status-gift-edit-indicator">✏️</div>
+                    </div>
+                    
+                    <div class="status-gift-card" data-status="逛街"onclick="editStatusGift('学习', '📚')">
+                        <div class="status-gift-header">
+                            <span class="status-gift-icon">🛍️</span>
+                            <span class="status-gift-name">逛街</span>
+                        </div>
+                        <div class="status-gift-preview">点击编辑礼物内容</div>
+                        <div class="status-gift-edit-indicator">✏️</div>
+                    </div>
+                    
+                    <div class="status-gift-card" data-status="玩游戏"onclick="editStatusGift('学习', '📚')">
+                        <div class="status-gift-header">
+                            <span class="status-gift-icon">🎮</span>
+                            <span class="status-gift-name">玩游戏</span>
+                        </div>
+                        <div class="status-gift-preview">点击编辑礼物内容</div>
+                        <div class="status-gift-edit-indicator">✏️</div>
+                    </div>
+                    
+                    <div class="status-gift-card" data-status="发呆"onclick="editStatusGift('学习', '📚')">
+                        <div class="status-gift-header">
+                            <span class="status-gift-icon">💭</span>
+                            <span class="status-gift-name">发呆</span>
+                        </div>
+                        <div class="status-gift-preview">点击编辑礼物内容</div>
+                        <div class="status-gift-edit-indicator">✏️</div>
+                    </div>
+                    
+                    <div class="status-gift-card" data-status="睡觉"onclick="editStatusGift('学习', '📚')">
+                        <div class="status-gift-header">
+                            <span class="status-gift-icon">💤</span>
+                            <span class="status-gift-name">睡觉</span>
+                        </div>
+                        <div class="status-gift-preview">点击编辑礼物内容</div>
+                        <div class="status-gift-edit-indicator">✏️</div>
+                    </div>
+                    
+                    <div class="status-gift-card" data-status="休息"onclick="editStatusGift('学习', '📚')">
+                        <div class="status-gift-header">
+                            <span class="status-gift-icon">🌙</span>
+                            <span class="status-gift-name">休息</span>
+                        </div>
+                        <div class="status-gift-preview">点击编辑礼物内容</div>
+                        <div class="status-gift-edit-indicator">✏️</div>
+                    </div>
+                    <!-- 自定义状态卡片 -->
+                    <div class="status-gift-card custom-status-card" onclick="createCustomStatusGift()">
+                        <div class="status-gift-header">
+                            <span class="status-gift-icon">+</span>
+                            <span class="status-gift-name">自定义状态</span>
+                        </div>
+                        <div class="status-gift-preview">添加新的状态礼物</div>
+                        <div class="status-gift-edit-indicator">✨</div>
+                    </div>
+                </div>
+                </div>
+            </div>
+
+
+            <!-- 删除OC按钮 -->
+            <div class="setting-section border-red-200">
+                <button onclick="deleteOC()" class="w-full py-3 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors">
+                    删除这个OC
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 风格语句编辑弹窗 -->
+    <div id="styleEditorModal" class="style-editor-modal">
+        <div class="style-editor-content">
+            <div class="style-editor-header">
+                <h3 class="style-editor-title" id="styleEditorTitle">编辑风格语句</h3>
+                <button class="style-editor-close" onclick="closeStyleEditor()">
+                    <svg class="w-5 h-5 text-slate-600" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="mb-4">
+                <p class="text-sm text-slate-600" id="styleEditorDesc">每行一条语句，{title} 会被替换为用户称呼</p>
+            </div>
+            <textarea id="styleEditorTextarea" class="style-editor-textarea" placeholder="输入语句，每行一条..."></textarea>
+            <div class="style-editor-actions">
+                <button class="style-editor-btn style-editor-cancel" onclick="closeStyleEditor()">取消</button>
+                <button class="style-editor-btn style-editor-save" onclick="saveStyleMessages()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 专注界面 -->
+    <div id="focusPage" class="page hidden bg-gradient-to-br from-purple-50 to-pink-50">
+        <!-- 专注页面背景装饰 -->
+        <div class="fixed inset-0 pointer-events-none overflow-hidden">
+            <!-- 更多樱花 -->
+            <div class="absolute top-20 left-8 text-pink-300/50 text-xl floating">🌸</div>
+            <div class="absolute top-32 right-12 text-pink-200/40 text-lg floating" style="animation-delay: 0.8s;">🌸</div>
+            <div class="absolute top-48 left-1/4 text-pink-300/60 text-sm floating" style="animation-delay: 1.5s;">🌸</div>
+            <div class="absolute bottom-48 right-20 text-pink-200/50 text-lg floating" style="animation-delay: 2s;">🌸</div>
+            <div class="absolute bottom-32 left-12 text-pink-300/40 text-xl floating" style="animation-delay: 0.3s;">🌸</div>
+            
+            <div class="absolute top-40 right-8 text-pink-400/60 text-lg sparkle">🌸</div>
+            <div class="absolute bottom-40 left-8 text-pink-300/50 text-sm sparkle" style="animation-delay: 1.2s;">🌸</div>
+            <div class="absolute top-64 right-1/4 text-pink-400/40 text-lg sparkle" style="animation-delay: 2.2s;">🌸</div>
+        </div>
+
+        <!-- 专注页面内容 -->
+        <div class="flex flex-col h-full focus-container relative z-10">
+            <!-- 计时器和任务信息区域 -->
+            <div class="glass-card rounded-2xl p-3 mb-4 focus-section relative z-50">
+                <!-- 返回按钮在左上角 -->
+                <button onclick="goBackHome()" class="absolute -top-2 -left-2 glass-card rounded-full p-2 button-hover">
+                    <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </button>
+
+                <!-- 设置按钮在右上角 -->
+                <button onclick="goToOCSetting()" class="absolute -top-2 -right-2 glass-card rounded-full p-2 button-hover" title="OC设置">
+                    <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.37-2.37z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </button>
+                
+                <!-- 模式切换 -->
+                <div class="flex justify-center mb-2 mt-2">
+                    <div class="bg-white/50 rounded-xl p-1 flex">
+                        <button id="pomodoroBtn" class="px-4 py-2 rounded-lg text-sm font-medium transition-all mode-active">
+                            番茄钟
+                        </button>
+                        <button id="timerBtn" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-600">
+                            正计时
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 计时器显示 -->
+                <div class="text-center mb-2 relative">
+                    <div id="timerDisplay" class="timer-text font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent" onclick="toggleTimeSelector()">
+                        25:00
+                    </div>
+                    
+                    <!-- 时间选择器 -->
+                    <div id="timeSelector" class="time-selector" style="z-index: 70;">
+                        <div class="time-option" onclick="selectTime(10)">
+                            <span>10 分钟</span>
+                            <span class="text-xs text-slate-500">短专注</span>
+                        </div>
+                        <div class="time-option active" onclick="selectTime(25)">
+                            <span>25 分钟</span>
+                            <span class="text-xs text-slate-500">标准</span>
+                        </div>
+                        <div class="time-option" onclick="selectTime(50)">
+                            <span>50 分钟</span>
+                            <span class="text-xs text-slate-500">深度专注</span>
+                        </div>
+                        <div class="custom-time-input">
+                            <span class="text-sm text-slate-600 whitespace-nowrap">自定义:</span>
+                            <input type="number" 
+                                   class="flex-1 bg-white/80 border border-purple-200 rounded-lg px-3 py-1 text-sm text-center min-w-0" 
+                                   id="customTimeInput" 
+                                   min="1" 
+                                   max="120" 
+                                   value="25" 
+                                   placeholder="1-120"
+                                   onkeypress="handleCustomTimeEnter(event)">
+                            <span class="text-sm text-slate-600 whitespace-nowrap">分钟</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 当前任务信息 -->
+                <div class="bg-white/40 rounded-xl p-3 cursor-pointer hover:bg-white/50 transition-colors relative" onclick="showTaskSelector()">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-slate-500 text-xs mb-1">当前任务</p>
+                            <p id="currentTaskName" class="text-slate-800 font-medium text-sm">复习英语单词</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div id="currentTaskStatus" class="text-xs text-blue-500 bg-blue-100 px-2 py-1 rounded-full">
+                                进行中
+                            </div>
+                            <svg class="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                            </svg>
+                        </div>
+                    </div>
+                    
+                    <!-- 任务选择器 -->
+                    <div id="taskSelector" class="status-selector" style="top: calc(100% + 10px); z-index: 70;">
+                        <!-- 任务选项会动态添加 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 中部区域 - OC状态展示 -->
+            <div class="flex flex-col justify-center items-center px-4 relative flex-1">
+                <!-- OC头像区域 - 居中，两边心电图 -->
+                <div class="relative mb-4 flex items-center justify-center w-full">
+                    
+
+                    <!-- OC头像 -->
+                    <div class="oc-avatar bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center relative" onclick="handleOCClick()">
+                        <img id="focusOCAvatar" src="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=200&h=200&fit=crop&crop=face"
+                             alt="OC头像" class="w-full h-full object-cover rounded-full">
+                    </div>
+
+                    
+                </div>
+
+                <!-- 角色状态文字 - 优化居中算法 -->
+                <div class="text-center mb-2 relative">
+                    <button id="statusButton" onclick="toggleStatusSelector()" class="oc-status-text-wrapper text-slate-700 font-medium text-lg mb-2 breathe hover:text-purple-600 transition-colors cursor-pointer">
+                        <span class="oc-status-pure-text">状态待选择</span> <span class="oc-status-emoji">⚪</span>
+                    </button>
+                    
+                    <!-- 状态选择器 -->
+                    <div id="statusSelector" class="status-selector" style="z-index: 70;">
+                        <div class="status-grid">
+                            <div class="status-option" onclick="selectStatus('学习', '📚')">
+                                <span class="status-icon">📚</span>
+                                <span class="status-text">学习</span>
+                            </div>
+                            <div class="status-option" onclick="selectStatus('工作', '💼')">
+                                <span class="status-icon">💼</span>
+                                <span class="status-text">工作</span>
+                            </div>
+                            <div class="status-option" onclick="selectStatus('冒险', '🗺️')">
+                                <span class="status-icon">🗺️</span>
+                                <span class="status-text">冒险</span>
+                            </div>
+                            <div class="status-option" onclick="selectStatus('逛街', '🛍️')">
+                                <span class="status-icon">🛍️</span>
+                                <span class="status-text">逛街</span>
+                            </div>
+                            <div class="status-option" onclick="selectStatus('玩游戏', '🎮')">
+                                <span class="status-icon">🎮</span>
+                                <span class="status-text">玩游戏</span>
+                            </div>
+                            <div class="status-option" onclick="selectStatus('发呆', '💭')">
+                                <span class="status-icon">💭</span>
+                                <span class="status-text">发呆</span>
+                            </div>
+                            <div class="status-option" onclick="selectStatus('睡觉', '💤')">
+                                <span class="status-icon">💤</span>
+                                <span class="status-text">睡觉</span>
+                            </div>
+                            <div class="status-option" onclick="selectStatus('休息', '🌙')">
+                                <span class="status-icon">🌙</span>
+                                <span class="status-text">休息</span>
+                            </div>
+                            <div class="status-option" onclick="showCustomStatusInput()">
+                                <span class="status-icon">✏️</span>
+                                <span class="status-text">自定义</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 自定义状态输入框 -->
+                        <div id="customStatusInput" class="mt-3 hidden">
+                            <input type="text" 
+                                   id="customStatusText" 
+                                   class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/80 text-sm" 
+                                   placeholder="输入自定义状态（如：看书、运动等）"
+                                   onkeypress="handleCustomStatusEnter(event)"
+                                   maxlength="10">
+                            <div class="flex justify-end mt-2 space-x-2">
+                                <button onclick="cancelCustomStatus()" class="px-3 py-1 text-xs rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors">
+                                    取消
+                                </button>
+                                <button onclick="confirmCustomStatus()" class="px-3 py-1 text-xs rounded-lg bg-purple-500 text-white hover:bg-purple-600 transition-colors">
+                                    确认
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OC语区域 - 优化文字居中 -->
+                <div class="oc-message-area" onclick="toggleChatPanel()" style="cursor: pointer;">
+                    <div id="ocMessageText" class="oc-message-text">
+                        <span class="oc-message-text-wrapper">快开始学习吧！我会一直陪着你！！</span>
+                    </div>
+                </div>
+
+                <!-- 聊天面板（透明悬浮） -->
+                <div id="chatPanel" class="chat-panel hidden">
+                    <!-- 聊天头部 -->
+                    <div class="chat-header">
+                        <div class="chat-header-content">
+                            <span id="chatOCName" class="chat-header-name">小艾</span>
+                            <button onclick="toggleChatPanel()" class="chat-close-button">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 聊天消息区域 -->
+                    <div id="chatMessages" class="chat-messages">
+                        <!-- 消息会动态添加到这里 -->
+                        <div class="chat-welcome">
+                            <p class="text-white/80 text-sm text-center">和<span id="chatWelcomeName"></span>聊聊天吧～</p>
+                        </div>
+
+                        <!-- 清空记录按钮 - 右下角 -->
+                        <button onclick="clearCurrentChatHistory()" class="chat-clear-button-floating" title="清空聊天记录">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M6 7H5v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7H6zm4 12H8v-9h2v9zm6 0h-2v-9h2v9zm.618-15L15 2H9L7.382 4H3v2h18V4z"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- 聊天输入区域 -->
+                    <div class="chat-input-area">
+
+
+                        <div class="flex items-center space-x-2">
+                            <input type="text" id="chatInput" placeholder="说点什么..."
+                                   class="flex-1 bg-white/20 backdrop-blur-sm text-white placeholder-white/60 rounded-full px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-white/50 border border-white/30"
+                                   onkeypress="handleChatKeyPress(event)">
+                            <button onclick="sendChatMessageToOC()" class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white rounded-full p-2.5 transition-all">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部操作区域 -->
+            <div class="mt-auto">
+                <!-- 单个开始按钮 -->
+                <div id="singleButtonLayout" class="flex flex-col items-center px-4 mb-6">
+                    <div id="startBtnHint" class="text-xs text-slate-600 mb-2 hidden">请选择OC状态</div>
+                    <button id="startBtn" class="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl px-8 py-3 button-hover paw-button text-white font-semibold" onclick="startStopTimer()">
+                        <span id="startBtnText">开始</span>
+                    </button>
+                </div>
+                
+                <!-- 三按钮布局（隐藏状态） -->
+                <div id="threeButtonLayout" class="three-button-layout px-4 hidden">
+                    <!-- 音乐按钮 -->
+                    <button id="musicBtn" class="side-button button-hover" onclick="toggleMusic()">
+                        <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                        </svg>
+                    </button>
+
+                    <!-- 暂停/继续按钮 -->
+                    <button id="pauseBtn" class="bg-gradient-to-r from-purple-500 to-pink-500 main-button button-hover text-white font-semibold" onclick="pauseResumeTimer()">
+                        <svg class="w-8 h-8" fill="white" viewBox="0 0 24 24">
+                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                        </svg>
+                    </button>
+
+                    <!-- 停止按钮 -->
+                    <button id="stopBtn" class="side-button button-hover" onclick="stopTimer()">
+                        <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M6 6h12v12H6z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 完成礼物弹窗 -->
+    <div id="completionModal" class="completion-modal">
+        <div class="completion-modal-content">
+            <div id="completionTitle" class="completion-title">🎉 恭喜完成任务！</div>
+            <div id="completionGift" class="completion-gift">小艾学习结束啦，给你带回了 🎁 专属定制奖杯！你是最棒的！</div>
+            <button class="completion-close-btn" onclick="closeCompletionModal()">继续学习</button>
+        </div>
+    </div>
+<!-- 专注数据中心页面 -->
+<div id="dataCenterPage" class="page hidden">
+    <div class="flex flex-col min-h-screen relative z-10">
+        <!-- 数据中心内容将在这里加载 -->
+        <div id="dataCenterContent"></div>
+    </div>
+</div>
+    <script src="frontend/js/api.js"></script>
+    <script src="frontend/js/api-card-ui.js"></script>
+    <script src="frontend/js/main.js"></script>
+    <script src="frontend/js/chat.js"></script>
+
+<!-- 在 </body> 标签前 -->
+
+<!-- 风格语句编辑弹窗 -->
+<div id="styleEditorModal" class="style-editor-modal">
+    <div class="style-editor-content">
+        <div class="style-editor-header">
+            <h3 class="style-editor-title" id="styleEditorTitle">编辑风格语句</h3>
+            <button class="style-editor-close" onclick="closeStyleEditor()">
+                <svg class="w-5 h-5 text-slate-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+            </button>
+        </div>
+        <div class="mb-4">
+            <p class="text-sm text-slate-600" id="styleEditorDesc">每行一条语句，{title} 会被替换为用户称呼</p>
+        </div>
+        <textarea id="styleEditorTextarea" class="style-editor-textarea" placeholder="输入语句，每行一条..."></textarea>
+        <div class="style-editor-actions">
+            <button class="style-editor-btn style-editor-cancel" onclick="closeStyleEditor()">取消</button>
+            <button class="style-editor-btn style-editor-save" onclick="saveStyleMessages()">保存</button>
+        </div>
+    </div>
+</div>
+
+</body>
+
+

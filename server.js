@@ -43,8 +43,8 @@ function proxyApi(handler) {
 }
 
 app.post('/api/chat', proxyApi(apiModules.chat.handler));
-app.post('/api/auth', proxyApi(apiModules.auth.handler));
-app.all('/api/sync', proxyApi(apiModules.sync.handler));
+app.post('/api/auth', proxyApi(apiModules.auth));
+app.all('/api/sync', proxyApi(apiModules.sync));
 
 app.listen(PORT, () => {
   console.log(`🚀 伴柠番茄钟已启动: http://localhost:${PORT}`);

@@ -159,9 +159,15 @@ class SyncManager {
       this.lastSyncAt = null;
       this._saveState();
 
-      // 推全量数据
-      await this._pushAll();
-
+      if (data.isNew) {
+        // 首台设备：推本地数据到云端
+        await this._pushAll();
+      } else {
+        // 已有数据：从云端拉取到本地
+        this.lastSyncAt = null;
+        await this.pull();
+        location.reload();
+      }
       this.status = 'synced';
       this._notify();
       return data;

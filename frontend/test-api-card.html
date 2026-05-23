@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API卡片测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .test-button:hover {
+            background: #7c3aed;
+        }
+        .console-output {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 API卡片功能测试</h1>
+
+        <div class="test-section">
+            <h3>1. 测试API函数加载</h3>
+            <button class="test-button" onclick="testAPIFunctions()">测试函数</button>
+            <div id="functionTestOutput" class="console-output"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 测试卡片切换</h3>
+            <button class="test-button" onclick="testToggleCard()">测试切换</button>
+            <div id="toggleTestOutput" class="console-output"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. 测试localStorage</h3>
+            <button class="test-button" onclick="testLocalStorage()">查看存储</button>
+            <button class="test-button" onclick="clearLocalStorage()">清空存储</button>
+            <div id="storageTestOutput" class="console-output"></div>
+        </div>
+    </div>
+
+    <script src="./js/api.js"></script>
+    <script src="./js/api-card-ui.js"></script>
+
+    <script>
+        // 辅助函数：清空输出
+        function clearOutput(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        // 辅助函数：添加输出
+        function log(elementId, message) {
+            const output = document.getElementById(elementId);
+            output.innerHTML += `<div>${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // 测试1: 检查API函数
+        function testAPIFunctions() {
+            clearOutput('functionTestOutput');
+            log('functionTestOutput', '========== 测试API函数加载 ==========');
+
+            const functions = [
+                'getAPIProfiles',
+                'saveAPIProfiles',
+                'initAPIProfiles',
+                'getActiveAPIProfile',
+                'setActiveAPIProfileId',
+                'deleteAPIProfile',
+                'getDefaultUrlByService',
+                'getModelsByService'
+            ];
+
+            functions.forEach(funcName => {
+                const exists = typeof window[funcName] === 'function';
+                log('functionTestOutput', `${exists ? '✅' : '❌'} ${funcName}: ${typeof window[funcName]}`);
+            });
+
+            // 测试获取配置
+            try {
+                const profiles = window.getAPIProfiles();
+                log('functionTestOutput', `\n📋 当前配置数量: ${profiles.length}`);
+                if (profiles.length > 0) {
+                    log('functionTestOutput', `第一个配置: ${JSON.stringify(profiles[0], null, 2)}`);
+                }
+            } catch (error) {
+                log('functionTestOutput', `❌ 错误: ${error.message}`);
+            }
+        }
+
+        // 测试2: 测试卡片切换
+        function testToggleCard() {
+            clearOutput('toggleTestOutput');
+            log('toggleTestOutput', '========== 测试卡片切换 ==========');
+
+            try {
+                const profiles = window.getAPIProfiles();
+
+                if (profiles.length === 0) {
+                    log('toggleTestOutput', '⚠️ 没有配置，先创建一个测试配置');
+
+                    // 创建测试配置
+                    const testProfile = {
+                        id: 'test_' + Date.now(),
+                        name: '测试配置',
+                        aiService: 'openai',
+                        apiModel: 'gpt-3.5-turbo',
+                        apiUrl: '',
+                        apiKey: 'test-key',
+                        isActive: true,
+                        isExpanded: false,
+                        createdAt: Date.now()
+                    };
+
+                    profiles.push(testProfile);
+                    window.saveAPIProfiles(profiles);
+                    log('toggleTestOutput', '✅ 已创建测试配置');
+                }
+
+                const profile = profiles[0];
+                log('toggleTestOutput', `\n当前状态: ${profile.isExpanded ? '展开' : '收起'}`);
+
+                // 切换状态
+                profile.isExpanded = !profile.isExpanded;
+                window.saveAPIProfiles(profiles);
+
+                log('toggleTestOutput', `切换后状态: ${profile.isExpanded ? '展开' : '收起'}`);
+
+                // 重新读取验证
+                const updatedProfiles = window.getAPIProfiles();
+                const updatedProfile = updatedProfiles[0];
+                log('toggleTestOutput', `验证状态: ${updatedProfile.isExpanded ? '展开' : '收起'}`);
+
+                if (profile.isExpanded === updatedProfile.isExpanded) {
+                    log('toggleTestOutput', '\n✅ 状态切换成功！');
+                } else {
+                    log('toggleTestOutput', '\n❌ 状态切换失败！');
+                }
+
+            } catch (error) {
+                log('toggleTestOutput', `❌ 错误: ${error.message}\n${error.stack}`);
+            }
+        }
+
+        // 测试3: 查看localStorage
+        function testLocalStorage() {
+            clearOutput('storageTestOutput');
+            log('storageTestOutput', '========== localStorage内容 ==========');
+
+            const keys = ['apiProfiles', 'activeApiProfileId', 'apiKey', 'aiService', 'apiUrl', 'apiModel'];
+
+            keys.forEach(key => {
+                const value = localStorage.getItem(key);
+                if (value) {
+                    try {
+                        const parsed = JSON.parse(value);
+                        log('storageTestOutput', `\n${key}:\n${JSON.stringify(parsed, null, 2)}`);
+                    } catch (e) {
+                        log('storageTestOutput', `\n${key}: ${value}`);
+                    }
+                } else {
+                    log('storageTestOutput', `\n${key}: (空)`);
+                }
+            });
+        }
+
+        // 清空localStorage
+        function clearLocalStorage() {
+            if (confirm('确定要清空所有API配置吗？')) {
+                localStorage.removeItem('apiProfiles');
+                localStorage.removeItem('activeApiProfileId');
+                localStorage.removeItem('apiKey');
+                localStorage.removeItem('aiService');
+                localStorage.removeItem('apiUrl');
+                localStorage.removeItem('apiModel');
+
+                clearOutput('storageTestOutput');
+                log('storageTestOutput', '✅ 已清空所有API配置');
+                alert('已清空，请刷新页面重新开始');
+            }
+        }
+
+        // 页面加载完成后自动测试
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                log('functionTestOutput', '📌 页面加载完成，开始自动测试...\n');
+                testAPIFunctions();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

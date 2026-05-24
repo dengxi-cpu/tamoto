@@ -345,6 +345,12 @@ class SyncManager {
       });
 
       if (!resp.ok) {
+        if (resp.status === 404) {
+          // 用户不存在（本地身份过期/旧哈希残留），重置同步
+          console.warn('SyncManager: 云端用户不存在，重置同步');
+          this.disableSync();
+          return;
+        }
         const err = await resp.json();
         throw new Error(err.error || '拉取失败');
       }

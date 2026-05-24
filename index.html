@@ -3276,7 +3276,10 @@
                                     <button onclick="showChangeSyncCode()" class="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 text-xs font-medium hover:bg-orange-200">更改</button>
                                 </div>
                             </div>
-                            <button onclick="disableSync()" class="text-xs text-red-500 hover:text-red-700">停用云同步</button>
+                            <div class="text-xs text-slate-500 mt-1">
+                                同步码：<span id="syncCodeDisplay" class="font-mono font-medium text-slate-700"></span>
+                            </div>
+                            <button onclick="disableSync()" class="text-xs text-red-500 hover:text-red-700 mt-1">停用云同步</button>
                         </div>
                     </div>
                 </div>

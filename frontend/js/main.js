@@ -4276,9 +4276,14 @@ closeStatusGiftEditor();
 
      const codeSection = document.getElementById('syncCodeSection');
      const manageSection = document.getElementById('syncManageSection');
+     const codeDisplay = document.getElementById('syncCodeDisplay');
      if (codeSection && manageSection) {
          codeSection.style.display = (status === 'not_configured') ? '' : 'none';
          manageSection.style.display = (status !== 'not_configured') ? '' : 'none';
+     }
+     // 显示当前同步码（手机号）
+     if (codeDisplay && window.syncManager) {
+         codeDisplay.textContent = window.syncManager.identityHash || '';
      }
  }
 

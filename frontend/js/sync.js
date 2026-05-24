@@ -43,16 +43,6 @@ class SyncManager {
     }
   }
 
-  /** 获取设备 ID（localStorage 中持久化） */
-  _getDeviceId() {
-    let id = localStorage.getItem('deviceId');
-    if (!id) {
-      id = 'device_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-      localStorage.setItem('deviceId', id);
-    }
-    return id;
-  }
-
   /** 从 localStorage 恢复同步状态 */
   _loadState() {
     try {
@@ -119,11 +109,10 @@ class SyncManager {
   //  同步码管理
   // ===================================
 
-  /** 生成 identityHash */
+  /** 生成 identityHash（仅基于同步码，确保跨设备一致） */
   async _hashSyncCode(code) {
-    const deviceId = this._getDeviceId();
     const encoder = new TextEncoder();
-    const data = encoder.encode(deviceId + '::' + code);
+    const data = encoder.encode(code);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');

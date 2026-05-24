@@ -89,9 +89,12 @@ async function handler(req, res) {
         { method: 'PATCH', body: JSON.stringify({ last_sync_at: now }), headers: { 'Prefer': 'return=minimal' } }
       );
 
+      if (errors.length > 0) {
+        return res.status(500).json({ success: false, error: '部分数据同步失败', details: errors });
+      }
+
       return res.status(200).json({
         success: true,
-        errors: errors.length > 0 ? errors : undefined,
         serverTime: now
       });
     }

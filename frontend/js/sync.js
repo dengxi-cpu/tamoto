@@ -233,6 +233,30 @@ class SyncManager {
     await this._flush();
   }
 
+  /** 强制全量推送所有本地数据（忽略 _pending，供"立即同步"按钮使用） */
+  async forceSync() {
+    if (!this.enabled || !this.identityHash) return false;
+    this.status = 'syncing';
+    this._notify();
+    try {
+      const data = await this._collectAllData();
+      const hasData = Object.keys(data).length > 0;
+      if (hasData) {
+        await this._pushChanges(data);
+      }
+      // 推完后再拉取
+      const hasChanges = await this.pull();
+      this.status = 'synced';
+      this._notify();
+      return hasChanges;
+    } catch (e) {
+      console.warn('SyncManager: 全量同步失败', e);
+      this.status = navigator.onLine ? 'error' : 'offline';
+      this._notify();
+      throw e;
+    }
+  }
+
   /** 立即推送队列 */
   async _flush() {
     if (this._syncing || !this.enabled || Object.keys(this._pending).length === 0) return;

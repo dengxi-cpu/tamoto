@@ -4325,10 +4325,18 @@ closeStatusGiftEditor();
      const msg = document.getElementById('syncMessage');
      msg.textContent = '同步中...';
      msg.className = 'text-xs text-slate-400 mt-1';
-     window.syncManager.pull().then(() => {
-         msg.textContent = '同步完成';
-         msg.className = 'text-xs text-green-600 mt-1';
-         setTimeout(() => { msg.textContent = ''; }, 3000);
+     // 先推送本地待处理变更，再拉取远端数据
+     window.syncManager.flush().then(() => {
+         return window.syncManager.pull();
+     }).then((hasChanges) => {
+         if (hasChanges) {
+             // 有远端新数据，刷新页面以加载最新 OC
+             location.reload();
+         } else {
+             msg.textContent = '已是最新';
+             msg.className = 'text-xs text-green-600 mt-1';
+             setTimeout(() => { msg.textContent = ''; }, 2000);
+         }
      }).catch(e => {
          msg.textContent = '同步失败：' + (e.message || '未知错误');
          msg.className = 'text-xs text-red-500 mt-1';

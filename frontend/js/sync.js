@@ -198,6 +198,15 @@ class SyncManager {
     this._timer = setTimeout(() => this._flush(), SyncManager.DEBOUNCE_MS);
   }
 
+  /** 立即推送所有待处理变更（供外部调用） */
+  async flush() {
+    if (this._timer) {
+      clearTimeout(this._timer);
+      this._timer = null;
+    }
+    await this._flush();
+  }
+
   /** 立即推送队列 */
   async _flush() {
     if (this._syncing || !this.enabled || Object.keys(this._pending).length === 0) return;
@@ -326,9 +335,11 @@ class SyncManager {
   //  数据拉取
   // ===================================
 
-  /** 从云端拉取增量数据 */
+  /** 从云端拉取增量数据，返回是否有更新 */
   async pull() {
-    if (!this.enabled || !this.identityHash) return;
+    if (!this.enabled || !this.identityHash) return false;
+
+    let hasChanges = false;
 
     try {
       this.status = 'syncing';
@@ -349,7 +360,7 @@ class SyncManager {
           // 用户不存在（本地身份过期/旧哈希残留），重置同步
           console.warn('SyncManager: 云端用户不存在，重置同步');
           this.disableSync();
-          return;
+          return false;
         }
         const err = await resp.json();
         throw new Error(err.error || '拉取失败');
@@ -358,6 +369,7 @@ class SyncManager {
       const result = await resp.json();
       if (result.changes && Object.keys(result.changes).length > 0) {
         await this._mergeData(result.changes);
+        hasChanges = true;
       }
 
       this.lastSyncAt = result.serverTime;
@@ -369,6 +381,7 @@ class SyncManager {
     }
 
     this._notify();
+    return hasChanges;
   }
 
   /** 合并远程数据到本地 */

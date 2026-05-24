@@ -4335,13 +4335,6 @@ closeStatusGiftEditor();
      });
  }
 
- function disableSync() {
-     if (confirm('停用云同步后，本地数据不会删除。之后可以重新输入同步码恢复同步。')) {
-         window.syncManager.disableSync();
-         updateSyncUI('not_configured');
-     }
- }
-
  // 页面初始化
  document.addEventListener('DOMContentLoaded', async function() {
      await loadStoredData();

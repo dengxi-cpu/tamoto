@@ -19,6 +19,26 @@ async function handler(req, res) {
     }
 
     if (action === 'register') {
+      // 清理旧版 SHA-256 哈希记录（64位十六进制），迁移到明文同步码
+      try {
+        const allResp = await supabaseFetch('users?select=id,identity_hash');
+        if (allResp.ok) {
+          const allUsers = await allResp.json();
+          const oldIds = allUsers
+            .filter(u => u.identity_hash && /^[a-f0-9]{64}$/i.test(u.identity_hash))
+            .map(u => u.id);
+          if (oldIds.length > 0) {
+            await supabaseFetch(
+              `users?id=in.(${oldIds.join(',')})`,
+              { method: 'DELETE', headers: { 'Prefer': 'return=minimal' } }
+            );
+            console.log('Auth: 已清理', oldIds.length, '条旧哈希记录');
+          }
+        }
+      } catch (e) {
+        console.warn('Auth: 清理旧记录失败（非致命）', e.message);
+      }
+
       // 查找已有用户
       const findResp = await supabaseFetch(
         `users?identity_hash=eq.${encodeURIComponent(identityHash)}&select=id`,

@@ -21,11 +21,11 @@ async function handler(req, res) {
     if (action === 'register') {
       // 清理旧版 SHA-256 哈希记录（64位十六进制），迁移到明文同步码
       try {
-        const allResp = await supabaseFetch('users?select=id,identity_hash');
+        const allResp = await supabaseFetch('users?select=id,sync_code');
         if (allResp.ok) {
           const allUsers = await allResp.json();
           const oldIds = allUsers
-            .filter(u => u.identity_hash && /^[a-f0-9]{64}$/i.test(u.identity_hash))
+            .filter(u => u.sync_code && /^[a-f0-9]{64}$/i.test(u.sync_code))
             .map(u => u.id);
           if (oldIds.length > 0) {
             await supabaseFetch(
@@ -41,7 +41,7 @@ async function handler(req, res) {
 
       // 查找已有用户
       const findResp = await supabaseFetch(
-        `users?identity_hash=eq.${encodeURIComponent(identityHash)}&select=id`,
+        `users?sync_code=eq.${encodeURIComponent(identityHash)}&select=id`,
         { headers: { 'Prefer': 'count=exact' } }
       );
 
@@ -74,7 +74,7 @@ async function handler(req, res) {
       // 创建新用户
       const createResp = await supabaseFetch('users', {
         method: 'POST',
-        body: JSON.stringify({ identity_hash: identityHash }),
+        body: JSON.stringify({ sync_code: identityHash }),
         headers: { 'Prefer': 'return=representation' }
       });
 

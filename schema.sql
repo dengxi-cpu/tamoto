@@ -4,7 +4,7 @@
 -- 用户身份表
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  identity_hash TEXT NOT NULL UNIQUE,
+  sync_code TEXT NOT NULL UNIQUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   last_sync_at TIMESTAMPTZ DEFAULT NOW()
 );

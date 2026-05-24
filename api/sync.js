@@ -17,7 +17,7 @@ async function handler(req, res) {
 
     // 查找用户
     const userResp = await supabaseFetch(
-      `users?identity_hash=eq.${encodeURIComponent(identityHash)}&select=id`,
+      `users?sync_code=eq.${encodeURIComponent(identityHash)}&select=id`,
       { headers: { 'Prefer': 'count=exact' } }
     );
 

@@ -984,6 +984,7 @@ function loadDetailedStats() {
          let avatarRef = oc.avatar;
          if (oc.avatar && oc.avatar.startsWith("data:")) {
              const key = `oc_${oc.id}`;
+             saveAvatarData(key, oc.avatar).catch(() => {});
              avatarRef = `idxdb:${key}`;
          }
          return { ...oc, avatar: avatarRef };

@@ -109,26 +109,17 @@ class SyncManager {
   //  同步码管理
   // ===================================
 
-  /** 生成 identityHash（仅基于同步码，确保跨设备一致） */
-  async _hashSyncCode(code) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(code);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  }
-
   /** 设置同步码：启用云同步 */
   async setSyncCode(code) {
-    if (!code || code.length < 2) {
-      throw new Error('同步码至少 2 个字符');
+    if (!code || !code.trim()) {
+      throw new Error('请输入同步码');
     }
 
     this.status = 'syncing';
     this._notify();
 
     try {
-      const identityHash = await this._hashSyncCode(code);
+      const identityHash = code.trim();
 
       const resp = await fetch(this._apiBase + '/api/auth', {
         method: 'POST',
@@ -215,7 +206,12 @@ class SyncManager {
     this._notify();
 
     try {
-      await this._pushChanges(this._pending);
+      // 推送前展开 ocData 中的头像引用
+      const payload = { ...this._pending };
+      if (payload.ocData) {
+        payload.ocData = await this._resolveAvatars(payload.ocData);
+      }
+      await this._pushChanges(payload);
       this._pending = {};
       this._retryCount = 0;
       this.status = 'synced';
@@ -234,18 +230,19 @@ class SyncManager {
 
   /** 全量推送所有数据 */
   async _pushAll() {
-    const data = this._collectAllData();
+    const data = await this._collectAllData();
     await this._pushChanges(data);
   }
 
-  /** 收集所有本地数据 */
-  _collectAllData() {
+  /** 收集所有本地数据（含头像） */
+  async _collectAllData() {
     const data = {};
     try {
       const ocRaw = localStorage.getItem('ocData');
       if (ocRaw) {
-        const ocData = JSON.parse(ocRaw);
-        // 把 idxdb 引用转回 dataURL（从 ocData 内存中拿）
+        let ocData = JSON.parse(ocRaw);
+        // 展开 idxdb 头像引用为 dataURL
+        ocData = await this._resolveAvatars(ocData);
         data.ocData = ocData;
       }
 
@@ -284,6 +281,21 @@ class SyncManager {
       console.warn('SyncManager: 收集数据失败', e);
     }
     return data;
+  }
+
+  /** 将 ocData 中 idxdb 头像引用展开为 dataURL */
+  async _resolveAvatars(ocData) {
+    if (!ocData || !window.getAvatarData) return ocData;
+    return Promise.all(ocData.map(async (oc) => {
+      if (oc.avatar && oc.avatar.startsWith('idxdb:')) {
+        const key = oc.avatar.replace('idxdb:', '');
+        try {
+          const blob = await window.getAvatarData(key);
+          if (blob) return { ...oc, avatar: blob };
+        } catch (e) { /* 读不到就用原引用 */ }
+      }
+      return oc;
+    }));
   }
 
   /** 实际推送 HTTP 请求 */
@@ -339,7 +351,7 @@ class SyncManager {
 
       const result = await resp.json();
       if (result.changes && Object.keys(result.changes).length > 0) {
-        this._mergeData(result.changes);
+        await this._mergeData(result.changes);
       }
 
       this.lastSyncAt = result.serverTime;
@@ -354,22 +366,22 @@ class SyncManager {
   }
 
   /** 合并远程数据到本地 */
-  _mergeData(changes) {
+  async _mergeData(changes) {
     try {
       if (changes.ocData) {
-        // 用内存中的 ocData，保留 dataURL
-        const localOC = localStorage.getItem('ocData');
-        if (localOC) {
-          const localParsed = JSON.parse(localOC);
-          // 保留本地的 idxdb 引用，只更新其他字段
-          const merged = changes.ocData.map((remoteOC, i) => {
-            const localOC = localParsed[i] || {};
-            return { ...remoteOC, avatar: localOC.avatar || remoteOC.avatar };
-          });
-          localStorage.setItem('ocData', JSON.stringify(merged));
-        } else {
-          localStorage.setItem('ocData', JSON.stringify(changes.ocData));
+        // 保存远程头像到 IndexedDB，更新引用
+        for (const oc of changes.ocData) {
+          if (oc.avatar && oc.avatar.startsWith('data:')) {
+            const key = 'oc_' + oc.id;
+            try {
+              if (window.saveAvatarData) {
+                await window.saveAvatarData(key, oc.avatar);
+              }
+            } catch (e) {}
+            oc.avatar = 'idxdb:' + key;
+          }
         }
+        localStorage.setItem('ocData', JSON.stringify(changes.ocData));
       }
 
       if (changes.tasks) {

@@ -4282,11 +4282,6 @@ closeStatusGiftEditor();
      }
  }
 
- function toggleSyncPanel() {
-     const body = document.getElementById('syncSettingsBody');
-     if (body) body.classList.toggle('hidden');
- }
-
  async function handleSyncCode() {
      const input = document.getElementById('syncCodeInput');
      const msg = document.getElementById('syncMessage');
@@ -4309,6 +4304,15 @@ closeStatusGiftEditor();
      } catch (e) {
          msg.textContent = '启用失败：' + (e.message || '未知错误');
          msg.className = 'text-xs text-red-500 mt-1';
+     }
+ }
+
+ function showChangeSyncCode() {
+     if (confirm('更改同步码后，旧同步码的云端数据将不再关联。继续？')) {
+         window.syncManager.disableSync();
+         updateSyncUI('not_configured');
+         document.getElementById('syncCodeInput').value = '';
+         document.getElementById('syncMessage').textContent = '';
      }
  }
 

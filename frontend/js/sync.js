@@ -9,6 +9,8 @@ class SyncManager {
   static DEBOUNCE_MS = 2000;
   static RETRY_INTERVAL = 30000;
 
+  static POLL_INTERVAL = 30000; // 30 秒自动拉取
+
   constructor() {
     this.enabled = false;
     this.userId = null;
@@ -16,6 +18,7 @@ class SyncManager {
     this.lastSyncAt = null;
     this._pending = {};       // { type: data }
     this._timer = null;
+    this._pollTimer = null;
     this._syncing = false;
     this._retryCount = 0;
     this.status = 'offline';  // offline | synced | syncing | error | not_configured
@@ -35,11 +38,32 @@ class SyncManager {
     if (this.enabled && this.identityHash) {
       this.status = 'offline';
       this._notify();
+      this._startPolling();
       // 启动时拉取一次
       await this.pull();
     } else {
       this.status = 'not_configured';
       this._notify();
+    }
+  }
+
+  // ===================================
+  //  自动轮询
+  // ===================================
+
+  _startPolling() {
+    this._stopPolling();
+    this._pollTimer = setInterval(() => {
+      if (this.enabled && this.identityHash) {
+        this.pull().catch(() => {});
+      }
+    }, SyncManager.POLL_INTERVAL);
+  }
+
+  _stopPolling() {
+    if (this._pollTimer) {
+      clearInterval(this._pollTimer);
+      this._pollTimer = null;
     }
   }
 
@@ -148,6 +172,7 @@ class SyncManager {
         await this.pull();
         location.reload();
       }
+      this._startPolling();
       this.status = 'synced';
       this._notify();
       return data;
@@ -160,6 +185,7 @@ class SyncManager {
 
   /** 解除同步：停止云同步，不清除云端数据 */
   disableSync() {
+    this._stopPolling();
     this.enabled = false;
     this.userId = null;
     this.identityHash = null;

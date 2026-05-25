@@ -23,6 +23,21 @@ let focusSessionPhrases = {
  let currentMode = 'pomodoro';
  let currentStatus = { name: '', icon: '⚪' };
  let currentMusicMode = 0;
+
+ // 圆形裁切状态
+ let _cropState = {
+     imageData: null,
+     imgW: 0,
+     imgH: 0,
+     x: 0,
+     y: 0,
+     scale: 1,
+     isDragging: false,
+     dragStartX: 0,
+     dragStartY: 0,
+     dragOrigX: 0,
+     dragOrigY: 0
+ };
  // 音频管理
  let currentBackgroundMusic = null;
  let completionAudio = null;
@@ -928,10 +943,11 @@ function recordAbandonedPomodoro(duration, safeTaskName, safesafeStatusName) {
 // 保存详细统计数据
 function saveDetailedStats() {
     localStorage.setItem('detailedStats', JSON.stringify(detailedStats));
-    if (window.syncManager) window.syncManager.enqueue('stats', {
-        detailedStats: detailedStats,
-        dailyStats: dailyStats
-    });
+    // [注释] 云同步 enqueue
+    // if (window.syncManager) window.syncManager.enqueue('stats', {
+    //     detailedStats: detailedStats,
+    //     dailyStats: dailyStats
+    // });
 }
 
 // 加载详细统计数据
@@ -990,7 +1006,8 @@ function loadDetailedStats() {
          return { ...oc, avatar: avatarRef };
      });
      localStorage.setItem("ocData", JSON.stringify(storageData));
-     if (window.syncManager) window.syncManager.enqueue('ocData', storageData);
+     // [注释] 云同步 enqueue
+     // if (window.syncManager) window.syncManager.enqueue('ocData', storageData);
  }
  // 风格编辑相关
  let currentEditingStyle = '';
@@ -1639,9 +1656,10 @@ function loadDetailedStats() {
  
  function saveCustomStyles() {
      localStorage.setItem('customStyles', JSON.stringify(customStyles));
-     if (window.syncManager) window.syncManager.enqueue('preferences', {
-         customStyles: customStyles
-     });
+     // [注释] 云同步 enqueue
+     // if (window.syncManager) window.syncManager.enqueue('preferences', {
+     //     customStyles: customStyles
+     // });
  }
  
  function loadCustomStyles() {
@@ -1691,10 +1709,11 @@ function loadDetailedStats() {
  
  function saveDailyStats() {
      localStorage.setItem('dailyStats_' + dailyStats.date, JSON.stringify(dailyStats));
-     if (window.syncManager) window.syncManager.enqueue('stats', {
-         detailedStats: localStorage.getItem('detailedStats') ? JSON.parse(localStorage.getItem('detailedStats')) : null,
-         dailyStats: dailyStats
-     });
+     // [注释] 云同步 enqueue
+     // if (window.syncManager) window.syncManager.enqueue('stats', {
+     //     detailedStats: localStorage.getItem('detailedStats') ? JSON.parse(localStorage.getItem('detailedStats')) : null,
+     //     dailyStats: dailyStats
+     // });
  }
  
  function updateStatsDisplay() {
@@ -2029,7 +2048,8 @@ function loadDetailedStats() {
  
  function saveTasks() {
      localStorage.setItem('tasks', JSON.stringify(tasks));
-     if (window.syncManager) window.syncManager.enqueue('tasks', tasks);
+     // [注释] 云同步 enqueue
+     // if (window.syncManager) window.syncManager.enqueue('tasks', tasks);
  }
  
  function loadTasks() {
@@ -3102,6 +3122,171 @@ updateAIPhraseCounts();
      }
  }
 
+ // ===================================
+ //  圆形裁切控制
+ // ===================================
+
+ const CROP_SIZE = 250;
+ const CROP_OUTPUT = 512;
+
+ function openCropModal(dataUrl, imgW, imgH) {
+     // 保存裁切前的头像，用于取消时恢复
+     _cropState._originalAvatarSrc = document.getElementById('avatarPreview').src;
+
+     _cropState.imageData = dataUrl;
+     _cropState.imgW = imgW;
+     _cropState.imgH = imgH;
+     _cropState.x = 0;
+     _cropState.y = 0;
+     _cropState.scale = 1;
+
+     document.getElementById('cropImage').src = dataUrl;
+     document.getElementById('cropOverlay').classList.remove('hidden');
+     document.getElementById('cropZoomSlider').value = 1;
+     updateCropTransform();
+
+     // 绑定拖动事件
+     const circle = document.getElementById('cropCircle');
+     circle.addEventListener('mousedown', onCropPointerDown);
+     circle.addEventListener('touchstart', onCropPointerDown, { passive: false });
+ }
+
+ function closeCropModal() {
+     document.getElementById('cropOverlay').classList.add('hidden');
+     document.getElementById('cropImage').src = '';
+
+     // 解绑拖动事件
+     const circle = document.getElementById('cropCircle');
+     circle.removeEventListener('mousedown', onCropPointerDown);
+     circle.removeEventListener('touchstart', onCropPointerDown);
+     document.removeEventListener('mousemove', onCropPointerMove);
+     document.removeEventListener('mouseup', onCropPointerUp);
+     document.removeEventListener('touchmove', onCropPointerMove);
+     document.removeEventListener('touchend', onCropPointerUp);
+
+     // 清空文件输入，允许重新选择同一文件
+     document.getElementById('avatarInput').value = '';
+ }
+
+ function updateCropTransform() {
+     const img = document.getElementById('cropImage');
+     const s = _cropState.scale;
+     const x = _cropState.x;
+     const y = _cropState.y;
+     // 保持图片居中，用户 offset 叠加在 centering 之上
+     img.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${s})`;
+ }
+
+ function clamp(val, min, max) {
+     return Math.min(Math.max(val, min), max);
+ }
+
+ function onCropPointerDown(e) {
+     e.preventDefault();
+     const pos = getPointerPos(e);
+     _cropState.isDragging = true;
+     _cropState.dragStartX = pos.x;
+     _cropState.dragStartY = pos.y;
+     _cropState.dragOrigX = _cropState.x;
+     _cropState.dragOrigY = _cropState.y;
+
+     document.addEventListener('mousemove', onCropPointerMove);
+     document.addEventListener('mouseup', onCropPointerUp);
+     document.addEventListener('touchmove', onCropPointerMove, { passive: false });
+     document.addEventListener('touchend', onCropPointerUp);
+ }
+
+ function onCropPointerMove(e) {
+     e.preventDefault();
+     if (!_cropState.isDragging) return;
+     const pos = getPointerPos(e);
+     const dx = pos.x - _cropState.dragStartX;
+     const dy = pos.y - _cropState.dragStartY;
+
+     let newX = _cropState.dragOrigX + dx;
+     let newY = _cropState.dragOrigY + dy;
+
+     // 边界限位
+     const maxX = Math.max(0, (_cropState.imgW * _cropState.scale - CROP_SIZE) / 2);
+     const maxY = Math.max(0, (_cropState.imgH * _cropState.scale - CROP_SIZE) / 2);
+     _cropState.x = clamp(newX, -maxX, maxX);
+     _cropState.y = clamp(newY, -maxY, maxY);
+
+     updateCropTransform();
+ }
+
+ function onCropPointerUp() {
+     _cropState.isDragging = false;
+     document.removeEventListener('mousemove', onCropPointerMove);
+     document.removeEventListener('mouseup', onCropPointerUp);
+     document.removeEventListener('touchmove', onCropPointerMove);
+     document.removeEventListener('touchend', onCropPointerUp);
+ }
+
+ function getPointerPos(e) {
+     if (e.touches && e.touches.length > 0) {
+         return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+     }
+     return { x: e.clientX, y: e.clientY };
+ }
+
+ function onCropZoom(e) {
+     _cropState.scale = parseFloat(e.target.value);
+     // 重新限位（缩放后可能超出新边界）
+     const maxX = Math.max(0, (_cropState.imgW * _cropState.scale - CROP_SIZE) / 2);
+     const maxY = Math.max(0, (_cropState.imgH * _cropState.scale - CROP_SIZE) / 2);
+     _cropState.x = clamp(_cropState.x, -maxX, maxX);
+     _cropState.y = clamp(_cropState.y, -maxY, maxY);
+     updateCropTransform();
+ }
+
+ function confirmCrop() {
+     const img = new Image();
+     img.onload = function() {
+         const canvas = document.createElement('canvas');
+         canvas.width = CROP_OUTPUT;
+         canvas.height = CROP_OUTPUT;
+         const ctx = canvas.getContext('2d');
+
+         // 圆形裁切路径
+         ctx.beginPath();
+         ctx.arc(CROP_OUTPUT / 2, CROP_OUTPUT / 2, CROP_OUTPUT / 2, 0, Math.PI * 2);
+         ctx.clip();
+
+         // 计算图片在 canvas 上的绘制参数
+         const ratio = CROP_OUTPUT / CROP_SIZE;
+         const dispW = _cropState.imgW * _cropState.scale * ratio;
+         const dispH = _cropState.imgH * _cropState.scale * ratio;
+         const centerX = CROP_OUTPUT / 2 + _cropState.x * ratio;
+         const centerY = CROP_OUTPUT / 2 + _cropState.y * ratio;
+
+         ctx.drawImage(img, centerX - dispW / 2, centerY - dispH / 2, dispW, dispH);
+
+         // 压缩至 ≤500KB
+         let quality = 0.9;
+         let result = compressImage(canvas, quality);
+         while (result.length > 500 * 1024 && quality > 0.3) {
+             quality = Math.round((quality - 0.05) * 100) / 100;
+             result = compressImage(canvas, quality);
+         }
+
+         // 设置最终头像预览
+         document.getElementById('avatarPreview').src = result;
+         console.log(`✅ 头像裁切完成：${(result.length / 1024).toFixed(2)}KB`);
+
+         closeCropModal();
+     };
+     img.src = _cropState.imageData;
+ }
+
+ function cancelCrop() {
+     // 恢复裁切前的头像
+     if (_cropState._originalAvatarSrc) {
+         document.getElementById('avatarPreview').src = _cropState._originalAvatarSrc;
+     }
+     closeCropModal();
+ }
+
  function previewAvatar(event) {
      const file = event.target.files[0];
      if (file && file.type.startsWith('image/')) {
@@ -3160,6 +3345,8 @@ updateAIPhraseCounts();
                  }
 
                  document.getElementById('avatarPreview').src = compressedDataUrl;
+                 // 打开圆形裁切弹窗
+                 openCropModal(compressedDataUrl, canvas.width, canvas.height);
                  console.log(`✅ 图片已压缩：${(file.size / 1024).toFixed(2)}KB → ${(compressedDataUrl.length / 1024).toFixed(2)}KB (质量:${quality.toFixed(2)}, ${canvas.width}×${canvas.height})`);
              };
              img.src = e.target.result;
@@ -4260,86 +4447,89 @@ closeStatusGiftEditor();
  // 云同步 UI 控制
  // ============================================
 
- function updateSyncUI(status) {
-     const indicator = document.getElementById('syncIndicator');
-     const statusText = document.getElementById('syncStatusText');
-     if (!indicator || !statusText) return;
+// [注释] 云同步相关功能 2025-05-25 暂时隐藏 ————————————————
+/*
+function updateSyncUI(status) {
+    const indicator = document.getElementById('syncIndicator');
+    const statusText = document.getElementById('syncStatusText');
+    if (!indicator || !statusText) return;
 
-     indicator.className = 'inline-block w-2 h-2 rounded-full sync-indicator-' + status;
-     const labels = {
-         synced: '已同步',
-         syncing: '同步中...',
-         offline: '离线',
-         error: '同步出错',
-         not_configured: '云同步未开启'
-     };
-     statusText.textContent = labels[status] || status;
+    indicator.className = 'inline-block w-2 h-2 rounded-full sync-indicator-' + status;
+    const labels = {
+        synced: '已同步',
+        syncing: '同步中...',
+        offline: '离线',
+        error: '同步出错',
+        not_configured: '云同步未开启'
+    };
+    statusText.textContent = labels[status] || status;
 
-     const codeSection = document.getElementById('syncCodeSection');
-     const manageSection = document.getElementById('syncManageSection');
-     const codeDisplay = document.getElementById('syncCodeDisplay');
-     if (codeSection && manageSection) {
-         codeSection.style.display = (status === 'not_configured') ? '' : 'none';
-         manageSection.style.display = (status !== 'not_configured') ? '' : 'none';
-     }
-     // 显示当前同步码（手机号）
-     if (codeDisplay && window.syncManager) {
-         codeDisplay.textContent = window.syncManager.identityHash || '';
-     }
- }
+    const codeSection = document.getElementById('syncCodeSection');
+    const manageSection = document.getElementById('syncManageSection');
+    const codeDisplay = document.getElementById('syncCodeDisplay');
+    if (codeSection && manageSection) {
+        codeSection.style.display = (status === 'not_configured') ? '' : 'none';
+        manageSection.style.display = (status !== 'not_configured') ? '' : 'none';
+    }
+    // 显示当前同步码（手机号）
+    if (codeDisplay && window.syncManager) {
+        codeDisplay.textContent = window.syncManager.identityHash || '';
+    }
+}
 
- async function handleSyncCode() {
-     const input = document.getElementById('syncCodeInput');
-     const msg = document.getElementById('syncMessage');
-     const code = input.value.trim();
+async function handleSyncCode() {
+    const input = document.getElementById('syncCodeInput');
+    const msg = document.getElementById('syncMessage');
+    const code = input.value.trim();
 
-     if (!code || code.length < 2) {
-         msg.textContent = '同步码至少 2 个字符';
-         msg.className = 'text-xs text-red-500 mt-1';
-         return;
-     }
+    if (!code || code.length < 2) {
+        msg.textContent = '同步码至少 2 个字符';
+        msg.className = 'text-xs text-red-500 mt-1';
+        return;
+    }
 
-     msg.textContent = '正在连接...';
-     msg.className = 'text-xs text-slate-400 mt-1';
+    msg.textContent = '正在连接...';
+    msg.className = 'text-xs text-slate-400 mt-1';
 
-     try {
-         await window.syncManager.setSyncCode(code);
-         msg.textContent = '云同步已启用！';
-         msg.className = 'text-xs text-green-600 mt-1';
-         input.value = '';
-     } catch (e) {
-         msg.textContent = '启用失败：' + (e.message || '未知错误');
-         msg.className = 'text-xs text-red-500 mt-1';
-     }
- }
+    try {
+        await window.syncManager.setSyncCode(code);
+        msg.textContent = '云同步已启用！';
+        msg.className = 'text-xs text-green-600 mt-1';
+        input.value = '';
+    } catch (e) {
+        msg.textContent = '启用失败：' + (e.message || '未知错误');
+        msg.className = 'text-xs text-red-500 mt-1';
+    }
+}
 
- function showChangeSyncCode() {
-     if (confirm('更改同步码后，旧同步码的云端数据将不再关联。继续？')) {
-         window.syncManager.disableSync();
-         updateSyncUI('not_configured');
-         document.getElementById('syncCodeInput').value = '';
-         document.getElementById('syncMessage').textContent = '';
-     }
- }
+function showChangeSyncCode() {
+    if (confirm('更改同步码后，旧同步码的云端数据将不再关联。继续？')) {
+        window.syncManager.disableSync();
+        updateSyncUI('not_configured');
+        document.getElementById('syncCodeInput').value = '';
+        document.getElementById('syncMessage').textContent = '';
+    }
+}
 
- function syncNow() {
-     const msg = document.getElementById('syncMessage');
-     msg.textContent = '同步中...';
-     msg.className = 'text-xs text-slate-400 mt-1';
-     // 全量推送本地数据，再拉取远端
-     window.syncManager.forceSync().then((hasChanges) => {
-         if (hasChanges) {
-             location.reload();
-         } else {
-             msg.textContent = '已同步';
-             msg.className = 'text-xs text-green-600 mt-1';
-             setTimeout(() => { msg.textContent = ''; }, 2000);
-         }
-     }).catch(e => {
-         msg.textContent = '同步失败：' + (e.message || '未知错误');
-         msg.className = 'text-xs text-red-500 mt-1';
-     });
- }
+function syncNow() {
+    const msg = document.getElementById('syncMessage');
+    msg.textContent = '同步中...';
+    msg.className = 'text-xs text-slate-400 mt-1';
+    // 全量推送本地数据，再拉取远端
+    window.syncManager.forceSync().then((hasChanges) => {
+        if (hasChanges) {
+            location.reload();
+        } else {
+            msg.textContent = '已同步';
+            msg.className = 'text-xs text-green-600 mt-1';
+            setTimeout(() => { msg.textContent = ''; }, 2000);
+        }
+    }).catch(e => {
+        msg.textContent = '同步失败：' + (e.message || '未知错误');
+        msg.className = 'text-xs text-red-500 mt-1';
+    });
+}
+*/
 
  // 页面初始化
  document.addEventListener('DOMContentLoaded', async function() {
@@ -4364,13 +4554,13 @@ closeStatusGiftEditor();
      setTimeout(initPageAnimation, 100);
      renderTasks();
 
-     // 初始化云同步
-     if (window.syncManager) {
-         window.syncManager.onStatusChange(updateSyncUI);
-         window.syncManager.init().then(() => {
-             updateSyncUI(window.syncManager.status);
-         });
-     }
+     // [注释] 云同步初始化 2025-05-25 暂时隐藏
+     // if (window.syncManager) {
+     //     window.syncManager.onStatusChange(updateSyncUI);
+     //     window.syncManager.init().then(() => {
+     //         updateSyncUI(window.syncManager.status);
+     //     });
+     // }
  });
 
 

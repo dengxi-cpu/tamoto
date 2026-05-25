@@ -2557,12 +2557,12 @@
     }
 }
 
-/* 云同步指示器样式 */
-.sync-indicator-synced { background: #22c55e !important; }
+/* [注释] 云同步指示器样式 2025-05-25 暂时隐藏 */
+/* .sync-indicator-synced { background: #22c55e !important; }
 .sync-indicator-syncing { background: #3b82f6 !important; animation: pulse 1s infinite; }
 .sync-indicator-offline { background: #9ca3af !important; }
 .sync-indicator-error { background: #ef4444 !important; }
-.sync-indicator-not_configured { background: #d1d5db !important; }
+.sync-indicator-not_configured { background: #d1d5db !important; } */
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
@@ -3112,6 +3112,145 @@
     }
 }
 
+/* 圆形裁切弹窗 */
+.crop-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(4px);
+}
+.crop-overlay.hidden { display: none; }
+
+.crop-modal {
+    background: white;
+    border-radius: 24px;
+    padding: 24px;
+    width: 100%;
+    max-width: 360px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.crop-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+    text-align: center;
+    margin-bottom: 4px;
+}
+
+.crop-subtitle {
+    font-size: 13px;
+    color: #94a3b8;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.crop-circle-wrapper {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.crop-circle {
+    width: 250px;
+    height: 250px;
+    border-radius: 50%;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3), 0 4px 20px rgba(0,0,0,0.15);
+    background: #f1f5f9;
+    cursor: grab;
+    touch-action: none;
+}
+
+.crop-circle:active {
+    cursor: grabbing;
+}
+
+.crop-circle img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+}
+
+.crop-zoom-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 0 8px;
+}
+
+.crop-zoom-icon {
+    font-size: 16px;
+    color: #94a3b8;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.crop-zoom-slider {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #e2e8f0;
+    border-radius: 2px;
+    outline: none;
+}
+
+.crop-zoom-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #8b5cf6;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
+}
+
+.crop-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.crop-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.crop-btn-cancel {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.crop-btn-cancel:hover {
+    background: #e2e8f0;
+}
+
+.crop-btn-confirm {
+    background: #8b5cf6;
+    color: white;
+}
+
+.crop-btn-confirm:hover {
+    background: #7c3aed;
+}
+
     </style>
     <!-- 聊天样式 -->
     <link rel="stylesheet" href="frontend/css/chat.css">
@@ -3247,7 +3386,7 @@
                 </div>
             </div>
 
-            <!-- 云同步设置 -->
+            <!-- [注释] 云同步设置 2025-05-25 暂时隐藏
             <div class="mb-4">
                 <div class="flex items-center justify-between mb-3 px-2">
                     <h3 class="text-lg font-semibold text-slate-800">云同步</h3>
@@ -3283,6 +3422,7 @@
                     </div>
                 </div>
             </div>
+            -->
 
         </div>
     </div>
@@ -3825,6 +3965,28 @@
                 </button>
             </div>
         </div>
+
+        <!-- 圆形裁切弹窗 -->
+        <div id="cropOverlay" class="crop-overlay hidden">
+            <div class="crop-modal">
+                <h3 class="crop-title">调整头像</h3>
+                <p class="crop-subtitle">拖动调整位置，滚动缩放大小</p>
+                <div class="crop-circle-wrapper">
+                    <div class="crop-circle" id="cropCircle">
+                        <img id="cropImage" src="" alt="裁切预览" draggable="false">
+                    </div>
+                </div>
+                <div class="crop-zoom-row">
+                    <span class="crop-zoom-icon">−</span>
+                    <input type="range" id="cropZoomSlider" class="crop-zoom-slider" min="0.5" max="3" step="0.05" value="1">
+                    <span class="crop-zoom-icon">+</span>
+                </div>
+                <div class="crop-actions">
+                    <button onclick="cancelCrop()" class="crop-btn crop-btn-cancel">重新选择</button>
+                    <button onclick="confirmCrop()" class="crop-btn crop-btn-confirm">确认</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 风格语句编辑弹窗 -->
@@ -4146,7 +4308,7 @@
     <script src="frontend/js/api.js"></script>
     <script src="frontend/js/api-card-ui.js"></script>
     <script src="frontend/js/db.js"></script>
-    <script src="frontend/js/sync.js"></script>
+    <!-- <script src="frontend/js/sync.js"></script> -->
     <script src="frontend/js/main.js"></script>
     <script src="frontend/js/chat.js"></script>
 

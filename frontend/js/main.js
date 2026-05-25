@@ -3142,23 +3142,24 @@ updateAIPhraseCounts();
 
      document.getElementById('cropImage').src = dataUrl;
      document.getElementById('cropOverlay').classList.remove('hidden');
-     document.getElementById('cropZoomSlider').value = 1;
      updateCropTransform();
 
-     // 绑定拖动事件
+     // 绑定拖动 + 双击缩放事件
      const circle = document.getElementById('cropCircle');
      circle.addEventListener('mousedown', onCropPointerDown);
      circle.addEventListener('touchstart', onCropPointerDown, { passive: false });
+     circle.addEventListener('dblclick', onCropDblClick);
  }
 
  function closeCropModal() {
      document.getElementById('cropOverlay').classList.add('hidden');
      document.getElementById('cropImage').src = '';
 
-     // 解绑拖动事件
+     // 解绑拖动 + 双击缩放事件
      const circle = document.getElementById('cropCircle');
      circle.removeEventListener('mousedown', onCropPointerDown);
      circle.removeEventListener('touchstart', onCropPointerDown);
+     circle.removeEventListener('dblclick', onCropDblClick);
      document.removeEventListener('mousemove', onCropPointerMove);
      document.removeEventListener('mouseup', onCropPointerUp);
      document.removeEventListener('touchmove', onCropPointerMove);
@@ -3230,11 +3231,15 @@ updateAIPhraseCounts();
      return { x: e.clientX, y: e.clientY };
  }
 
- function onCropZoom(e) {
-     _cropState.scale = parseFloat(e.target.value);
-     // 重新限位（缩放后可能超出新边界）
-     const maxX = Math.max(0, (_cropState.imgW * _cropState.scale - CROP_SIZE) / 2);
-     const maxY = Math.max(0, (_cropState.imgH * _cropState.scale - CROP_SIZE) / 2);
+ function onCropDblClick() {
+     // 每次双击缩放 +0.5，到 3.0 后回到 1.0
+     let newScale = _cropState.scale + 0.5;
+     if (newScale > 3.0) newScale = 1.0;
+     _cropState.scale = newScale;
+
+     // 缩放后重新限位
+     const maxX = Math.max(0, (_cropState.imgW * newScale - CROP_SIZE) / 2);
+     const maxY = Math.max(0, (_cropState.imgH * newScale - CROP_SIZE) / 2);
      _cropState.x = clamp(_cropState.x, -maxX, maxX);
      _cropState.y = clamp(_cropState.y, -maxY, maxY);
      updateCropTransform();

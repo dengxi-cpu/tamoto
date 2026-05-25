@@ -3142,27 +3142,28 @@ updateAIPhraseCounts();
 
      document.getElementById('cropImage').src = dataUrl;
      document.getElementById('cropOverlay').classList.remove('hidden');
-     document.getElementById('cropZoomSlider').value = 1;
      updateCropTransform();
 
-     // 绑定拖动事件
+     // 绑定拖动 + 捏合事件
      const circle = document.getElementById('cropCircle');
      circle.addEventListener('mousedown', onCropPointerDown);
-     circle.addEventListener('touchstart', onCropPointerDown, { passive: false });
+     circle.addEventListener('touchstart', onCropTouchStart, { passive: false });
  }
 
  function closeCropModal() {
      document.getElementById('cropOverlay').classList.add('hidden');
      document.getElementById('cropImage').src = '';
 
-     // 解绑拖动事件
+     // 解绑拖动 + 捏合事件
      const circle = document.getElementById('cropCircle');
      circle.removeEventListener('mousedown', onCropPointerDown);
-     circle.removeEventListener('touchstart', onCropPointerDown);
+     circle.removeEventListener('touchstart', onCropTouchStart);
      document.removeEventListener('mousemove', onCropPointerMove);
      document.removeEventListener('mouseup', onCropPointerUp);
      document.removeEventListener('touchmove', onCropPointerMove);
      document.removeEventListener('touchend', onCropPointerUp);
+     document.removeEventListener('touchmove', onCropPinchMove);
+     document.removeEventListener('touchend', onCropPinchEnd);
 
      // 清空文件输入，允许重新选择同一文件
      document.getElementById('avatarInput').value = '';
@@ -3230,14 +3231,49 @@ updateAIPhraseCounts();
      return { x: e.clientX, y: e.clientY };
  }
 
- function onCropZoom(e) {
-     _cropState.scale = parseFloat(e.target.value);
-     // 重新限位（缩放后可能超出新边界）
-     const maxX = Math.max(0, (_cropState.imgW * _cropState.scale - CROP_SIZE) / 2);
-     const maxY = Math.max(0, (_cropState.imgH * _cropState.scale - CROP_SIZE) / 2);
+ function onCropTouchStart(e) {
+     e.preventDefault();
+     if (e.touches.length >= 2) {
+         // 双指捏合缩放
+         _cropState.pinchDist = getTouchDist(e);
+         _cropState.pinchScale = _cropState.scale;
+         document.addEventListener('touchmove', onCropPinchMove, { passive: false });
+         document.addEventListener('touchend', onCropPinchEnd);
+     } else {
+         // 单指拖动
+         const pos = getPointerPos(e);
+         _cropState.isDragging = true;
+         _cropState.dragStartX = pos.x;
+         _cropState.dragStartY = pos.y;
+         _cropState.dragOrigX = _cropState.x;
+         _cropState.dragOrigY = _cropState.y;
+         document.addEventListener('touchmove', onCropPointerMove, { passive: false });
+         document.addEventListener('touchend', onCropPointerUp);
+     }
+ }
+
+ function onCropPinchMove(e) {
+     e.preventDefault();
+     if (e.touches.length < 2) return;
+     const ratio = getTouchDist(e) / _cropState.pinchDist;
+     const newScale = clamp(_cropState.pinchScale * ratio, 0.5, 3.0);
+     _cropState.scale = newScale;
+     const maxX = Math.max(0, (_cropState.imgW * newScale - CROP_SIZE) / 2);
+     const maxY = Math.max(0, (_cropState.imgH * newScale - CROP_SIZE) / 2);
      _cropState.x = clamp(_cropState.x, -maxX, maxX);
      _cropState.y = clamp(_cropState.y, -maxY, maxY);
      updateCropTransform();
+ }
+
+ function onCropPinchEnd() {
+     document.removeEventListener('touchmove', onCropPinchMove);
+     document.removeEventListener('touchend', onCropPinchEnd);
+ }
+
+ function getTouchDist(e) {
+     const dx = e.touches[0].clientX - e.touches[1].clientX;
+     const dy = e.touches[0].clientY - e.touches[1].clientY;
+     return Math.sqrt(dx * dx + dy * dy);
  }
 
  function confirmCrop() {

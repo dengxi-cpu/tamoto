@@ -2,9 +2,9 @@
   "name": "tamoto-pomodoro",
   "version": "1.0.0",
   "description": "伴柠番茄钟",
-  "main": "server.js",
+  "main": "dev-server.js",
   "scripts": {
-    "dev": "node server.js"
+    "dev": "node dev-server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

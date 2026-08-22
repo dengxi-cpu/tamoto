@@ -1,4 +1,4 @@
-// server.js
+// dev-server.js（仅用于本地开发，避免被 Vercel 自动识别为生产 Express 入口）
 // 本地测试服务器 - 模拟 Vercel Serverless Functions 环境
 
 require('dotenv').config({ path: '.env.local' });

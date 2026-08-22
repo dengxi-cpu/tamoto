@@ -1,6 +1,9 @@
 // server.js
 // 本地测试服务器 - 模拟 Vercel Serverless Functions 环境
 
+require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '.env.push.local', override: false });
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -25,6 +28,7 @@ const apiModules = {
   chat: require('./api/chat.js'),
   auth: require('./api/auth.js'),
   sync: require('./api/sync.js'),
+  push: require('./api/push.js'),
 };
 
 // 通用代理：把 Express req/res 包装成 Vercel 风格的 handler(req, res)
@@ -45,6 +49,7 @@ function proxyApi(handler) {
 app.post('/api/chat', proxyApi(apiModules.chat.handler));
 app.post('/api/auth', proxyApi(apiModules.auth));
 app.all('/api/sync', proxyApi(apiModules.sync));
+app.all('/api/push', proxyApi(apiModules.push));
 
 app.listen(PORT, () => {
   console.log(`🚀 伴柠番茄钟已启动: http://localhost:${PORT}`);

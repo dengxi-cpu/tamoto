@@ -962,6 +962,117 @@ function loadDetailedStats() {
 
  // 专注计时相关
  let focusStartTime = null;
+ let timerReferenceAt = null;
+ const TIMER_STATE_KEY = 'tamotoActiveTimerV1';
+
+ function saveTimerState() {
+     if (!isTimerRunning && !isPaused) {
+         localStorage.removeItem(TIMER_STATE_KEY);
+         return;
+     }
+     localStorage.setItem(TIMER_STATE_KEY, JSON.stringify({
+         version: 1, isTimerRunning, isPaused, currentMode, currentTime,
+         selectedMinutes, timerReferenceAt, focusStartTime, focusStartOCIndex,
+         currentStatus, isStatusSelected, currentTask
+     }));
+ }
+
+ function clearTimerState() {
+     localStorage.removeItem(TIMER_STATE_KEY);
+     timerReferenceAt = null;
+ }
+
+ function syncTimerFromClock() {
+     if (!isTimerRunning || !timerReferenceAt) return;
+     currentTime = currentMode === 'pomodoro'
+         ? Math.max(0, Math.ceil((timerReferenceAt - Date.now()) / 1000))
+         : Math.max(0, Math.floor((Date.now() - timerReferenceAt) / 1000));
+ }
+
+ function finishRunningTimer() {
+     if (!isTimerRunning) return;
+     clearInterval(timerInterval);
+     timerInterval = null;
+     isTimerRunning = false;
+     isPaused = false;
+     if (focusStartTime) {
+         const segmentEnd = currentMode === 'pomodoro' && timerReferenceAt
+             ? Math.min(Date.now(), timerReferenceAt)
+             : Date.now();
+         addFocusTime(Math.max(0, Math.floor((segmentEnd - focusStartTime) / 1000)));
+         focusStartTime = null;
+     }
+     clearTimerState();
+     showPomodoroComplete();
+     enableModeSwitch();
+     resetToSingleButton();
+     stopHeartbeatAnimation();
+     stopEncourageLoop();
+ }
+
+ function runTimerTick() {
+     syncTimerFromClock();
+     updateTimerDisplay();
+     if (currentMode === 'pomodoro' && currentTime <= 0) finishRunningTimer();
+ }
+
+ function startTimerTicker() {
+     clearInterval(timerInterval);
+     runTimerTick();
+     if (!isTimerRunning) return;
+     timerInterval = setInterval(runTimerTick, 1000);
+     saveTimerState();
+ }
+
+ function restoreTimerState() {
+     let state;
+     try { state = JSON.parse(localStorage.getItem(TIMER_STATE_KEY) || 'null'); }
+     catch (error) { clearTimerState(); return; }
+     if (!state || state.version !== 1 || (!state.isTimerRunning && !state.isPaused)) return;
+
+     currentMode = state.currentMode === 'timer' ? 'timer' : 'pomodoro';
+     selectedMinutes = Number(state.selectedMinutes) || 25;
+     currentTime = Math.max(0, Number(state.currentTime) || 0);
+     timerReferenceAt = Number(state.timerReferenceAt) || null;
+     focusStartTime = Number(state.focusStartTime) || null;
+     focusStartOCIndex = Number.isInteger(state.focusStartOCIndex) ? state.focusStartOCIndex : currentOCIndex;
+     currentStatus = state.currentStatus || currentStatus;
+     isStatusSelected = Boolean(state.isStatusSelected);
+     currentTask = state.currentTask || currentTask;
+     isTimerRunning = Boolean(state.isTimerRunning);
+     isPaused = Boolean(state.isPaused);
+     if (isTimerRunning && !timerReferenceAt) {
+         isTimerRunning = false;
+         isPaused = true;
+     }
+
+     showPage('focusPage');
+     const pomodoroBtn = document.getElementById('pomodoroBtn');
+     const timerBtn = document.getElementById('timerBtn');
+     pomodoroBtn.classList.toggle('mode-active', currentMode === 'pomodoro');
+     pomodoroBtn.classList.toggle('text-slate-600', currentMode !== 'pomodoro');
+     timerBtn.classList.toggle('mode-active', currentMode === 'timer');
+     timerBtn.classList.toggle('text-slate-600', currentMode !== 'timer');
+
+     const statusButton = document.getElementById('statusButton');
+     if (statusButton && isStatusSelected) {
+         const currentOC = ocData[currentOCIndex];
+         statusButton.innerHTML = `<span class="oc-status-pure-text">${currentOC.name}${currentStatus.name}中</span> <span class="oc-status-emoji">${currentStatus.icon}</span>`;
+     }
+     document.getElementById('singleButtonLayout').classList.add('hidden');
+     document.getElementById('threeButtonLayout').classList.remove('hidden');
+     document.getElementById('pomodoroBtn').style.pointerEvents = isTimerRunning ? 'none' : 'auto';
+     document.getElementById('timerBtn').style.pointerEvents = isTimerRunning ? 'none' : 'auto';
+     document.getElementById('pomodoroBtn').style.opacity = isTimerRunning ? '0.6' : '1';
+     document.getElementById('timerBtn').style.opacity = isTimerRunning ? '0.6' : '1';
+     if (isPaused) {
+         document.getElementById('pauseBtn').innerHTML = '<svg class="w-8 h-8" fill="white" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+     } else {
+         startHeartbeatAnimation();
+         startEncourageLoop();
+         startTimerTicker();
+     }
+ }
  
  // OC数据存储
  let ocData = [
@@ -2878,6 +2989,7 @@ function updateOCDataMessage() {
          enableModeSwitch();
          stopHeartbeatAnimation();
          stopEncourageLoop();
+         clearTimerState();
      }
      
      document.getElementById('statusSelector').classList.remove('show');
@@ -3603,6 +3715,9 @@ if (currentMusicMode > 0 && !currentBackgroundMusic && isStatusSelected) {
          isPaused = false;
          focusStartTime = Date.now();
          focusStartOCIndex = currentOCIndex;
+         timerReferenceAt = currentMode === 'pomodoro'
+             ? Date.now() + currentTime * 1000
+             : Date.now() - currentTime * 1000;
 
          // 重置语录会话状态
          focusSessionPhrases = {
@@ -3657,40 +3772,18 @@ if (currentMusicMode > 0 && !currentBackgroundMusic && isStatusSelected) {
          document.getElementById('pomodoroBtn').style.opacity = '0.6';
          document.getElementById('timerBtn').style.opacity = '0.6';
          
-         timerInterval = setInterval(() => {
-             if (currentMode === 'pomodoro') {
-                 currentTime--;
-                 if (currentTime <= 0) {
-                     clearInterval(timerInterval);
-                     isTimerRunning = false;
-                     isPaused = false;
-                     
-                     if (focusStartTime) {
-                         const focusedSeconds = selectedMinutes * 60;
-                         addFocusTime(focusedSeconds);
-                         focusStartTime = null;
-                     }
-                     
-                     showPomodoroComplete();
-                     enableModeSwitch();
-                     resetToSingleButton();
-                     stopHeartbeatAnimation();
-                     stopEncourageLoop();
-                     return;
-                 }
-             } else {
-                 currentTime++;
-             }
-             updateTimerDisplay();
-         }, 1000);
+         startTimerTicker();
      }
  }
 
  function pauseResumeTimer() {
 if (isTimerRunning) {
+ syncTimerFromClock();
  clearInterval(timerInterval);
+ timerInterval = null;
  isTimerRunning = false;
  isPaused = true;
+ timerReferenceAt = null;
  stopHeartbeatAnimation();
  stopEncourageLoop();
  // 修改：暂停背景音乐但保留进度
@@ -3708,6 +3801,7 @@ if (isTimerRunning) {
  }
 
  showRestMessage();
+ saveTimerState();
 
  document.getElementById('pauseBtn').innerHTML = `
      <svg class="w-8 h-8" fill="white" viewBox="0 0 24 24">
@@ -3719,6 +3813,9 @@ if (isTimerRunning) {
  isTimerRunning = true;
  isPaused = false;
  focusStartTime = Date.now();
+ timerReferenceAt = currentMode === 'pomodoro'
+     ? Date.now() + currentTime * 1000
+     : Date.now() - currentTime * 1000;
  startHeartbeatAnimation();
  startEncourageLoop();
  // 新增：恢复背景音乐播放
@@ -3740,32 +3837,7 @@ if (isTimerRunning) {
  document.getElementById('pomodoroBtn').style.opacity = '0.6';
  document.getElementById('timerBtn').style.opacity = '0.6';
  
- timerInterval = setInterval(() => {
-     if (currentMode === 'pomodoro') {
-         currentTime--;
-         if (currentTime <= 0) {
-             clearInterval(timerInterval);
-             isTimerRunning = false;
-             isPaused = false;
-             
-             if (focusStartTime) {
-                 const focusedSeconds = Math.floor((Date.now() - focusStartTime) / 1000);
-                 addFocusTime(focusedSeconds);
-                 focusStartTime = null;
-             }
-             
-             showPomodoroComplete();
-             enableModeSwitch();
-             resetToSingleButton();
-             stopHeartbeatAnimation();
-             stopEncourageLoop();
-             return;
-         }
-     } else {
-         currentTime++;
-     }
-     updateTimerDisplay();
- }, 1000);
+ startTimerTicker();
 }
 }
 
@@ -3790,6 +3862,7 @@ updateDataCenterIfActive();
 }
 isTimerRunning = false;
 isPaused = false;
+clearTimerState();
 
 stopHeartbeatAnimation();
 stopEncourageLoop();
@@ -4356,6 +4429,7 @@ function syncNow() {
      await loadStoredData();
      loadDetailedStats(); // 新增：加载详细统计数据
      updateCurrentDate();
+     restoreTimerState();
      updateTimerDisplay();
      initAudio();
      initAIEncouragement(); 
@@ -4382,6 +4456,12 @@ function syncNow() {
      //     });
      // }
  });
+
+ document.addEventListener('visibilitychange', function() {
+     if (!document.hidden && isTimerRunning) runTimerTick();
+ });
+
+ window.addEventListener('pagehide', saveTimerState);
 
 
 

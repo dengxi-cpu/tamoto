@@ -8,7 +8,7 @@
  *
  * 发新版代码时：把下面 CACHE_VERSION 的 v1 改成 v2，确保旧缓存被清除。
  */
-const CACHE_VERSION = 'tamoto-v1';
+const CACHE_VERSION = 'tamoto-v4';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `runtime-${CACHE_VERSION}`;
 
@@ -22,7 +22,9 @@ const PRECACHE_ASSETS = [
   '/frontend/js/db.js',
   '/frontend/js/main.js',
   '/frontend/js/chat.js',
+  '/frontend/js/pwa.js',
   '/frontend/css/chat.css',
+  '/frontend/css/pwa.css',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/icon-maskable-512.png',
@@ -94,6 +96,40 @@ self.addEventListener('fetch', (event) => {
         return res;
       })
       .catch(() => caches.match(request)),
+  );
+});
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (error) {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || '伴柠番茄钟', {
+      body: data.body || '【占位消息】该开始专注啦。',
+      icon: data.icon || '/icons/icon-192.png',
+      badge: data.badge || '/icons/icon-120.png',
+      tag: data.tag || 'oc-study-reminder',
+      renotify: true,
+      data: { url: data.url || '/?page=focus&source=notification' }
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || '/', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
+      for (const client of clients) {
+        if ('navigate' in client) await client.navigate(targetUrl);
+        if ('focus' in client) return client.focus();
+      }
+      return self.clients.openWindow ? self.clients.openWindow(targetUrl) : undefined;
+    }),
   );
 });
 

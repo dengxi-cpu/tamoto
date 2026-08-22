@@ -2,7 +2,16 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="theme-color" content="#8b5cf6">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="伴柠番茄钟">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
+    <link rel="stylesheet" href="/frontend/css/pwa.css">
     <title>伴柠番茄钟</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
@@ -3820,6 +3829,26 @@
             </div>
 
 
+            <!-- OC 系统通知 -->
+            <div class="setting-section bg-white/80 rounded-2xl">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 class="text-lg font-semibold text-slate-800">OC 主动通知</h3>
+                        <p class="text-xs text-slate-600 mt-1">允许 OC 通过手机或电脑的系统通知提醒你。</p>
+                    </div>
+                    <span id="pushNotificationStatus" class="text-xs text-slate-500 whitespace-nowrap">未开启</span>
+                </div>
+                <div class="flex gap-2 mt-4">
+                    <button id="enablePushButton" type="button" onclick="enableOCNotifications()" class="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-medium">
+                        开启通知
+                    </button>
+                    <button id="testPushButton" type="button" onclick="sendOCTestNotification()" class="flex-1 px-4 py-2.5 rounded-xl bg-purple-100 text-purple-700 text-sm font-medium disabled:opacity-50" disabled>
+                        发送测试通知
+                    </button>
+                </div>
+                <p id="pushNotificationMessage" class="text-xs text-slate-500 mt-3">iPhone 请先将应用添加到主屏幕，再从主屏幕打开并授权。</p>
+            </div>
+
             <!-- 删除OC按钮 -->
             <div class="setting-section border-red-200">
                 <button onclick="deleteOC()" class="w-full py-3 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors">
@@ -4151,6 +4180,7 @@
     <!-- <script src="frontend/js/sync.js"></script> -->
     <script src="frontend/js/main.js"></script>
     <script src="frontend/js/chat.js"></script>
+    <script src="frontend/js/pwa.js"></script>
 
 <!-- 在 </body> 标签前 -->
 

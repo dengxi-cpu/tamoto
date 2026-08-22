@@ -54,13 +54,38 @@ CREATE TABLE user_preferences (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Web Push 设备订阅（后续定时主动提醒使用；测试通知阶段不依赖此表）
+-- Web Push 设备订阅
 CREATE TABLE push_subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  device_id UUID NOT NULL UNIQUE,
+  device_secret_hash TEXT NOT NULL,
   endpoint TEXT NOT NULL UNIQUE,
   subscription JSONB NOT NULL,
+  timezone TEXT NOT NULL DEFAULT 'Asia/Shanghai',
+  oc_name TEXT NOT NULL DEFAULT '小艾',
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   last_seen_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE reminder_rules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_id UUID NOT NULL REFERENCES push_subscriptions(device_id) ON DELETE CASCADE,
+  time_local TIME NOT NULL,
+  weekdays SMALLINT[] NOT NULL DEFAULT ARRAY[0,1,2,3,4,5,6]::SMALLINT[],
+  timezone TEXT NOT NULL DEFAULT 'Asia/Shanghai',
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  message_template TEXT NOT NULL DEFAULT '【占位消息】该开始今天的专注啦，我在番茄钟里等你。',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE notification_deliveries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_key TEXT NOT NULL UNIQUE,
+  reminder_id UUID REFERENCES reminder_rules(id) ON DELETE SET NULL,
+  device_id UUID NOT NULL,
+  status TEXT NOT NULL,
+  error TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  sent_at TIMESTAMPTZ
 );

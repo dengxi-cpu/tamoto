@@ -3,6 +3,9 @@
 
     let deferredInstallPrompt = null;
     let toastTimer = null;
+    let reminderRules = [];
+    const DEVICE_ID_KEY = 'tamotoPushDeviceId';
+    const DEVICE_SECRET_KEY = 'tamotoPushDeviceSecret';
 
     function isStandalone() {
         return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -53,6 +56,150 @@
         return Uint8Array.from([...raw].map(character => character.charCodeAt(0)));
     }
 
+    function randomSecret() {
+        const bytes = crypto.getRandomValues(new Uint8Array(32));
+        return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function getDeviceCredentials() {
+        let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+        let deviceSecret = localStorage.getItem(DEVICE_SECRET_KEY);
+        if (!deviceId) {
+            deviceId = crypto.randomUUID();
+            localStorage.setItem(DEVICE_ID_KEY, deviceId);
+        }
+        if (!deviceSecret) {
+            deviceSecret = randomSecret();
+            localStorage.setItem(DEVICE_SECRET_KEY, deviceSecret);
+        }
+        return { deviceId, deviceSecret };
+    }
+
+    function currentOCName() {
+        try {
+            return (typeof ocData !== 'undefined' && ocData[currentOCIndex]?.name) || '小艾';
+        } catch { return '小艾'; }
+    }
+
+    async function syncSubscription(subscription) {
+        const credentials = getDeviceCredentials();
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
+        const response = await fetch('/api/reminders?action=subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ...credentials,
+                subscription: subscription.toJSON(),
+                timezone,
+                ocName: currentOCName()
+            })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || '设备订阅保存失败');
+        return credentials;
+    }
+
+    function repeatLabel(weekdays) {
+        const key = [...weekdays].sort().join(',');
+        if (key === '0,1,2,3,4,5,6') return '每天';
+        if (key === '1,2,3,4,5') return '工作日';
+        if (key === '0,6') return '周末';
+        return '每天';
+    }
+
+    function repeatDays(label) {
+        if (label === '工作日') return [1, 2, 3, 4, 5];
+        if (label === '周末') return [0, 6];
+        return [0, 1, 2, 3, 4, 5, 6];
+    }
+
+    function renderReminderRules() {
+        const container = document.getElementById('reminderTimesList');
+        if (!container) return;
+        if (!reminderRules.length) {
+            container.innerHTML = '<p class="text-xs text-slate-400 py-2">还没有提醒时间，点击右上角添加。</p>';
+            return;
+        }
+        container.innerHTML = reminderRules.map((rule, index) => `
+            <div class="flex items-center gap-2" data-reminder-index="${index}">
+                <input type="time" value="${String(rule.time).slice(0, 5)}" onchange="updateReminderTime(${index}, this.value)" class="flex-1 min-w-0 px-3 py-2 rounded-lg border border-purple-100 bg-white text-sm">
+                <select onchange="updateReminderRepeat(${index}, this.value)" class="px-2 py-2 rounded-lg border border-purple-100 bg-white text-sm">
+                    ${['每天', '工作日', '周末'].map(label => `<option${repeatLabel(rule.weekdays) === label ? ' selected' : ''}>${label}</option>`).join('')}
+                </select>
+                <button type="button" onclick="removeReminderTime(${index})" class="px-2 py-2 text-red-400 text-sm" aria-label="删除提醒">删除</button>
+            </div>
+        `).join('');
+    }
+
+    async function loadReminderRules() {
+        const settings = document.getElementById('reminderSettings');
+        if (settings) settings.classList.remove('hidden');
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
+        const timezoneElement = document.getElementById('reminderTimezone');
+        if (timezoneElement) timezoneElement.textContent = `按本地时区发送：${timezone}`;
+        const credentials = getDeviceCredentials();
+        const query = new URLSearchParams(credentials);
+        const response = await fetch(`/api/reminders?action=rules&${query}`);
+        if (!response.ok) {
+            reminderRules = [];
+            renderReminderRules();
+            return;
+        }
+        const result = await response.json();
+        reminderRules = (result.rules || []).map(rule => ({
+            time: String(rule.time_local).slice(0, 5),
+            weekdays: rule.weekdays || [0, 1, 2, 3, 4, 5, 6],
+            enabled: rule.enabled !== false,
+            message: rule.message_template
+        }));
+        renderReminderRules();
+    }
+
+    window.addReminderTime = function addReminderTime() {
+        if (reminderRules.length >= 10) return;
+        const next = new Date(Date.now() + 5 * 60 * 1000);
+        reminderRules.push({
+            time: `${String(next.getHours()).padStart(2, '0')}:${String(next.getMinutes()).padStart(2, '0')}`,
+            weekdays: [0, 1, 2, 3, 4, 5, 6], enabled: true
+        });
+        renderReminderRules();
+    };
+
+    window.removeReminderTime = function removeReminderTime(index) {
+        reminderRules.splice(index, 1);
+        renderReminderRules();
+    };
+
+    window.updateReminderTime = function updateReminderTime(index, value) {
+        if (reminderRules[index]) reminderRules[index].time = value;
+    };
+
+    window.updateReminderRepeat = function updateReminderRepeat(index, value) {
+        if (reminderRules[index]) reminderRules[index].weekdays = repeatDays(value);
+    };
+
+    window.saveOCReminders = async function saveOCReminders() {
+        const button = document.getElementById('saveRemindersButton');
+        const message = document.getElementById('reminderSaveMessage');
+        if (button) button.disabled = true;
+        if (message) message.textContent = '保存中…';
+        try {
+            const credentials = getDeviceCredentials();
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
+            const response = await fetch('/api/reminders?action=rules', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...credentials, rules: reminderRules.map(rule => ({ ...rule, timezone })) })
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.error || '保存失败');
+            if (message) message.textContent = `已保存 ${result.count} 个提醒。`;
+        } catch (error) {
+            if (message) message.textContent = error.message;
+        } finally {
+            if (button) button.disabled = false;
+        }
+    };
+
     function setPushUI(status, message, enabled) {
         const statusElement = document.getElementById('pushNotificationStatus');
         const messageElement = document.getElementById('pushNotificationMessage');
@@ -102,8 +249,10 @@
             if (permission !== 'granted') throw new Error('通知权限未开启，请在系统设置中允许通知');
             const registration = await getPushRegistration();
             try {
-                await getOrCreatePushSubscription(registration);
+                const subscription = await getOrCreatePushSubscription(registration);
+                await syncSubscription(subscription);
                 setPushUI('已开启', 'Web Push 已连接，网页关闭后也可以接收后端通知。', true);
+                await loadReminderRules();
             } catch (error) {
                 if (error.message !== 'PUSH_NOT_CONFIGURED') throw error;
                 setPushUI('已授权', '本机通知可用；部署端配置 VAPID 密钥后即可接收远程推送。', true);
@@ -162,6 +311,16 @@
         }
         if (Notification.permission === 'granted') {
             setPushUI('已开启', '通知权限已经开启，可以发送测试通知。', true);
+            try {
+                const registration = await getPushRegistration();
+                const subscription = await registration.pushManager.getSubscription();
+                if (subscription) {
+                    await syncSubscription(subscription);
+                    await loadReminderRules();
+                }
+            } catch (error) {
+                console.warn('提醒订阅同步失败:', error.message);
+            }
         } else if (Notification.permission === 'denied') {
             setPushUI('已阻止', '请在浏览器或系统设置中重新允许通知。', false);
         }

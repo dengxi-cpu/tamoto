@@ -3847,6 +3847,20 @@
                     </button>
                 </div>
                 <p id="pushNotificationMessage" class="text-xs text-slate-500 mt-3">iPhone 请先将应用添加到主屏幕，再从主屏幕打开并授权。</p>
+                <div id="reminderSettings" class="mt-5 pt-4 border-t border-purple-100 hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-700">定时提醒</h4>
+                            <p id="reminderTimezone" class="text-xs text-slate-400 mt-0.5"></p>
+                        </div>
+                        <button type="button" onclick="addReminderTime()" class="px-3 py-1.5 rounded-lg bg-purple-50 text-purple-600 text-xs font-medium">＋ 添加时间</button>
+                    </div>
+                    <div id="reminderTimesList" class="space-y-2"></div>
+                    <button id="saveRemindersButton" type="button" onclick="saveOCReminders()" class="w-full mt-4 px-4 py-2.5 rounded-xl bg-slate-800 text-white text-sm font-medium">
+                        保存提醒
+                    </button>
+                    <p id="reminderSaveMessage" class="text-xs text-slate-500 mt-2"></p>
+                </div>
             </div>
 
             <!-- 删除OC按钮 -->

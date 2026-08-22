@@ -29,6 +29,7 @@ const apiModules = {
   auth: require('./api/auth.js'),
   sync: require('./api/sync.js'),
   push: require('./api/push.js'),
+  reminders: require('./api/reminders.js'),
 };
 
 // 通用代理：把 Express req/res 包装成 Vercel 风格的 handler(req, res)
@@ -50,6 +51,7 @@ app.post('/api/chat', proxyApi(apiModules.chat.handler));
 app.post('/api/auth', proxyApi(apiModules.auth));
 app.all('/api/sync', proxyApi(apiModules.sync));
 app.all('/api/push', proxyApi(apiModules.push));
+app.all('/api/reminders', proxyApi(apiModules.reminders));
 
 app.listen(PORT, () => {
   console.log(`🚀 伴柠番茄钟已启动: http://localhost:${PORT}`);

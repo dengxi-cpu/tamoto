@@ -6,6 +6,7 @@
     let reminderRules = [];
     const DEVICE_ID_KEY = 'tamotoPushDeviceId';
     const DEVICE_SECRET_KEY = 'tamotoPushDeviceSecret';
+    const FOCUS_AWAY_KEY = 'tamotoActiveFocusAwayKey';
 
     function isStandalone() {
         return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -73,6 +74,49 @@
             localStorage.setItem(DEVICE_SECRET_KEY, deviceSecret);
         }
         return { deviceId, deviceSecret };
+    }
+
+    function focusIsRunning() {
+        try {
+            return typeof isTimerRunning !== 'undefined' && isTimerRunning &&
+                (typeof isPaused === 'undefined' || !isPaused);
+        } catch {
+            return false;
+        }
+    }
+
+    function registerFocusAway() {
+        if (!focusIsRunning() || localStorage.getItem(FOCUS_AWAY_KEY)) return;
+        const awayKey = crypto.randomUUID();
+        localStorage.setItem(FOCUS_AWAY_KEY, awayKey);
+        const payload = JSON.stringify({ ...getDeviceCredentials(), awayKey });
+        const url = '/api/reminders?action=focus-away';
+        const sent = navigator.sendBeacon?.(url, new Blob([payload], { type: 'application/json' }));
+        if (!sent) {
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: payload,
+                keepalive: true
+            }).catch(error => console.warn('记录离开状态失败:', error.message));
+        }
+    }
+
+    async function registerFocusReturn() {
+        const awayKey = localStorage.getItem(FOCUS_AWAY_KEY);
+        if (!awayKey) return;
+        try {
+            const response = await fetch('/api/reminders?action=focus-return', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...getDeviceCredentials(), awayKey }),
+                keepalive: true
+            });
+            localStorage.removeItem(FOCUS_AWAY_KEY);
+            if (!response.ok) console.warn('返回状态未被服务端接受:', response.status);
+        } catch (error) {
+            console.warn('更新返回状态失败:', error.message);
+        }
     }
 
     function currentOCName() {
@@ -199,6 +243,58 @@
             if (button) button.disabled = false;
         }
     };
+
+    window.parseReminderText = async function parseReminderText(text, context = {}) {
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
+        const response = await fetch('/api/reminder-parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, timezone, ...context })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) throw new Error(result.error || '提醒解析失败');
+        return result.data;
+    };
+
+    window.createOneOffReminder = async function createOneOffReminder(reminder) {
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
+        const response = await fetch('/api/reminders?action=one-off', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...getDeviceCredentials(), ...reminder, timezone })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) throw new Error(result.error || '提醒保存失败');
+        return result.reminder;
+    };
+
+    let messageSyncPromise = null;
+    async function syncOCMessages() {
+        if (messageSyncPromise) return messageSyncPromise;
+        messageSyncPromise = (async () => {
+            const credentials = getDeviceCredentials();
+            const query = new URLSearchParams(credentials);
+            const response = await fetch(`/api/reminders?action=messages&${query}`);
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success) throw new Error(result.error || 'OC 消息同步失败');
+            const messages = result.messages || [];
+            const receivedIds = typeof window.receiveOCMessages === 'function'
+                ? window.receiveOCMessages(messages)
+                : [];
+            const unreadIds = messages.filter(item => !item.read_at).map(item => item.id);
+            if (unreadIds.length && document.visibilityState === 'visible') {
+                await fetch('/api/reminders?action=messages-read', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...credentials, messageIds: unreadIds })
+                });
+            }
+            return receivedIds;
+        })().finally(() => { messageSyncPromise = null; });
+        return messageSyncPromise;
+    }
+
+    window.syncOCMessages = syncOCMessages;
 
     function setPushUI(status, message, enabled) {
         const statusElement = document.getElementById('pushNotificationStatus');
@@ -341,9 +437,28 @@
 
     window.addEventListener('offline', () => showToast('当前离线，本地计时和已保存数据仍可使用。', null, null, true));
     window.addEventListener('online', () => showToast('网络已恢复。'));
+    window.addEventListener('focus', () => syncOCMessages().catch(error => console.warn(error.message)));
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            registerFocusReturn();
+            syncOCMessages().catch(error => console.warn(error.message));
+        } else {
+            registerFocusAway();
+        }
+    });
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data?.type === 'OC_PUSH_MESSAGE') {
+                syncOCMessages().catch(error => console.warn(error.message));
+            }
+        });
+    }
 
     window.addEventListener('load', async () => {
         refreshPushUI();
+        registerFocusReturn();
+        syncOCMessages().catch(error => console.warn(error.message));
         if (isIOS() && !isStandalone() && !localStorage.getItem('pwa-ios-hint-seen')) {
             showToast('在 Safari 点“分享”，再选“添加到主屏幕”，即可沉浸式使用。', '知道了', () => {
                 localStorage.setItem('pwa-ios-hint-seen', '1');

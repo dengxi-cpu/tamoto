@@ -9,6 +9,8 @@
     chatObserver: null,
     toastTimer: null,
     voiceAudio: null,
+    voiceLoopTimer: null,
+    lastVoiceTake: 0,
     voiceTake: Number(localStorage.getItem('bnVoiceTake')) || 1
   };
 
@@ -223,7 +225,7 @@
     }
     if (typeof startStopTimer === 'function') startStopTimer();
     if (isTimerRunning || isPaused) {
-      playSelectedVoice(false);
+      startVoiceLoop();
       switchTab('running');
       startCaptions();
     } else {
@@ -233,6 +235,7 @@
 
   function stopFocusSession() {
     if (!confirm('结束这次专注吗？')) return;
+    stopVoiceLoop();
     if (typeof stopTimer === 'function') stopTimer();
     stopCaptions();
     switchTab('focus');
@@ -240,6 +243,8 @@
 
   function pauseFocus() {
     if (typeof pauseResumeTimer === 'function') pauseResumeTimer();
+    if (isPaused) stopVoiceLoop();
+    else if (isTimerRunning) startVoiceLoop();
     refreshTimer();
   }
 
@@ -252,20 +257,72 @@
     return `/frontend/audio/oc-reminders/gentle-male-v3-take-${String(take).padStart(2, '0')}.mp3`;
   }
 
-  function playSelectedVoice(isPreview) {
-    if (state.voiceAudio) {
-      state.voiceAudio.pause();
-      state.voiceAudio.currentTime = 0;
+  function playSelectedVoice(isPreview, take = state.voiceTake) {
+    if (!state.voiceAudio) {
+      state.voiceAudio = document.createElement('audio');
+      state.voiceAudio.id = 'bnVoicePlayer';
+      state.voiceAudio.preload = 'auto';
+      state.voiceAudio.setAttribute('playsinline', '');
+      state.voiceAudio.setAttribute('webkit-playsinline', '');
+      state.voiceAudio.style.position = 'fixed';
+      state.voiceAudio.style.width = '1px';
+      state.voiceAudio.style.height = '1px';
+      state.voiceAudio.style.opacity = '0';
+      state.voiceAudio.style.pointerEvents = 'none';
+      document.body.appendChild(state.voiceAudio);
     }
-    state.voiceAudio = new Audio(voiceUrl(state.voiceTake));
-    state.voiceAudio.preload = 'auto';
+    state.voiceAudio.pause();
+    state.voiceAudio.currentTime = 0;
+    const nextUrl = new URL(voiceUrl(take), location.href).href;
+    if (state.voiceAudio.src !== nextUrl) {
+      state.voiceAudio.src = nextUrl;
+      state.voiceAudio.load();
+    }
     state.voiceAudio.volume = 0.9;
     state.voiceAudio.play().then(() => {
-      if (isPreview) toast(`正在试听候选 ${state.voiceTake}`);
+      if (isPreview) toast(`正在试听语音 ${take}`);
     }).catch(error => {
       console.warn('陪伴语音播放失败:', error);
       toast('浏览器拦截了播放，请再点一次 🔊');
     });
+    return state.voiceAudio;
+  }
+
+  function startVoiceLoop() {
+    stopVoiceLoop();
+    // 必须保持在“开始专注”的用户点击调用栈中，以解锁同一个播放器。
+    playRandomVoice();
+  }
+
+  function randomVoiceTake() {
+    const choices = [1, 2, 3].filter(take => take !== state.lastVoiceTake);
+    return choices[Math.floor(Math.random() * choices.length)];
+  }
+
+  function playRandomVoice() {
+    if (!isTimerRunning || isPaused) return;
+    const take = randomVoiceTake();
+    state.lastVoiceTake = take;
+    const audio = playSelectedVoice(false, take);
+    audio.addEventListener('ended', scheduleNextVoice, { once: true });
+    audio.addEventListener('error', scheduleNextVoice, { once: true });
+  }
+
+  function scheduleNextVoice() {
+    if (!isTimerRunning || isPaused) return;
+    clearTimeout(state.voiceLoopTimer);
+    const delay = 30000 + Math.floor(Math.random() * 20001);
+    state.voiceLoopTimer = setTimeout(playRandomVoice, delay);
+    console.log(`下一条陪伴语将在 ${Math.round(delay / 1000)} 秒后播放`);
+  }
+
+  function stopVoiceLoop() {
+    if (state.voiceLoopTimer) clearTimeout(state.voiceLoopTimer);
+    state.voiceLoopTimer = null;
+    if (state.voiceAudio) {
+      state.voiceAudio.pause();
+      state.voiceAudio.currentTime = 0;
+    }
   }
 
   function selectVoice(take) {
@@ -380,6 +437,7 @@
   function refreshUI() {
     if (state.tab === 'running' && !isTimerRunning && !isPaused) {
       stopCaptions();
+      stopVoiceLoop();
       switchTab('focus');
       return;
     }

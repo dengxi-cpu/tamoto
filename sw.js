@@ -8,7 +8,7 @@
  *
  * 发新版代码时：把下面 CACHE_VERSION 的 v1 改成 v2，确保旧缓存被清除。
  */
-const CACHE_VERSION = 'tamoto-v7';
+const CACHE_VERSION = 'tamoto-v15';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `runtime-${CACHE_VERSION}`;
 
@@ -18,7 +18,6 @@ const PRECACHE_ASSETS = [
   '/index.html',
   '/manifest.webmanifest',
   '/frontend/js/api.js',
-  '/frontend/js/api-card-ui.js',
   '/frontend/js/db.js',
   '/frontend/js/main.js',
   '/frontend/js/chat.js',
@@ -113,16 +112,25 @@ self.addEventListener('push', (event) => {
     data = { body: event.data ? event.data.text() : '' };
   }
 
-  event.waitUntil(
+  event.waitUntil(Promise.all([
     self.registration.showNotification(data.title || '伴柠番茄钟', {
       body: data.body || '【占位消息】该开始专注啦。',
       icon: data.icon || '/icons/icon-192.png',
       badge: data.badge || '/icons/icon-120.png',
       tag: data.tag || 'oc-study-reminder',
       renotify: true,
-      data: { url: data.url || '/?page=focus&source=notification' }
+      data: {
+        url: data.url || '/?page=chat&source=notification',
+        messageId: data.messageId || null
+      }
     }),
-  );
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      clients.forEach((client) => client.postMessage({
+        type: 'OC_PUSH_MESSAGE',
+        messageId: data.messageId || null
+      }));
+    })
+  ]));
 });
 
 self.addEventListener('notificationclick', (event) => {

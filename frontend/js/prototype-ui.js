@@ -96,16 +96,23 @@
       </section>
 
       <section class="bn-screen bn-focus-running" data-bn-screen="running">
-        <div class="bn-stage"><img class="bn-stage-img" id="bnStageImage" alt="OC 陪伴场景"></div>
+        <div class="bn-stage">
+          <img class="bn-stage-img" id="bnStageImage" alt="OC 陪伴场景">
+          <div class="bn-camera-preview" id="bnCameraPreview" hidden>
+            <video id="bnCameraVideo" autoplay muted playsinline aria-label="你的摄像头预览"></video>
+            <span>我</span>
+          </div>
+        </div>
         <div class="bn-call-top"><span><i></i><span id="bnCallName"></span> · 陪伴中</span><button class="bn-close-focus" type="button" data-bn-action="stop-focus">×</button></div>
         <div class="bn-call-task" id="bnCallTask">📖 专注中</div>
         <div class="bn-caption" id="bnCaption"></div>
         <div class="bn-call-bottom">
           <div class="bn-call-time" id="bnTimer">25:00</div><div class="bn-call-sub">剩余专注时间</div>
           <div class="bn-controls">
-            <button class="bn-control" type="button" data-bn-go="chat" aria-label="切到聊天">💬</button>
+            <button class="bn-control" id="bnCameraBtn" type="button" data-bn-action="toggle-camera" aria-pressed="false" aria-label="开启视频" title="开启视频">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </button>
             <button class="bn-control is-primary" id="bnPause" type="button" data-bn-action="pause-focus" aria-label="暂停">⏸</button>
-            <button class="bn-control" type="button" data-bn-action="next-caption" aria-label="换一句陪伴语">↻</button>
             <button class="bn-control" type="button" data-bn-action="play-voice" aria-label="播放陪伴语音">🔊</button>
           </div>
         </div>
@@ -511,6 +518,7 @@
       if (type === 'show-running') (isTimerRunning || isPaused) ? switchTab('running') : toast('还没有正在进行的专注');
       if (type === 'stop-focus') stopFocusSession();
       if (type === 'pause-focus') pauseFocus();
+      if (type === 'toggle-camera' && window.focusCompanion) window.focusCompanion.toggleCamera();
       if (type === 'next-caption') nextCaption();
       if (type === 'play-voice') playSelectedVoice(false);
       if (type === 'gifts' && typeof showGiftModal === 'function') showGiftModal();

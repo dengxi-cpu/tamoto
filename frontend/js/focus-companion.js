@@ -9,9 +9,9 @@
 
     function elements() {
         return {
-            button: document.getElementById('cameraBtn'),
-            preview: document.getElementById('userCameraPreview'),
-            video: document.getElementById('userCameraVideo')
+            button: document.getElementById('bnCameraBtn') || document.getElementById('cameraBtn'),
+            preview: document.getElementById('bnCameraPreview') || document.getElementById('userCameraPreview'),
+            video: document.getElementById('bnCameraVideo') || document.getElementById('userCameraVideo')
         };
     }
 

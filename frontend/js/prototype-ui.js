@@ -112,6 +112,9 @@
             <button class="bn-control" id="bnCameraBtn" type="button" data-bn-action="toggle-camera" aria-pressed="false" aria-label="开启视频" title="开启视频">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
             </button>
+            <button class="bn-control" id="bnVoiceInputBtn" type="button" aria-label="按住说话" title="按住说话">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3zM5 10v2a7 7 0 0014 0v-2M12 19v3M8 22h8"/></svg>
+            </button>
             <button class="bn-control is-primary" id="bnPause" type="button" data-bn-action="pause-focus" aria-label="暂停">⏸</button>
             <button class="bn-control" type="button" data-bn-action="play-voice" aria-label="播放陪伴语音">🔊</button>
           </div>
@@ -509,6 +512,21 @@
     document.querySelectorAll('.bn-acc-head').forEach(button => button.addEventListener('click', () => button.parentElement.classList.toggle('is-open')));
     document.getElementById('bnChatForm').addEventListener('submit', submitChat);
     document.getElementById('bnTaskInput').addEventListener('change', syncTaskInput);
+    const voiceButton = document.getElementById('bnVoiceInputBtn');
+    if (voiceButton && window.focusCompanion) {
+      voiceButton.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        voiceButton.setPointerCapture?.(event.pointerId);
+        window.focusCompanion.startVoiceInput();
+      });
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => {
+        voiceButton.addEventListener(type, event => {
+          event.preventDefault();
+          window.focusCompanion.stopVoiceInput();
+        });
+      });
+      voiceButton.addEventListener('contextmenu', event => event.preventDefault());
+    }
     const source = document.getElementById('chatMessages');
     if (source) {
       state.chatObserver = new MutationObserver(mirrorChat);

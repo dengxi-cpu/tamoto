@@ -4199,34 +4199,6 @@ modal.classList.add('show');
 
 
 
- // 飘落效果
- function createFallingElements() {
-     const elements = ['🌸'];
-     
-     function createSingleElement() {
-         const element = document.createElement('div');
-         element.className = 'falling-petals';
-         element.textContent = elements[Math.floor(Math.random() * elements.length)];
-         element.style.left = Math.random() * window.innerWidth + 'px';
-         element.style.animationDuration = (Math.random() * 3 + 4) + 's';
-         element.style.animationDelay = Math.random() * 2 + 's';
-         
-         document.body.appendChild(element);
-         
-         setTimeout(() => {
-             if (element.parentNode) {
-                 element.remove();
-             }
-         }, 9000);
-     }
-     
-     for (let i = 0; i < 3; i++) {
-         setTimeout(createSingleElement, i * 1000);
-     }
-     
-     setInterval(createSingleElement, 2000);
- }
-
  // 初始化和事件监听
  async function loadStoredData() {
      const storedOCData = localStorage.getItem('ocData');
@@ -4458,7 +4430,6 @@ function syncNow() {
      initAIEncouragement(); 
      
      initEventListeners();
-     createFallingElements();
      setTimeout(initPageAnimation, 100);
      renderTasks();
 

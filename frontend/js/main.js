@@ -1003,6 +1003,9 @@ function loadDetailedStats() {
          focusStartTime = null;
      }
      clearTimerState();
+     if (window.focusCompanion) {
+         window.focusCompanion.stopSession();
+     }
      showPomodoroComplete();
      enableModeSwitch();
      resetToSingleButton();
@@ -1061,6 +1064,11 @@ function loadDetailedStats() {
      }
      document.getElementById('singleButtonLayout').classList.add('hidden');
      document.getElementById('threeButtonLayout').classList.remove('hidden');
+
+     // 视频默认关闭，只在用户点击左侧视频按钮后请求权限。
+     if (window.focusCompanion) {
+         window.focusCompanion.startSession();
+     }
      document.getElementById('pomodoroBtn').style.pointerEvents = isTimerRunning ? 'none' : 'auto';
      document.getElementById('timerBtn').style.pointerEvents = isTimerRunning ? 'none' : 'auto';
      document.getElementById('pomodoroBtn').style.opacity = isTimerRunning ? '0.6' : '1';
@@ -2972,6 +2980,9 @@ function updateOCDataMessage() {
 }
 
  function goBackToHome() {
+     if (window.focusCompanion) {
+         window.focusCompanion.stopSession();
+     }
      showPage('homePage');
      if (timerInterval) {
          clearInterval(timerInterval);
@@ -3018,6 +3029,9 @@ function updateOCDataMessage() {
   * 从专注页跳转到当前OC的设置页
   */
  function goToOCSetting() {
+     if (window.focusCompanion) {
+         window.focusCompanion.stopCamera();
+     }
      // 设置标记：从专注页进入
      localStorage.setItem('fromFocusPage', 'true');
 
@@ -3767,6 +3781,11 @@ if (currentMusicMode > 0 && !currentBackgroundMusic && isStatusSelected) {
          document.getElementById('singleButtonLayout').classList.add('hidden');
          document.getElementById('threeButtonLayout').classList.remove('hidden');
 
+         // 进入专注会话，视频仍保持默认关闭。
+         if (window.focusCompanion) {
+             window.focusCompanion.startSession();
+         }
+
          document.getElementById('pomodoroBtn').style.pointerEvents = 'none';
          document.getElementById('timerBtn').style.pointerEvents = 'none';
          document.getElementById('pomodoroBtn').style.opacity = '0.6';
@@ -3860,9 +3879,13 @@ updateDataCenterIfActive();
      focusStartTime = null;
  }
 }
-isTimerRunning = false;
-isPaused = false;
-clearTimerState();
+ isTimerRunning = false;
+ isPaused = false;
+ clearTimerState();
+
+ if (window.focusCompanion) {
+     window.focusCompanion.stopSession();
+ }
 
 stopHeartbeatAnimation();
 stopEncourageLoop();
@@ -4433,15 +4456,6 @@ function syncNow() {
      updateTimerDisplay();
      initAudio();
      initAIEncouragement(); 
-     
-     const musicBtn = document.getElementById('musicBtn');
-     if (musicBtn) {
-         musicBtn.innerHTML = `
-             <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
-                 <text x="12" y="16" text-anchor="middle" font-size="16">🔇</text>
-             </svg>
-         `;
-     }
      
      initEventListeners();
      createFallingElements();

@@ -966,6 +966,47 @@
             background: rgba(148, 163, 184, 0.5);
             transform: translateY(-2px);
         }
+
+        .side-button.camera-active {
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            color: #fff;
+            box-shadow: 0 8px 22px rgba(168, 85, 247, 0.28);
+        }
+
+        .user-camera-preview {
+            position: absolute;
+            right: 1rem;
+            bottom: 0.75rem;
+            width: 92px;
+            aspect-ratio: 3 / 4;
+            overflow: hidden;
+            border-radius: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            background: linear-gradient(145deg, #312e81, #581c87);
+            box-shadow: 0 12px 30px rgba(76, 29, 149, 0.26);
+            z-index: 35;
+        }
+
+        .user-camera-preview video {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        .user-camera-label {
+            position: absolute;
+            left: 8px;
+            bottom: 7px;
+            padding: 2px 7px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.58);
+            color: #fff;
+            font-size: 10px;
+            line-height: 1.4;
+            backdrop-filter: blur(6px);
+        }
         
         .main-button {
             border-radius: 20px;
@@ -3510,6 +3551,11 @@
 
             <!-- 中部区域 - OC状态展示 -->
             <div class="flex flex-col justify-center items-center px-4 relative flex-1">
+                <div id="userCameraPreview" class="user-camera-preview" hidden>
+                    <video id="userCameraVideo" autoplay muted playsinline aria-label="你的摄像头预览"></video>
+                    <span class="user-camera-label">我</span>
+                </div>
+
                 <!-- OC头像区域 - 居中，两边心电图 -->
                 <div class="relative mb-4 flex items-center justify-center w-full">
                     
@@ -3656,10 +3702,10 @@
                 
                 <!-- 三按钮布局（隐藏状态） -->
                 <div id="threeButtonLayout" class="three-button-layout px-4 hidden">
-                    <!-- 音乐按钮 -->
-                    <button id="musicBtn" class="side-button button-hover" onclick="toggleMusic()">
-                        <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                    <!-- 视频开关：默认关闭，用户主动点击后才请求摄像头权限 -->
+                    <button id="cameraBtn" class="side-button button-hover" type="button" aria-pressed="false" aria-label="开启视频" title="开启视频" onclick="toggleFocusCamera()">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                         </svg>
                     </button>
 
@@ -3699,6 +3745,7 @@
     <script src="frontend/js/api.js?v=12"></script>
     <script src="frontend/js/db.js"></script>
     <!-- <script src="frontend/js/sync.js"></script> -->
+    <script src="frontend/js/focus-companion.js?v=1"></script>
     <script src="frontend/js/main.js"></script>
     <script src="frontend/js/chat.js?v=15"></script>
     <script src="frontend/js/pwa.js?v=15"></script>

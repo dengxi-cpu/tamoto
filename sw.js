@@ -8,7 +8,7 @@
  *
  * 发新版代码时：把下面 CACHE_VERSION 的 v1 改成 v2，确保旧缓存被清除。
  */
-const CACHE_VERSION = 'tamoto-v15';
+const CACHE_VERSION = 'tamoto-v16';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `runtime-${CACHE_VERSION}`;
 
@@ -19,6 +19,7 @@ const PRECACHE_ASSETS = [
   '/manifest.webmanifest',
   '/frontend/js/api.js',
   '/frontend/js/db.js',
+  '/frontend/js/focus-companion.js',
   '/frontend/js/main.js',
   '/frontend/js/chat.js',
   '/frontend/js/pwa.js',

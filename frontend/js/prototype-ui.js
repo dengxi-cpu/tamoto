@@ -152,36 +152,16 @@
       <div class="bn-toast" id="bnToast"></div>
     `;
     document.body.insertBefore(app, document.body.firstChild);
-    const legacyBack = document.createElement('button');
-    legacyBack.id = 'bnLegacyBack';
-    legacyBack.className = 'bn-legacy-back';
-    legacyBack.type = 'button';
-    legacyBack.textContent = '← 返回新版界面';
-    document.body.appendChild(legacyBack);
   }
 
   function switchTab(tab) {
     if (tab === 'focus' && (isTimerRunning || isPaused)) tab = 'running';
-    if (tab === 'focus' && typeof goToFocus === 'function' && !isTimerRunning && !isPaused) goToFocus();
     if (tab === 'chat') prepareChat();
     state.tab = tab;
     document.querySelectorAll('[data-bn-screen]').forEach(el => el.classList.toggle('is-active', el.dataset.bnScreen === tab));
     document.querySelectorAll('.bn-tab').forEach(el => el.classList.toggle('is-active', el.dataset.bnGo === (tab === 'running' ? 'focus' : tab)));
     document.getElementById('bnApp').classList.toggle('is-running', tab === 'running');
     refreshUI();
-  }
-
-  function showLegacy(pageId) {
-    const app = document.getElementById('bnApp');
-    app.hidden = true;
-    document.body.classList.add('bn-show-legacy');
-    if (typeof showPage === 'function') showPage(pageId);
-  }
-
-  function returnFromLegacy() {
-    document.body.classList.remove('bn-show-legacy');
-    document.getElementById('bnApp').hidden = false;
-    switchTab('home');
   }
 
   function setDuration(value, button) {
@@ -522,29 +502,17 @@
       if (type === 'next-caption') nextCaption();
       if (type === 'play-voice') playSelectedVoice(false);
       if (type === 'gifts' && typeof showGiftModal === 'function') showGiftModal();
-      if (type === 'edit-oc') { if (typeof editOC === 'function') editOC(currentOCIndex); showLegacy('ocSettingPage'); }
-      if (type === 'new-oc') { if (typeof createNewOC === 'function') createNewOC(); showLegacy('ocSettingPage'); }
-      if (type === 'advanced') showLegacy('homePage');
+      if (type === 'edit-oc' || type === 'new-oc' || type === 'advanced') {
+        toast('该功能正在迁移到新界面');
+      }
     });
     document.querySelectorAll('.bn-acc-head').forEach(button => button.addEventListener('click', () => button.parentElement.classList.toggle('is-open')));
     document.getElementById('bnChatForm').addEventListener('submit', submitChat);
-    document.getElementById('bnLegacyBack').addEventListener('click', returnFromLegacy);
     document.getElementById('bnTaskInput').addEventListener('change', syncTaskInput);
     const source = document.getElementById('chatMessages');
     if (source) {
       state.chatObserver = new MutationObserver(mirrorChat);
       state.chatObserver.observe(source, { childList: true, subtree: true, characterData: true });
-    }
-  }
-
-  function wrapLegacyNavigation() {
-    const originalBackHome = typeof goBackToHome === 'function' ? goBackToHome : null;
-    if (originalBackHome) {
-      goBackToHome = function () { originalBackHome(); returnFromLegacy(); };
-    }
-    const originalBackCards = typeof goBackToOCCards === 'function' ? goBackToOCCards : null;
-    if (originalBackCards) {
-      goBackToOCCards = function () { originalBackCards(); document.body.classList.add('bn-show-legacy'); };
     }
   }
 
@@ -555,7 +523,6 @@
       element.style.display = 'none';
     });
     bindEvents();
-    wrapLegacyNavigation();
     loadPrototypeScene();
     setTimeout(() => {
       if (!isStatusSelected) setStatus(document.querySelector('.bn-status[data-bn-status="学习"]'));

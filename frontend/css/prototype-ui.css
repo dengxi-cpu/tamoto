@@ -36,10 +36,6 @@ body.bn-ui-active > #dataCenterPage {
 }
 body.bn-ui-active .fixed.inset-0.pointer-events-none { display:none !important; }
 
-body.bn-ui-active.bn-show-legacy > .page.show {
-  display: block !important;
-}
-
 .bn-app, .bn-app * { box-sizing: border-box; }
 .bn-app {
   width: 100vw;
@@ -182,8 +178,6 @@ body.bn-ui-active.bn-show-legacy > .page.show {
 .bn-toast { position:absolute; z-index:30; left:50%; bottom:92px; max-width:86%; transform:translate(-50%,12px); padding:10px 14px; border-radius:999px; color:#fff; background:rgba(45,36,60,.88); opacity:0; pointer-events:none; transition:.2s; font-size:12px; white-space:nowrap; }
 .bn-toast.is-show { opacity:1; transform:translate(-50%,0); }
 body.bn-ui-active .pwa-toast { bottom:max(82px,calc(env(safe-area-inset-bottom) + 78px)); }
-.bn-legacy-back { display:none; position:fixed; z-index:10020; top:max(12px,env(safe-area-inset-top)); left:50%; transform:translateX(-50%); border:1px solid rgba(255,255,255,.7); border-radius:999px; padding:9px 14px; color:#fff; background:rgba(61,51,88,.88); box-shadow:var(--bn-shadow); font:750 12px inherit; backdrop-filter:blur(12px); }
-body.bn-show-legacy .bn-legacy-back { display:block; }
 body.bn-ui-active > div:not(#bnApp) .floating,
 body.bn-ui-active > div:not(#bnApp) .sparkle { display:none !important; }
 

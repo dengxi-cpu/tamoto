@@ -19,7 +19,6 @@
         lastAmbientAt: 0,
         lastPraiseAt: 0,
         lastEventOrDialogueAt: 0,
-        praiseMilestoneDone: false,
         roleActivity: '看书',
         roleActivityChangedAt: 0,
         openingTimers: [],
@@ -49,11 +48,14 @@
     const AMBIENT_POLICY = {
         checkMinMs: 30 * 1000,
         checkJitterMs: 30 * 1000,
+        studyCheckMinMs: 60 * 1000,
+        studyCheckJitterMs: 30 * 1000,
         firstOpportunitySeconds: 20,
         eventCooldownMs: 20 * 1000,
         ambientCooldownMs: 45 * 1000,
         baseChance: 0.85,
-        focusedChance: 0.95,
+        studyChance: 0.75,
+        studyAmbientCooldownMs: 75 * 1000,
         firstTenMinutesLimit: 20,
         perTwentyFiveMinutesLimit: 50
     };
@@ -199,7 +201,6 @@
         state.lastAmbientAt = 0;
         state.lastPraiseAt = 0;
         state.lastEventOrDialogueAt = 0;
-        state.praiseMilestoneDone = false;
         state.roleActivityChangedAt = Date.now();
         state.openingAmbientDone = false;
         state.openingEventDone = false;
@@ -285,8 +286,8 @@
             ? (ocData[typeof currentOCIndex === 'number' ? currentOCIndex : 0] || ocData[0])
             : null;
         const persona = oc
-            ? `${oc.name || 'TA'}，称呼用户为${oc.userTitle || '你'}，性格毒舌但关心用户，反应自然、简短。`
-            : '毒舌但关心用户的陪伴者，反应自然、简短。';
+            ? `${oc.name || 'TA'}，需要称呼时只叫用户“大小姐”，不要使用用户姓名，也不要每句话都称呼。性格毒舌但关心用户，反应自然、简短。`
+            : '毒舌但关心用户的陪伴者，需要称呼时只叫用户“大小姐”，不要每句话都称呼，反应自然、简短。';
         return { task, persona };
     }
 
@@ -777,7 +778,10 @@
     function scheduleAmbientCheck() {
         stopAmbientLoop();
         if (!state.sessionActive || state.paused) return;
-        const delay = AMBIENT_POLICY.checkMinMs + Math.floor(Math.random() * AMBIENT_POLICY.checkJitterMs);
+        const studyPhase = openingElapsedMs() >= 5 * 60 * 1000;
+        const delay = studyPhase
+            ? AMBIENT_POLICY.studyCheckMinMs + Math.floor(Math.random() * AMBIENT_POLICY.studyCheckJitterMs)
+            : AMBIENT_POLICY.checkMinMs + Math.floor(Math.random() * AMBIENT_POLICY.checkJitterMs);
         state.ambientTimer = window.setTimeout(async () => {
             await considerAmbientSpeech();
             scheduleAmbientCheck();
@@ -792,27 +796,32 @@
         const ambientSafe = !state.stream || !policy.currentState || policy.currentState === 'STUDYING';
         if (elapsedSeconds < AMBIENT_POLICY.firstOpportunitySeconds || !ambientSafe || policy.phoneStartedAt) return;
         if (state.lastEventOrDialogueAt && now - state.lastEventOrDialogueAt < AMBIENT_POLICY.eventCooldownMs) return;
-        if (state.lastAmbientAt && now - state.lastAmbientAt < AMBIENT_POLICY.ambientCooldownMs) return;
+        const studyPhase = elapsedSeconds >= 5 * 60;
+        const ambientCooldownMs = studyPhase ? AMBIENT_POLICY.studyAmbientCooldownMs : AMBIENT_POLICY.ambientCooldownMs;
+        if (state.lastAmbientAt && now - state.lastAmbientAt < ambientCooldownMs) return;
         const ambientLimit = elapsedSeconds <= 10 * 60
             ? AMBIENT_POLICY.firstTenMinutesLimit
             : Math.ceil(elapsedSeconds / (25 * 60)) * AMBIENT_POLICY.perTwentyFiveMinutesLimit;
         if (state.ambientCount >= ambientLimit) return;
 
         const focusSeconds = policy.focusStreakStartedAt ? Math.floor((now - policy.focusStreakStartedAt) / 1000) : 0;
-        const speakChance = focusSeconds >= 5 * 60 ? AMBIENT_POLICY.focusedChance : AMBIENT_POLICY.baseChance;
+        const speakChance = studyPhase ? AMBIENT_POLICY.studyChance : AMBIENT_POLICY.baseChance;
         if (Math.random() > speakChance) return;
         let type = 'presence';
         let priority = 5;
         let activity = '';
-        if (!state.praiseMilestoneDone && focusSeconds >= 15 * 60 && (!state.lastPraiseAt || now - state.lastPraiseAt >= 15 * 60 * 1000)) {
+        const studyRoll = Math.random();
+        if (studyPhase && studyRoll < 0.34 && (!state.lastPraiseAt || now - state.lastPraiseAt >= 3 * 60 * 1000)) {
             type = 'praise';
             priority = 4;
-        } else if (now - state.roleActivityChangedAt >= 15 * 60 * 1000 && Math.random() < 0.35) {
+        } else if (studyPhase && studyRoll < 0.67) {
             const activities = ['看书', '写东西', '整理桌面', '泡茶'];
             activity = activities.filter(item => item !== state.roleActivity)[Math.floor(Math.random() * (activities.length - 1))];
             state.roleActivity = activity;
             state.roleActivityChangedAt = now;
             type = 'activity';
+        } else if (studyPhase) {
+            type = 'encourage';
         }
 
         const { task, persona } = getCompanionContext();
@@ -829,7 +838,6 @@
             state.policyState.lastAnySpokenAt = now;
             if (type === 'praise') {
                 state.lastPraiseAt = now;
-                state.praiseMilestoneDone = true;
             }
             window.dispatchEvent(new CustomEvent('focus-ambient-spoken', { detail: { type, reaction: messages.join('\n'), messages } }));
         } catch (error) {

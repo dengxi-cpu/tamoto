@@ -243,7 +243,7 @@
     audio.id = 'bnRainPlayer';
     audio.loop = true;
     audio.preload = 'auto';
-    audio.volume = 0.18;
+    audio.volume = 0.08;
     state.rainAudio = audio;
     return audio;
   }

@@ -43,18 +43,18 @@
 
     const VISION_INTERVAL_MS = 20000;
     const TTS_BUFFER_MS = 180;
-    // 测试期高频策略：氛围语音约每30～60秒获得一次机会。
+    // 测试期高频策略：前5分钟密集建立陪伴感，之后舒适陪伴。
     const AMBIENT_POLICY = {
-        checkMinMs: 30 * 1000,
-        checkJitterMs: 30 * 1000,
-        studyCheckMinMs: 60 * 1000,
-        studyCheckJitterMs: 30 * 1000,
+        checkMinMs: 20 * 1000,
+        checkJitterMs: 15 * 1000,
+        studyCheckMinMs: 45 * 1000,
+        studyCheckJitterMs: 25 * 1000,
         firstOpportunitySeconds: 20,
         eventCooldownMs: 20 * 1000,
-        ambientCooldownMs: 45 * 1000,
-        baseChance: 0.85,
-        studyChance: 0.75,
-        studyAmbientCooldownMs: 75 * 1000,
+        ambientCooldownMs: 35 * 1000,
+        baseChance: 1,
+        studyChance: 0.85,
+        studyAmbientCooldownMs: 60 * 1000,
         firstTenMinutesLimit: 20,
         perTwentyFiveMinutesLimit: 50
     };
@@ -792,7 +792,8 @@
         const elapsedSeconds = Math.floor((now - (state.sessionStartedAt || now)) / 1000);
         const policy = state.policyState || {};
         if (!state.sessionActive || state.paused || state.voiceHeld || state.visionInFlight || state.playback) return;
-        const ambientSafe = !state.stream || !policy.currentState || policy.currentState === 'STUDYING';
+        const productiveStates = ['STUDYING', 'READING', 'WRITING', 'COMPUTER_WORK'];
+        const ambientSafe = !state.stream || !policy.currentState || productiveStates.includes(policy.currentState);
         if (elapsedSeconds < AMBIENT_POLICY.firstOpportunitySeconds || !ambientSafe || policy.phoneStartedAt) return;
         if (state.lastEventOrDialogueAt && now - state.lastEventOrDialogueAt < AMBIENT_POLICY.eventCooldownMs) return;
         const studyPhase = elapsedSeconds >= 5 * 60;

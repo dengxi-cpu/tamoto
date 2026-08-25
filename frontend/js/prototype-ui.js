@@ -400,12 +400,16 @@
     input.value = '';
     state.betaMeetingTask = '';
     const question = `${oc.userTitle || '大小姐'}，今天想做什么？`;
-    caption.textContent = question;
+    caption.textContent = '';
     try {
       const turn = window.focusCompanion?.createSpeechTurn();
-      if (turn) await window.focusCompanion.speakMessages([question], turn, 'session_opening');
+      const bytes = turn
+        ? await window.focusCompanion.speakMessages([question], turn, 'session_opening', message => { caption.textContent = message; })
+        : 0;
+      if (!bytes) caption.textContent = question;
     } catch (error) {
       console.warn('Meeting question TTS failed:', error);
+      caption.textContent = question;
     }
     form.hidden = false;
     input.focus();
@@ -439,11 +443,12 @@
     } catch (error) {
       console.warn('Meeting response generation failed:', error);
     }
-    caption.textContent = messages[0];
     try {
-      await window.focusCompanion?.speakMessages(messages, turn, 'session_opening');
+      const bytes = await window.focusCompanion?.speakMessages(messages, turn, 'session_opening', message => { caption.textContent = message; });
+      if (!bytes) caption.textContent = messages[0];
     } catch (error) {
       console.warn('Meeting response TTS failed:', error);
+      caption.textContent = messages[0];
     }
     startButton.hidden = false;
   }

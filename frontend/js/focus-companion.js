@@ -376,7 +376,7 @@
         }
     }
 
-    async function playStreamingTts(text, result, priority = 2, speechType = 'visual') {
+    async function playStreamingTts(text, result, priority = 2, speechType = 'visual', onPlaybackStarted) {
         await ensureAudio();
         if (state.playback && state.playback.priority <= priority) return 0;
         stopPlayback();
@@ -409,6 +409,7 @@
         playback.sampleRate = Number(response.headers.get('x-audio-sample-rate')) || 24000;
         const reader = response.body.getReader();
         let receivedAudio = false;
+        let revealScheduled = false;
         let audioBytes = 0;
         while (true) {
             const { value, done } = await reader.read();
@@ -421,6 +422,12 @@
                 receivedAudio = true;
                 audioBytes += value.length;
                 schedulePcmChunk(value, playback);
+                if (!revealScheduled) {
+                    revealScheduled = true;
+                    window.setTimeout(() => {
+                        if (playback.epoch === state.epoch && !playback.controller.signal.aborted) onPlaybackStarted?.();
+                    }, TTS_BUFFER_MS + 60);
+                }
             }
         }
         if (!receivedAudio && state.playback === playback) throw new Error('TTS 没有返回音频');
@@ -437,7 +444,7 @@
         }, delay));
     }
 
-    async function playMessageSequence(messages, result, priority = 2, speechType = 'visual') {
+    async function playMessageSequence(messages, result, priority = 2, speechType = 'visual', onMessage = appendSpeechMessage) {
         const items = normalizeMessages(messages);
         if (!items.length) return 0;
         if (state.activeSpeechSequence && state.activeSpeechSequence.priority <= priority) return 0;
@@ -449,8 +456,21 @@
         try {
             for (let index = 0; index < items.length; index += 1) {
                 if (sequenceId !== state.speechSequenceId || result.epoch !== state.epoch || state.voiceHeld || state.paused) break;
-                appendSpeechMessage(items[index]);
-                const bytes = await playStreamingTts(items[index], result, priority, speechType);
+                const message = items[index];
+                let messageShown = false;
+                const showMessage = () => {
+                    if (messageShown) return;
+                    messageShown = true;
+                    onMessage(message, index);
+                };
+                let bytes;
+                try {
+                    bytes = await playStreamingTts(message, result, priority, speechType, showMessage);
+                } catch (error) {
+                    showMessage();
+                    throw error;
+                }
+                if (!bytes) showMessage();
                 if (!bytes || sequenceId !== state.speechSequenceId) break;
                 totalBytes += bytes;
                 if (index < items.length - 1 && !await waitBetweenMessages(sequenceId)) break;
@@ -684,8 +704,10 @@
                 resolveFinished
             };
             state.playback = playback;
-            appendSpeechMessage(item.text);
             schedulePcmChunk(item.bytes, playback);
+            window.setTimeout(() => {
+                if (sequenceId === state.speechSequenceId) appendSpeechMessage(item.text);
+            }, TTS_BUFFER_MS + 60);
             playback.streamEnded = true;
             finishPlaybackIfDone(playback);
             if (!await finished || sequenceId !== state.speechSequenceId) return false;
@@ -1024,7 +1046,7 @@
         prepareOpening,
         unlockAudio: ensureAudio,
         createSpeechTurn: () => ({ epoch: state.epoch, turnId: ++state.turnId }),
-        speakMessages: (messages, turn, speechType = 'session_opening') => playMessageSequence(messages, turn, 1, speechType),
+        speakMessages: (messages, turn, speechType = 'session_opening', onMessage) => playMessageSequence(messages, turn, 1, speechType, onMessage),
         markMeetingComplete: () => { state.skipNextOpening = true; },
         previewVoice: () => playMessageSequence(['我在这。'], { epoch: state.epoch, turnId: ++state.turnId }, 1, 'voice_preview'),
         isCameraEnabled: () => Boolean(state.stream)

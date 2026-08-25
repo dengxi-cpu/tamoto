@@ -8,13 +8,14 @@
  *
  * 发新版代码时：把下面 CACHE_VERSION 的 v1 改成 v2，确保旧缓存被清除。
  */
-const CACHE_VERSION = 'tamoto-v48';
+const CACHE_VERSION = 'tamoto-v49';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `runtime-${CACHE_VERSION}`;
 
 // 安装时预缓存的壳资源（离线兜底）
 const PRECACHE_ASSETS = [
   '/',
+  '/beta',
   '/index.html',
   '/companion-logs.html',
   '/manifest.webmanifest',

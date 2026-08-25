@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const isBetaMode = new URLSearchParams(location.search).get('mode') === 'beta';
+  const isBetaMode = location.pathname === '/beta' || new URLSearchParams(location.search).get('mode') === 'beta';
 
   const state = {
     tab: 'home',

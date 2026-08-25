@@ -286,7 +286,7 @@
         const oc = typeof ocData !== 'undefined' && Array.isArray(ocData)
             ? (ocData[typeof currentOCIndex === 'number' ? currentOCIndex : 0] || ocData[0])
             : null;
-        const betaMode = new URLSearchParams(location.search).get('mode') === 'beta';
+        const betaMode = location.pathname === '/beta' || new URLSearchParams(location.search).get('mode') === 'beta';
         const userTitle = betaMode ? (oc?.userTitle || '大小姐') : '大小姐';
         const roleContext = {
             name: oc?.name || 'TA',
@@ -1057,6 +1057,6 @@
     };
 
     window.toggleFocusCamera = toggleCamera;
-    if (new URLSearchParams(location.search).get('mode') !== 'beta') window.setTimeout(prepareOpening, 0);
+    if (location.pathname !== '/beta' && new URLSearchParams(location.search).get('mode') !== 'beta') window.setTimeout(prepareOpening, 0);
     window.addEventListener('pagehide', stopSession);
 })();

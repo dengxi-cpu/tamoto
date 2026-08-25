@@ -31,5 +31,7 @@
       ]
     }
   ],
-  "rewrites": []
+  "rewrites": [
+    { "source": "/beta", "destination": "/index.html" }
+  ]
 }

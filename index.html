@@ -13,7 +13,13 @@
     <script>
       (() => {
         const params = new URLSearchParams(location.search);
-        const isBeta = params.get('mode') === 'beta';
+        if (params.get('mode') === 'beta' && location.pathname !== '/beta') {
+          params.delete('mode');
+          const query = params.toString();
+          location.replace(`/beta${query ? `?${query}` : ''}`);
+          return;
+        }
+        const isBeta = location.pathname === '/beta';
         const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
         if (isBeta) {
           localStorage.setItem('tamotoPwaMode', 'beta');
@@ -21,9 +27,8 @@
           return;
         }
         if (isStandalone && localStorage.getItem('tamotoPwaMode') === 'beta') {
-          params.set('mode', 'beta');
           params.set('source', 'pwa');
-          location.replace(`/?${params.toString()}`);
+          location.replace(`/beta?${params.toString()}`);
         }
       })();
     </script>
@@ -3762,11 +3767,11 @@
     <script src="frontend/js/api.js?v=12"></script>
     <script src="frontend/js/db.js"></script>
     <!-- <script src="frontend/js/sync.js"></script> -->
-    <script src="frontend/js/focus-companion.js?v=25"></script>
+    <script src="frontend/js/focus-companion.js?v=26"></script>
     <script src="frontend/js/main.js"></script>
     <script src="frontend/js/chat.js?v=15"></script>
     <script src="frontend/js/pwa.js?v=15"></script>
-    <script src="frontend/js/prototype-ui.js?v=20"></script>
+    <script src="frontend/js/prototype-ui.js?v=21"></script>
 
 <!-- 在 </body> 标签前 -->
 

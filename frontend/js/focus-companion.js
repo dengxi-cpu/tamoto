@@ -20,8 +20,6 @@
         lastPraiseAt: 0,
         lastEventOrDialogueAt: 0,
         roleActivity: '看书',
-        roleActivityChangedAt: 0,
-        roleActivityReported: false,
         openingTimers: [],
         openingAmbientDone: false,
         openingEventDone: false,
@@ -202,8 +200,7 @@
         state.lastAmbientAt = 0;
         state.lastPraiseAt = 0;
         state.lastEventOrDialogueAt = 0;
-        state.roleActivityChangedAt = Date.now();
-        state.roleActivityReported = false;
+        state.roleActivity = '看书';
         state.openingAmbientDone = false;
         state.openingEventDone = false;
         state.latestObservation = null;
@@ -817,13 +814,7 @@
             type = 'praise';
             priority = 4;
         } else if (studyPhase && studyRoll < 0.67) {
-            const activities = ['看书', '写东西', '整理桌面', '泡茶'];
-            activity = state.roleActivityReported
-                ? activities.filter(item => item !== state.roleActivity)[Math.floor(Math.random() * (activities.length - 1))]
-                : '看书';
-            state.roleActivity = activity;
-            state.roleActivityChangedAt = now;
-            state.roleActivityReported = true;
+            activity = state.roleActivity;
             type = 'activity';
         } else if (studyPhase) {
             type = 'encourage';

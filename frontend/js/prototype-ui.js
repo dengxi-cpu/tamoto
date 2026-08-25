@@ -12,7 +12,8 @@
     toastTimer: null,
     rainAudio: null,
     rainEnabled: localStorage.getItem('bnRainEnabled') !== 'false',
-    betaBackground: ''
+    betaBackground: '',
+    betaMeetingTask: ''
   };
 
   const captions = [
@@ -76,8 +77,23 @@
           <fieldset class="bn-beta-voices"><legend>音色选择</legend><button class="bn-beta-voice is-active" type="button" data-bn-beta-voice="zh_male_ruyayichen_saturn_bigtts" aria-pressed="true"><i>▶</i><span><b>温柔男声</b><small>当前已接入 · 实时 AI 语音</small></span><em>已选择</em></button></fieldset>
           <p class="bn-beta-note">更多真实可用音色会在验证豆包接口后加入，不放置无法播放的假选项。</p>
           <div class="bn-focus-hint" id="bnBetaRoleHint"></div>
-          <button class="bn-primary" type="submit">保存并继续 →</button>
+          <button class="bn-primary" type="submit">保存并见面 →</button>
         </form>
+      </section>
+
+      <section class="bn-screen bn-beta-meeting" data-bn-screen="beta-meeting">
+        <img class="bn-beta-meeting-bg" id="bnBetaMeetingBackground" alt="TA 的陪伴背景">
+        <div class="bn-beta-meeting-shade"></div>
+        <button class="bn-beta-meeting-back" type="button" data-bn-action="beta-edit-role">‹ 修改角色</button>
+        <div class="bn-beta-meeting-name"><i></i><span id="bnBetaMeetingName"></span> · 在这里</div>
+        <div class="bn-beta-meeting-panel">
+          <div class="bn-beta-meeting-caption" id="bnBetaMeetingCaption"></div>
+          <form class="bn-beta-task-form" id="bnBetaMeetingForm" hidden>
+            <input id="bnBetaMeetingTask" maxlength="60" autocomplete="off" placeholder="这次想完成什么？" required>
+            <button type="submit" aria-label="发送任务">↑</button>
+          </form>
+          <button class="bn-beta-start-together" id="bnBetaStartTogether" type="button" data-bn-action="beta-start-together" hidden>一起开始</button>
+        </div>
       </section>
 
       <section class="bn-screen${isBetaMode ? '' : ' is-active'}" data-bn-screen="home">
@@ -322,6 +338,7 @@
 
   async function saveBetaRole(event) {
     event.preventDefault();
+    window.focusCompanion?.unlockAudio().catch(() => {});
     const hint = document.getElementById('bnBetaRoleHint');
     const name = document.getElementById('bnBetaName').value.trim();
     const userTitle = document.getElementById('bnBetaUserTitle').value.trim();
@@ -357,12 +374,88 @@
       if (typeof updateCurrentOC === 'function') updateCurrentOC(currentOCIndex);
       hint.textContent = '';
       refreshUI();
-      switchTab('focus');
       toast('角色已保存');
+      await showBetaMeeting();
     } catch (error) {
       console.warn('Beta role save failed:', error);
       hint.textContent = '保存失败，请重试';
     }
+  }
+
+  function betaPersona(oc) {
+    return `${oc.name || 'TA'}，与用户的关系是${oc.relationship || '学习搭子'}。完整人设：${oc.characterDescription || '温柔陪伴用户'}。需要称呼时只叫用户“${oc.userTitle || '大小姐'}”，不要每句话都称呼。`;
+  }
+
+  async function showBetaMeeting() {
+    const oc = currentOC();
+    switchTab('beta-meeting');
+    document.getElementById('bnBetaMeetingBackground').src = oc.avatar || fallbackAvatar;
+    document.getElementById('bnBetaMeetingName').textContent = oc.name || 'TA';
+    const caption = document.getElementById('bnBetaMeetingCaption');
+    const form = document.getElementById('bnBetaMeetingForm');
+    const startButton = document.getElementById('bnBetaStartTogether');
+    const input = document.getElementById('bnBetaMeetingTask');
+    form.hidden = true;
+    startButton.hidden = true;
+    input.value = '';
+    state.betaMeetingTask = '';
+    const question = `${oc.userTitle || '大小姐'}，今天想做什么？`;
+    caption.textContent = question;
+    try {
+      const turn = window.focusCompanion?.createSpeechTurn();
+      if (turn) await window.focusCompanion.speakMessages([question], turn, 'session_opening');
+    } catch (error) {
+      console.warn('Meeting question TTS failed:', error);
+    }
+    form.hidden = false;
+    input.focus();
+  }
+
+  async function submitBetaMeetingTask(event) {
+    event.preventDefault();
+    const input = document.getElementById('bnBetaMeetingTask');
+    const form = document.getElementById('bnBetaMeetingForm');
+    const caption = document.getElementById('bnBetaMeetingCaption');
+    const startButton = document.getElementById('bnBetaStartTogether');
+    const task = input.value.trim();
+    if (!task) return;
+    state.betaMeetingTask = task;
+    form.hidden = true;
+    caption.textContent = 'TA 正在想…';
+    const turn = window.focusCompanion?.createSpeechTurn() || { epoch: Date.now(), turnId: 1 };
+    let messages = ['好，我陪你开始。'];
+    try {
+      const oc = currentOC();
+      const response = await fetch('/api/companion-observe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'session_opening', task, persona: betaPersona(oc), epoch: turn.epoch, turnId: turn.turnId })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || `Opening HTTP ${response.status}`);
+      messages = Array.isArray(payload.data?.messages) && payload.data.messages.length
+        ? payload.data.messages.slice(0, 1)
+        : messages;
+    } catch (error) {
+      console.warn('Meeting response generation failed:', error);
+    }
+    caption.textContent = messages[0];
+    try {
+      await window.focusCompanion?.speakMessages(messages, turn, 'session_opening');
+    } catch (error) {
+      console.warn('Meeting response TTS failed:', error);
+    }
+    startButton.hidden = false;
+  }
+
+  function startBetaFocus() {
+    const task = state.betaMeetingTask || '专注任务';
+    selectedMinutes = 25;
+    currentTime = 25 * 60;
+    document.getElementById('bnTaskInput').value = task;
+    document.querySelectorAll('.bn-duration').forEach(button => button.classList.toggle('is-active', button.dataset.bnMinutes === '25'));
+    window.focusCompanion?.markMeetingComplete();
+    startFocus();
   }
 
   function ensureRainAudio() {
@@ -595,6 +688,11 @@
       if (type === 'toggle-camera' && window.focusCompanion) window.focusCompanion.toggleCamera();
       if (type === 'next-caption') nextCaption();
       if (type === 'toggle-rain') toggleRain();
+      if (type === 'beta-edit-role') {
+        populateBetaRoleForm();
+        switchTab('beta-setup');
+      }
+      if (type === 'beta-start-together') startBetaFocus();
       if (type === 'gifts' && typeof showGiftModal === 'function') showGiftModal();
       if (type === 'edit-oc' || type === 'new-oc' || type === 'advanced') {
         toast('该功能正在迁移到新界面');
@@ -604,6 +702,7 @@
     document.getElementById('bnChatForm').addEventListener('submit', submitChat);
     document.getElementById('bnTaskInput').addEventListener('change', syncTaskInput);
     document.getElementById('bnBetaRoleForm').addEventListener('submit', saveBetaRole);
+    document.getElementById('bnBetaMeetingForm').addEventListener('submit', submitBetaMeetingTask);
     document.getElementById('bnBetaBackgroundInput').addEventListener('change', event => handleBetaBackground(event.target.files?.[0]));
     document.getElementById('bnBetaRelationship').addEventListener('change', event => {
       document.getElementById('bnBetaCustomRelationWrap').hidden = event.target.value !== '自定义';

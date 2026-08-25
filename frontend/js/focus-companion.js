@@ -27,6 +27,7 @@
         latestObservation: null,
         preparedOpening: null,
         preparingOpening: null,
+        skipNextOpening: false,
         dialogueController: null,
         dialogueHistory: [],
         pipelineController: null,
@@ -188,6 +189,8 @@
     }
 
     function startSession() {
+        const skipOpening = state.skipNextOpening;
+        state.skipNextOpening = false;
         ensureAudio().catch(error => console.warn('Audio unlock failed:', error));
         cancelReaction('新专注会话');
         state.epoch = Date.now();
@@ -203,17 +206,17 @@
         state.lastPraiseAt = 0;
         state.lastEventOrDialogueAt = 0;
         state.roleActivity = '看书';
-        state.openingAmbientDone = false;
-        state.openingEventDone = false;
+        state.openingAmbientDone = skipOpening;
+        state.openingEventDone = skipOpening;
         state.latestObservation = null;
         state.dialogueHistory = [];
         state.sessionActive = true;
         state.paused = false;
         state.visionUnavailable = false;
         stopCamera();
-        scheduleOpeningSequence();
+        if (!skipOpening) scheduleOpeningSequence();
         scheduleAmbientCheck();
-        playPreparedOpening().catch(error => console.warn('Prepared opening playback failed:', error));
+        if (!skipOpening) playPreparedOpening().catch(error => console.warn('Prepared opening playback failed:', error));
     }
 
     function stopSession() {
@@ -1019,11 +1022,15 @@
         stopVoiceInput,
         setPaused,
         prepareOpening,
+        unlockAudio: ensureAudio,
+        createSpeechTurn: () => ({ epoch: state.epoch, turnId: ++state.turnId }),
+        speakMessages: (messages, turn, speechType = 'session_opening') => playMessageSequence(messages, turn, 1, speechType),
+        markMeetingComplete: () => { state.skipNextOpening = true; },
         previewVoice: () => playMessageSequence(['我在这。'], { epoch: state.epoch, turnId: ++state.turnId }, 1, 'voice_preview'),
         isCameraEnabled: () => Boolean(state.stream)
     };
 
     window.toggleFocusCamera = toggleCamera;
-    window.setTimeout(prepareOpening, 0);
+    if (new URLSearchParams(location.search).get('mode') !== 'beta') window.setTimeout(prepareOpening, 0);
     window.addEventListener('pagehide', stopSession);
 })();

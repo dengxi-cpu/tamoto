@@ -42,7 +42,13 @@ async function handler(req, res) {
   const turnId = Number.isSafeInteger(req.body?.turnId) ? req.body.turnId : 1;
   const requestId = randomUUID();
   const speechType = String(req.body?.speechType || 'visual');
-  const logSource = speechType === 'dialogue' ? 'dialogue' : speechType === 'visual' ? 'pomodoro' : 'ambient';
+  const logSource = speechType === 'dialogue'
+    ? 'dialogue'
+    : speechType === 'visual'
+      ? 'pomodoro'
+      : speechType === 'session_opening'
+        ? 'session_opening'
+        : 'ambient';
   await updateTtsLog({ epoch, turnId, source: logSource, status: 'streaming', bytes: 0 });
 
   try {

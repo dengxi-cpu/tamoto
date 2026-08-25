@@ -1,4 +1,4 @@
-const { CompanionPipelineError, generateAmbient, generateDialogue, runCompanionPipeline } = require('../lib/companion-pipeline');
+const { CompanionPipelineError, generateAmbient, generateDialogue, generateSessionOpening, runCompanionPipeline } = require('../lib/companion-pipeline');
 const { upsertCompanionLog } = require('./companion-logs');
 
 function json(res, status, body) {
@@ -7,6 +7,24 @@ function json(res, status, body) {
 
 async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { success: false, error: 'Method not allowed' });
+
+  if (req.body?.mode === 'session_opening') {
+    try {
+      const task = String(req.body?.task || '').trim().slice(0, 200);
+      if (!task) return json(res, 400, { success: false, error: '本次任务不能为空' });
+      const persona = String(req.body?.persona || '温柔陪伴用户的学习搭子').slice(0, 3000);
+      const messages = await generateSessionOpening({ task, persona });
+      await upsertCompanionLog({
+        source: 'session_opening', epoch: req.body?.epoch, turnId: req.body?.turnId,
+        task, persona, scene: `[见面输入] 用户本次任务：${task}`,
+        reaction: messages.join('\n'), status: 'success', ttsStatus: 'pending'
+      }).catch(error => console.error('Session opening log write failed:', error));
+      return json(res, 200, { success: true, data: { messages, reaction: messages.join('\n') } });
+    } catch (error) {
+      console.error('Session opening generation failed:', error);
+      return json(res, error.statusCode || 500, { success: false, error: error.message || '见面回应生成失败' });
+    }
+  }
 
   if (req.body?.mode === 'ambient') {
     try {

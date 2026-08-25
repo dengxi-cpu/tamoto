@@ -8,10 +8,6 @@
     refreshTimer: null,
     chatObserver: null,
     toastTimer: null,
-    voiceAudio: null,
-    voiceLoopTimer: null,
-    lastVoiceTake: 0,
-    voiceTake: Number(localStorage.getItem('bnVoiceTake')) || 1,
     rainAudio: null,
     rainEnabled: localStorage.getItem('bnRainEnabled') !== 'false'
   };
@@ -143,7 +139,7 @@
           <div class="bn-acc"><button class="bn-acc-head" type="button"><span class="bn-acc-icon">🎭</span><span class="bn-acc-copy"><b>性格与人设</b><small>语气风格、专属人设描述</small></span><span>⌄</span></button><div class="bn-acc-body">温柔守护、成熟包容，以及你为 TA 写下的完整人物设定。 <button class="bn-link-button" data-bn-action="edit-oc">编辑</button></div></div>
           <div class="bn-acc"><button class="bn-acc-head" type="button"><span class="bn-acc-icon">🎁</span><span class="bn-acc-copy"><b>礼物设置</b><small>完成任务时随机送出</small></span><span>⌄</span></button><div class="bn-acc-body">学习、工作、休息等不同状态可以拥有独立礼物。 <button class="bn-link-button" data-bn-action="edit-oc">管理</button></div></div>
           <div class="bn-acc"><button class="bn-acc-head" type="button"><span class="bn-acc-icon">⏰</span><span class="bn-acc-copy"><b>提醒管理</b><small>系统通知和定时提醒</small></span><span>⌄</span></button><div class="bn-acc-body">保留现有 Web Push、提醒时间和通知权限设置。 <button class="bn-link-button" data-bn-action="advanced">管理</button></div></div>
-          <div class="bn-acc"><button class="bn-acc-head" type="button"><span class="bn-acc-icon">🔊</span><span class="bn-acc-copy"><b>陪伴语音</b><small>ElevenLabs v3 候选音色</small></span><span>⌄</span></button><div class="bn-acc-body">试听并选择当前 OC 的固定音色。<div class="bn-voice-options"><button class="bn-voice-option" type="button" data-bn-voice="1">候选 1</button><button class="bn-voice-option" type="button" data-bn-voice="2">候选 2</button><button class="bn-voice-option" type="button" data-bn-voice="3">候选 3</button></div><div class="bn-voice-note">点击即可试听并保存；开始专注时会播放所选语音。</div></div></div>
+          <div class="bn-acc"><button class="bn-acc-head" type="button"><span class="bn-acc-icon">🔊</span><span class="bn-acc-copy"><b>陪伴语音</b><small>AI 实时语音</small></span><span>⌄</span></button><div class="bn-acc-body">事件提醒、氛围陪伴和语音对话都会使用当前角色的实时 AI 语音。</div></div>
         </div>
         <button class="bn-advanced" type="button" data-bn-action="advanced">高级设置</button>
       </section>
@@ -227,7 +223,6 @@
 
   function stopFocusSession() {
     if (!confirm('结束这次专注吗？')) return;
-    stopVoiceLoop();
     stopRain(true);
     if (typeof stopTimer === 'function') stopTimer();
     stopCaptions();
@@ -289,91 +284,6 @@
   function nextCaption() {
     state.captionIndex = (state.captionIndex + 1) % captions.length;
     document.getElementById('bnCaption').textContent = captions[state.captionIndex];
-  }
-
-  function voiceUrl(take) {
-    return `/frontend/audio/oc-reminders/gentle-male-v3-take-${String(take).padStart(2, '0')}.mp3`;
-  }
-
-  function playSelectedVoice(isPreview, take = state.voiceTake) {
-    if (!state.voiceAudio) {
-      state.voiceAudio = document.createElement('audio');
-      state.voiceAudio.id = 'bnVoicePlayer';
-      state.voiceAudio.preload = 'auto';
-      state.voiceAudio.setAttribute('playsinline', '');
-      state.voiceAudio.setAttribute('webkit-playsinline', '');
-      state.voiceAudio.style.position = 'fixed';
-      state.voiceAudio.style.width = '1px';
-      state.voiceAudio.style.height = '1px';
-      state.voiceAudio.style.opacity = '0';
-      state.voiceAudio.style.pointerEvents = 'none';
-      document.body.appendChild(state.voiceAudio);
-    }
-    state.voiceAudio.pause();
-    state.voiceAudio.currentTime = 0;
-    const nextUrl = new URL(voiceUrl(take), location.href).href;
-    if (state.voiceAudio.src !== nextUrl) {
-      state.voiceAudio.src = nextUrl;
-      state.voiceAudio.load();
-    }
-    state.voiceAudio.volume = 0.9;
-    state.voiceAudio.play().then(() => {
-      if (isPreview) toast(`正在试听语音 ${take}`);
-    }).catch(error => {
-      console.warn('陪伴语音播放失败:', error);
-      toast('浏览器拦截了播放，请再点一次 🔊');
-    });
-    return state.voiceAudio;
-  }
-
-  function startVoiceLoop() {
-    stopVoiceLoop();
-    // 必须保持在“开始专注”的用户点击调用栈中，以解锁同一个播放器。
-    playRandomVoice();
-  }
-
-  function randomVoiceTake() {
-    const choices = [1, 2, 3].filter(take => take !== state.lastVoiceTake);
-    return choices[Math.floor(Math.random() * choices.length)];
-  }
-
-  function playRandomVoice() {
-    if (!isTimerRunning || isPaused) return;
-    const take = randomVoiceTake();
-    state.lastVoiceTake = take;
-    const audio = playSelectedVoice(false, take);
-    audio.addEventListener('ended', scheduleNextVoice, { once: true });
-    audio.addEventListener('error', scheduleNextVoice, { once: true });
-  }
-
-  function scheduleNextVoice() {
-    if (!isTimerRunning || isPaused) return;
-    clearTimeout(state.voiceLoopTimer);
-    const delay = 30000 + Math.floor(Math.random() * 20001);
-    state.voiceLoopTimer = setTimeout(playRandomVoice, delay);
-    console.log(`下一条陪伴语将在 ${Math.round(delay / 1000)} 秒后播放`);
-  }
-
-  function stopVoiceLoop() {
-    if (state.voiceLoopTimer) clearTimeout(state.voiceLoopTimer);
-    state.voiceLoopTimer = null;
-    if (state.voiceAudio) {
-      state.voiceAudio.pause();
-      state.voiceAudio.currentTime = 0;
-    }
-  }
-
-  function selectVoice(take) {
-    state.voiceTake = take;
-    localStorage.setItem('bnVoiceTake', String(take));
-    updateVoiceButtons();
-    playSelectedVoice(true);
-  }
-
-  function updateVoiceButtons() {
-    document.querySelectorAll('[data-bn-voice]').forEach(button => {
-      button.classList.toggle('is-active', Number(button.dataset.bnVoice) === state.voiceTake);
-    });
   }
 
   function startCaptions() {
@@ -475,7 +385,6 @@
   function refreshUI() {
     if (state.tab === 'running' && !isTimerRunning && !isPaused) {
       stopCaptions();
-      stopVoiceLoop();
       stopRain(true);
       switchTab('focus');
       return;
@@ -534,8 +443,6 @@
       if (duration) return setDuration(duration.dataset.bnMinutes, duration);
       const status = event.target.closest('[data-bn-status]');
       if (status) return setStatus(status);
-      const voice = event.target.closest('[data-bn-voice]');
-      if (voice) return selectVoice(Number(voice.dataset.bnVoice));
       const task = event.target.closest('[data-bn-task-id]');
       if (task && typeof toggleTaskStatus === 'function') {
         toggleTaskStatus(Number(task.dataset.bnTaskId), event);
@@ -596,7 +503,6 @@
       if (!isStatusSelected) setStatus(document.querySelector('.bn-status[data-bn-status="学习"]'));
       refreshUI();
       prepareChat();
-      updateVoiceButtons();
       const requested = new URLSearchParams(location.search).get('page');
       if (isTimerRunning || isPaused) switchTab('running');
       else if (['home', 'focus', 'chat', 'oc'].includes(requested)) switchTab(requested);

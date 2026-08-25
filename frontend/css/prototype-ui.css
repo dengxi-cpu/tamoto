@@ -167,9 +167,6 @@ body.bn-ui-active .fixed.inset-0.pointer-events-none { display:none !important; 
 .bn-acc-body { display:none; padding:0 14px 14px 59px; color:var(--bn-ink-soft); font-size:12px; line-height:1.6; }
 .bn-acc.is-open .bn-acc-body { display:block; }
 .bn-link-button { border:0; padding:7px 10px; border-radius:999px; color:var(--bn-primary-deep); background:var(--bn-primary-pale); font:750 11px inherit; }
-.bn-voice-options { display:flex; flex-wrap:wrap; gap:7px; margin-top:9px; }
-.bn-voice-option { border:1px solid var(--bn-line); border-radius:999px; padding:7px 10px; color:var(--bn-primary-deep); background:#fff; font:750 11px inherit; }
-.bn-voice-option.is-active { border-color:var(--bn-primary); color:#fff; background:var(--bn-primary); }
 .bn-voice-note { margin-top:7px; color:var(--bn-muted); font-size:10px; }
 .bn-advanced { display:block; margin:22px auto 0; border:0; color:var(--bn-muted); background:none; text-decoration:underline; font:650 11px inherit; }
 

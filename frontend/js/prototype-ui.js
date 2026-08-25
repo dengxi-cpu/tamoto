@@ -11,7 +11,9 @@
     voiceAudio: null,
     voiceLoopTimer: null,
     lastVoiceTake: 0,
-    voiceTake: Number(localStorage.getItem('bnVoiceTake')) || 1
+    voiceTake: Number(localStorage.getItem('bnVoiceTake')) || 1,
+    rainAudio: null,
+    rainEnabled: localStorage.getItem('bnRainEnabled') !== 'false'
   };
 
   const captions = [
@@ -116,7 +118,7 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3zM5 10v2a7 7 0 0014 0v-2M12 19v3M8 22h8"/></svg>
             </button>
             <button class="bn-control is-primary" id="bnPause" type="button" data-bn-action="pause-focus" aria-label="暂停">⏸</button>
-            <button class="bn-control" type="button" data-bn-action="play-voice" aria-label="播放陪伴语音">🔊</button>
+            <button class="bn-control" id="bnRainBtn" type="button" data-bn-action="toggle-rain" aria-pressed="true" aria-label="关闭雨声" title="关闭雨声">🌧️</button>
           </div>
         </div>
       </section>
@@ -217,6 +219,7 @@
     if (typeof startStopTimer === 'function') startStopTimer();
     if (isTimerRunning || isPaused) {
       switchTab('running');
+      startRain();
     } else {
       document.getElementById('bnFocusHint').textContent = '请选择 TA 当前的陪伴状态';
     }
@@ -225,6 +228,7 @@
   function stopFocusSession() {
     if (!confirm('结束这次专注吗？')) return;
     stopVoiceLoop();
+    stopRain(true);
     if (typeof stopTimer === 'function') stopTimer();
     stopCaptions();
     switchTab('focus');
@@ -233,7 +237,53 @@
   function pauseFocus() {
     if (typeof pauseResumeTimer === 'function') pauseResumeTimer();
     window.focusCompanion?.setPaused(Boolean(isPaused));
+    if (isPaused) stopRain(false);
+    else startRain();
     refreshTimer();
+  }
+
+  function ensureRainAudio() {
+    if (state.rainAudio) return state.rainAudio;
+    const audio = new Audio('/frontend/audio/ambient/rain-cc0.mp3');
+    audio.id = 'bnRainPlayer';
+    audio.loop = true;
+    audio.preload = 'auto';
+    audio.volume = 0.18;
+    state.rainAudio = audio;
+    return audio;
+  }
+
+  function updateRainButton() {
+    const button = document.getElementById('bnRainBtn');
+    if (!button) return;
+    button.classList.toggle('rain-active', state.rainEnabled);
+    button.setAttribute('aria-pressed', String(state.rainEnabled));
+    button.setAttribute('aria-label', state.rainEnabled ? '关闭雨声' : '开启雨声');
+    button.title = state.rainEnabled ? '关闭雨声' : '开启雨声';
+    button.textContent = state.rainEnabled ? '🌧️' : '☁️';
+  }
+
+  function startRain() {
+    updateRainButton();
+    if (!state.rainEnabled || !isTimerRunning || isPaused) return;
+    ensureRainAudio().play().catch(error => {
+      console.warn('雨声播放失败:', error);
+      toast('点一下雨声按钮即可播放');
+    });
+  }
+
+  function stopRain(reset) {
+    if (!state.rainAudio) return;
+    state.rainAudio.pause();
+    if (reset) state.rainAudio.currentTime = 0;
+  }
+
+  function toggleRain() {
+    state.rainEnabled = !state.rainEnabled;
+    localStorage.setItem('bnRainEnabled', String(state.rainEnabled));
+    if (state.rainEnabled) startRain();
+    else stopRain(false);
+    updateRainButton();
   }
 
   function nextCaption() {
@@ -426,6 +476,7 @@
     if (state.tab === 'running' && !isTimerRunning && !isPaused) {
       stopCaptions();
       stopVoiceLoop();
+      stopRain(true);
       switchTab('focus');
       return;
     }
@@ -436,6 +487,7 @@
     document.getElementById('bnDate').textContent = formatDate();
     document.getElementById('bnHomeAvatar').src = avatar;
     document.getElementById('bnGreeting').textContent = `早安，${title}！`;
+    updateRainButton();
     document.getElementById('bnGreetingSub').textContent = `${name}已经在这里，等你一起专注。`;
     const completed = typeof tasks !== 'undefined' ? tasks.filter(item => item.status === 'completed').length : 0;
     document.getElementById('bnStoryText').innerHTML = `今天你们一起完成了 <b>${completed}</b> 件事，${escapeText(name)}还悄悄准备了一份礼物。`;
@@ -501,7 +553,7 @@
       if (type === 'pause-focus') pauseFocus();
       if (type === 'toggle-camera' && window.focusCompanion) window.focusCompanion.toggleCamera();
       if (type === 'next-caption') nextCaption();
-      if (type === 'play-voice') playSelectedVoice(false);
+      if (type === 'toggle-rain') toggleRain();
       if (type === 'gifts' && typeof showGiftModal === 'function') showGiftModal();
       if (type === 'edit-oc' || type === 'new-oc' || type === 'advanced') {
         toast('该功能正在迁移到新界面');

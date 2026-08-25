@@ -124,6 +124,7 @@ body.bn-ui-active .fixed.inset-0.pointer-events-none { display:none !important; 
 .bn-control.is-primary { width:60px; height:60px; margin-top:-4px; background:var(--bn-primary); border:0; }
 .bn-control svg { width:23px; height:23px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 .bn-control.camera-active { color:#fff; background:linear-gradient(135deg,#a855f7,#ec4899); border-color:transparent; box-shadow:0 8px 24px rgba(236,72,153,.3); }
+.bn-control.rain-active { color:#fff; background:rgba(94,129,172,.72); border-color:rgba(220,235,255,.55); box-shadow:0 8px 24px rgba(36,61,92,.28); }
 .bn-control.is-listening { color:#fff; background:#ef476f; border-color:transparent; box-shadow:0 0 0 7px rgba(239,71,111,.18); transform:scale(1.06); }
 .bn-camera-preview { position:absolute; z-index:3; right:16px; bottom:176px; width:92px; aspect-ratio:3/4; overflow:hidden; border:2px solid rgba(255,255,255,.92); border-radius:18px; background:#21162d; box-shadow:0 12px 32px rgba(0,0,0,.32); }
 .bn-camera-preview video { display:block; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }

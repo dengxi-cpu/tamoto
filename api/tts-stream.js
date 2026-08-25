@@ -26,7 +26,10 @@ async function handler(req, res) {
   const apiKey = process.env.TTS_API_KEY || process.env.SPEECH_API_KEY;
   const apiUrl = process.env.TTS_API_URL || DEFAULT_TTS_API_URL;
   const resourceId = process.env.TTS_RESOURCE_ID || DEFAULT_TTS_RESOURCE_ID;
-  const speaker = process.env.TTS_VOICE_TYPE;
+  const defaultSpeaker = process.env.TTS_VOICE_TYPE;
+  const allowedSpeakers = new Set([defaultSpeaker, ...(process.env.TTS_ALLOWED_VOICE_TYPES || '').split(',')].map(item => String(item || '').trim()).filter(Boolean));
+  const requestedSpeaker = String(req.body?.voiceType || '').trim();
+  const speaker = requestedSpeaker && allowedSpeakers.has(requestedSpeaker) ? requestedSpeaker : defaultSpeaker;
   if (!apiKey || !speaker) {
     return json(res, 503, {
       success: false,

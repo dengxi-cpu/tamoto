@@ -386,6 +386,16 @@
     return `${oc.name || 'TA'}，与用户的关系是${oc.relationship || '学习搭子'}。完整人设：${oc.characterDescription || '温柔陪伴用户'}。需要称呼时只叫用户“${oc.userTitle || '大小姐'}”，不要每句话都称呼。`;
   }
 
+  function betaRoleContext(oc) {
+    return {
+      name: oc.name || 'TA',
+      userTitle: oc.userTitle || '大小姐',
+      relationship: oc.relationship || '学习搭子',
+      persona: oc.characterDescription || '温柔陪伴用户',
+      voiceType: oc.voiceType || 'zh_male_ruyayichen_saturn_bigtts'
+    };
+  }
+
   async function showBetaMeeting() {
     const oc = currentOC();
     switchTab('beta-meeting');
@@ -433,7 +443,7 @@
       const response = await fetch('/api/companion-observe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'session_opening', task, persona: betaPersona(oc), epoch: turn.epoch, turnId: turn.turnId })
+        body: JSON.stringify({ mode: 'session_opening', task, persona: betaPersona(oc), roleContext: betaRoleContext(oc), epoch: turn.epoch, turnId: turn.turnId })
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || `Opening HTTP ${response.status}`);

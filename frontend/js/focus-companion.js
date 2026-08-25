@@ -291,10 +291,17 @@
             : null;
         const betaMode = new URLSearchParams(location.search).get('mode') === 'beta';
         const userTitle = betaMode ? (oc?.userTitle || '大小姐') : '大小姐';
+        const roleContext = {
+            name: oc?.name || 'TA',
+            userTitle,
+            relationship: oc?.relationship || '学习搭子',
+            persona: oc?.characterDescription || '毒舌但关心用户',
+            voiceType: oc?.voiceType || 'zh_male_ruyayichen_saturn_bigtts'
+        };
         const persona = oc
-            ? `${oc.name || 'TA'}，与用户的关系是${oc.relationship || '学习搭子'}。完整人设：${oc.characterDescription || '毒舌但关心用户'}。需要称呼时只叫用户“${userTitle}”，不要使用其他姓名，也不要每句话都称呼。反应自然、简短。`
+            ? `${roleContext.name}，与用户的关系是${roleContext.relationship}。完整人设：${roleContext.persona}。需要称呼时只叫用户“${roleContext.userTitle}”，不要使用其他姓名，也不要每句话都称呼。反应自然、简短。`
             : '毒舌但关心用户的陪伴者，需要称呼时只叫用户“大小姐”，不要每句话都称呼，反应自然、简短。';
-        return { task, persona };
+        return { task, persona, roleContext };
     }
 
     async function ensureAudio() {
@@ -400,7 +407,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             signal: controller.signal,
-            body: JSON.stringify({ text, epoch: result.epoch, turnId: result.turnId, speechType })
+            body: JSON.stringify({ text, epoch: result.epoch, turnId: result.turnId, speechType, voiceType: getCompanionContext().roleContext.voiceType })
         });
         if (!response.ok) {
             const payload = await response.json().catch(() => ({}));
@@ -493,7 +500,7 @@
         state.pipelineController = controller;
         state.visionInFlight = true;
         try {
-            const { task, persona } = getCompanionContext();
+            const { task, persona, roleContext } = getCompanionContext();
             const sessionStartedAt = new Date(state.sessionStartedAt || Date.now()).toISOString();
             const elapsedSeconds = Math.max(0, Math.floor((Date.now() - (state.sessionStartedAt || Date.now())) / 1000));
             const recentObservations = state.recentObservations.slice(-1);
@@ -502,7 +509,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 signal: controller.signal,
                 body: JSON.stringify({
-                    image, task, persona, epoch: requestEpoch, turnId,
+                    image, task, persona, roleContext, epoch: requestEpoch, turnId,
                     sessionStartedAt, elapsedSeconds, recentObservations,
                     policyState: state.policyState
                 })
@@ -641,13 +648,13 @@
     async function prepareOpening() {
         if (state.preparedOpening || state.preparingOpening) return state.preparingOpening;
         state.preparingOpening = (async () => {
-            const { task, persona } = getCompanionContext();
+            const { task, persona, roleContext } = getCompanionContext();
             const preloadEpoch = Date.now();
             const preloadTurnId = 900000;
             const lineResponse = await fetch('/api/companion-observe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mode: 'ambient', type: 'opening', task, persona, elapsedSeconds: 0, epoch: preloadEpoch, turnId: preloadTurnId })
+                body: JSON.stringify({ mode: 'ambient', type: 'opening', task, persona, roleContext, elapsedSeconds: 0, epoch: preloadEpoch, turnId: preloadTurnId })
             });
             const linePayload = await lineResponse.json().catch(() => ({}));
             if (!lineResponse.ok) throw new Error(linePayload.error || '开场台词预生成失败');
@@ -658,7 +665,7 @@
                 const audioResponse = await fetch('/api/tts-stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text, epoch: preloadEpoch, turnId: preloadTurnId, speechType: 'opening' })
+                    body: JSON.stringify({ text, epoch: preloadEpoch, turnId: preloadTurnId, speechType: 'opening', voiceType: roleContext.voiceType })
                 });
                 if (!audioResponse.ok) throw new Error('开场语音预生成失败');
                 preparedMessages.push({
@@ -725,12 +732,12 @@
     }
 
     async function requestAmbientLine(type, extra = {}) {
-        const { task, persona } = getCompanionContext();
+        const { task, persona, roleContext } = getCompanionContext();
         const elapsedSeconds = Math.max(0, Math.floor(openingElapsedMs() / 1000));
         const response = await fetch('/api/companion-observe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mode: 'ambient', type, task, persona, elapsedSeconds, ...extra })
+            body: JSON.stringify({ mode: 'ambient', type, task, persona, roleContext, elapsedSeconds, ...extra })
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.error || `Ambient HTTP ${response.status}`);
@@ -980,7 +987,7 @@
         const turnId = ++state.turnId;
         const controller = new AbortController();
         state.dialogueController = controller;
-        const { task, persona } = getCompanionContext();
+        const { task, persona, roleContext } = getCompanionContext();
         const elapsedSeconds = Math.max(0, Math.floor((Date.now() - (state.sessionStartedAt || Date.now())) / 1000));
         const scene = state.latestObservation && Date.now() - state.latestObservation.capturedAt <= 120000
             ? state.latestObservation.scene : '';
@@ -992,7 +999,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 signal: controller.signal,
-                body: JSON.stringify({ mode: 'dialogue', text, task, persona, elapsedSeconds, scene, history, epoch: requestEpoch, turnId })
+                body: JSON.stringify({ mode: 'dialogue', text, task, persona, roleContext, elapsedSeconds, scene, history, epoch: requestEpoch, turnId })
             });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(payload.error || `Dialogue HTTP ${response.status}`);

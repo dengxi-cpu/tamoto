@@ -11,7 +11,10 @@
     chatObserver: null,
     toastTimer: null,
     rainAudio: null,
-    rainEnabled: localStorage.getItem('bnRainEnabled') !== 'false',
+    pianoAudio: null,
+    bgmMode: ['rain', 'piano', 'muted'].includes(localStorage.getItem('bnBgmMode'))
+      ? localStorage.getItem('bnBgmMode')
+      : (localStorage.getItem('bnRainEnabled') === 'false' ? 'muted' : 'rain'),
     betaBackground: '',
     betaMeetingTask: ''
   };
@@ -262,7 +265,7 @@
     if (typeof startStopTimer === 'function') startStopTimer();
     if (isTimerRunning || isPaused) {
       switchTab('running');
-      startRain();
+      startBgm();
     } else {
       document.getElementById('bnFocusHint').textContent = '请选择 TA 当前的陪伴状态';
     }
@@ -270,7 +273,7 @@
 
   function stopFocusSession() {
     if (!confirm('结束这次专注吗？')) return;
-    stopRain(true);
+    stopBgm(true);
     if (typeof stopTimer === 'function') stopTimer();
     stopCaptions();
     switchTab('focus');
@@ -279,8 +282,8 @@
   function pauseFocus() {
     if (typeof pauseResumeTimer === 'function') pauseResumeTimer();
     window.focusCompanion?.setPaused(Boolean(isPaused));
-    if (isPaused) stopRain(false);
-    else startRain();
+    if (isPaused) stopBgm(false);
+    else startBgm();
     refreshTimer();
   }
 
@@ -484,36 +487,54 @@
     return audio;
   }
 
+  function ensurePianoAudio() {
+    if (state.pianoAudio) return state.pianoAudio;
+    const audio = new Audio('/frontend/audio/ambient/cafe-calm-piano-cc-by.mp3');
+    audio.id = 'bnPianoPlayer';
+    audio.loop = true;
+    audio.preload = 'auto';
+    audio.volume = 0.1;
+    state.pianoAudio = audio;
+    return audio;
+  }
+
   function updateRainButton() {
     const button = document.getElementById('bnRainBtn');
     if (!button) return;
-    button.classList.toggle('rain-active', state.rainEnabled);
-    button.setAttribute('aria-pressed', String(state.rainEnabled));
-    button.setAttribute('aria-label', state.rainEnabled ? '关闭雨声' : '开启雨声');
-    button.title = state.rainEnabled ? '关闭雨声' : '开启雨声';
-    button.textContent = state.rainEnabled ? '🌧️' : '☁️';
+    const config = state.bgmMode === 'rain'
+      ? { icon: '🌧️', label: '当前背景音乐：雨声；点击切换咖啡馆钢琴', title: '雨声 · 点击切换咖啡馆钢琴' }
+      : state.bgmMode === 'piano'
+        ? { icon: '🎹', label: '当前背景音乐：咖啡馆钢琴；点击静音', title: '咖啡馆钢琴 · 点击静音' }
+        : { icon: '🔇', label: '背景音乐已静音；点击开启雨声', title: '静音 · 点击开启雨声' };
+    button.classList.toggle('rain-active', state.bgmMode !== 'muted');
+    button.setAttribute('aria-pressed', String(state.bgmMode !== 'muted'));
+    button.setAttribute('aria-label', config.label);
+    button.title = config.title;
+    button.textContent = config.icon;
   }
 
-  function startRain() {
+  function startBgm() {
     updateRainButton();
-    if (!state.rainEnabled || !isTimerRunning || isPaused) return;
-    ensureRainAudio().play().catch(error => {
-      console.warn('雨声播放失败:', error);
-      toast('点一下雨声按钮即可播放');
+    stopBgm(false);
+    if (state.bgmMode === 'muted' || !isTimerRunning || isPaused) return;
+    const audio = state.bgmMode === 'piano' ? ensurePianoAudio() : ensureRainAudio();
+    audio.play().catch(error => {
+      console.warn('背景音乐播放失败:', error);
+      toast('点一下背景音乐按钮即可播放');
     });
   }
 
-  function stopRain(reset) {
-    if (!state.rainAudio) return;
-    state.rainAudio.pause();
-    if (reset) state.rainAudio.currentTime = 0;
+  function stopBgm(reset) {
+    [state.rainAudio, state.pianoAudio].filter(Boolean).forEach(audio => {
+      audio.pause();
+      if (reset) audio.currentTime = 0;
+    });
   }
 
-  function toggleRain() {
-    state.rainEnabled = !state.rainEnabled;
-    localStorage.setItem('bnRainEnabled', String(state.rainEnabled));
-    if (state.rainEnabled) startRain();
-    else stopRain(false);
+  function cycleBgm() {
+    state.bgmMode = state.bgmMode === 'rain' ? 'piano' : state.bgmMode === 'piano' ? 'muted' : 'rain';
+    localStorage.setItem('bnBgmMode', state.bgmMode);
+    startBgm();
     updateRainButton();
   }
 
@@ -621,7 +642,7 @@
   function refreshUI() {
     if (state.tab === 'running' && !isTimerRunning && !isPaused) {
       stopCaptions();
-      stopRain(true);
+      stopBgm(true);
       switchTab('focus');
       return;
     }
@@ -702,7 +723,7 @@
       if (type === 'pause-focus') pauseFocus();
       if (type === 'toggle-camera' && window.focusCompanion) window.focusCompanion.toggleCamera();
       if (type === 'next-caption') nextCaption();
-      if (type === 'toggle-rain') toggleRain();
+      if (type === 'toggle-rain') cycleBgm();
       if (type === 'beta-edit-role') {
         populateBetaRoleForm();
         switchTab('beta-setup');

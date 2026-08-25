@@ -9,7 +9,24 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="伴柠番茄钟">
     <meta name="format-detection" content="telephone=no">
-    <link rel="manifest" href="/manifest.webmanifest">
+    <link id="appManifest" rel="manifest" href="/manifest.webmanifest">
+    <script>
+      (() => {
+        const params = new URLSearchParams(location.search);
+        const isBeta = params.get('mode') === 'beta';
+        const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+        if (isBeta) {
+          localStorage.setItem('tamotoPwaMode', 'beta');
+          document.getElementById('appManifest').href = '/manifest-beta.webmanifest';
+          return;
+        }
+        if (isStandalone && localStorage.getItem('tamotoPwaMode') === 'beta') {
+          params.set('mode', 'beta');
+          params.set('source', 'pwa');
+          location.replace(`/?${params.toString()}`);
+        }
+      })();
+    </script>
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
     <link rel="stylesheet" href="/frontend/css/pwa.css">
     <link rel="stylesheet" href="/frontend/css/prototype-ui.css?v=13">

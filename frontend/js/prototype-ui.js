@@ -495,7 +495,7 @@
     audio.id = 'bnRainPlayer';
     audio.loop = true;
     audio.preload = 'auto';
-    audio.volume = 0.08;
+    audio.volume = 0.03;
     state.rainAudio = audio;
     return audio;
   }
@@ -506,7 +506,7 @@
     audio.id = 'bnPianoPlayer';
     audio.loop = true;
     audio.preload = 'auto';
-    audio.volume = 0.1;
+    audio.volume = 0.03;
     state.pianoAudio = audio;
     return audio;
   }

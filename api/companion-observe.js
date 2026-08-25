@@ -1,4 +1,4 @@
-const { CompanionPipelineError, generateReaction, generateAmbient, generateDialogue, generateSessionOpening, runCompanionPipeline } = require('../lib/companion-pipeline');
+const { CompanionPipelineError, generateReaction, generateAmbient, generateDialogue, generateSessionOpening, generateBodyDoublePlan, runCompanionPipeline } = require('../lib/companion-pipeline');
 const { assemblePersonaPrompt } = require('../lib/companion-prompt');
 const { upsertCompanionLog } = require('./companion-logs');
 
@@ -9,6 +9,18 @@ function json(res, status, body) {
 async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { success: false, error: 'Method not allowed' });
   const persona = assemblePersonaPrompt(req.body?.roleContext, req.body?.persona);
+
+  if (req.body?.mode === 'body_double_plan') {
+    try {
+      const activity = String(req.body?.activity || '').trim().slice(0, 100);
+      if (!activity) return json(res, 400, { success: false, error: '请先填写 TA 要做什么' });
+      const todos = await generateBodyDoublePlan({ activity, durationMinutes: req.body?.durationMinutes, persona });
+      return json(res, 200, { success: true, data: { activity, todos } });
+    } catch (error) {
+      console.error('Body double plan generation failed:', error);
+      return json(res, 500, { success: false, error: 'TA 的计划生成失败' });
+    }
+  }
 
   if (req.body?.mode === 'session_opening') {
     try {

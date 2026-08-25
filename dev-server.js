@@ -20,6 +20,11 @@ app.use(express.json({ limit: '4mb' }));
 // 静态文件服务（index.html 在根目录）
 app.use(express.static(__dirname));
 
+// 与线上保持一致：本地 /beta 也由单页应用入口承载。
+app.get(['/beta', '/beta/'], (_req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // ============================================
 // API 路由代理 - 与 Vercel Serverless 保持一致
 // ============================================

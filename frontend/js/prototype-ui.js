@@ -16,7 +16,9 @@
       ? localStorage.getItem('bnBgmMode')
       : (localStorage.getItem('bnRainEnabled') === 'false' ? 'muted' : 'rain'),
     betaBackground: '',
-    betaMeetingTask: ''
+    betaMeetingTask: '',
+    bodyDoubleActivity: '看书',
+    bodyDoubleTodos: []
   };
 
   const captions = [
@@ -102,6 +104,10 @@
             <input id="bnBetaMeetingTask" maxlength="60" autocomplete="off" placeholder="这次想完成什么？" required>
             <button type="submit" aria-label="发送任务">↑</button>
           </form>
+          <div class="bn-beta-body-double" id="bnBetaBodyDouble" hidden>
+            <label for="bnBetaBodyDoubleInput">这次 TA 会做什么</label>
+            <div><input id="bnBetaBodyDoubleInput" maxlength="40" value="看书" placeholder="例如：看书"><button type="button" data-bn-action="roll-body-double" aria-label="随机换一个">↻</button></div>
+          </div>
           <button class="bn-beta-start-together" id="bnBetaStartTogether" type="button" data-bn-action="beta-start-together" hidden>一起开始</button>
         </div>
       </section>
@@ -160,6 +166,7 @@
         </div>
         <div class="bn-call-top"><span><i></i><span id="bnCallName"></span> · 陪伴中</span></div>
         <div class="bn-call-task" id="bnCallTask">📖 专注中</div>
+        <div class="bn-body-double-card" id="bnBodyDoubleCard" hidden><header><span id="bnBodyDoubleName">TA</span><small>也在专注</small></header><div id="bnBodyDoubleList"></div></div>
         <button class="bn-bgm-pill" id="bnRainBtn" type="button" data-bn-action="toggle-rain" aria-pressed="true">🌧️ 雨声</button>
         <div class="bn-caption" id="bnCaption"></div>
         <div class="bn-call-bottom">
@@ -441,11 +448,14 @@
     const caption = document.getElementById('bnBetaMeetingCaption');
     const form = document.getElementById('bnBetaMeetingForm');
     const startButton = document.getElementById('bnBetaStartTogether');
+    const bodyDouble = document.getElementById('bnBetaBodyDouble');
     const input = document.getElementById('bnBetaMeetingTask');
     form.hidden = true;
     startButton.hidden = true;
+    bodyDouble.hidden = true;
     input.value = '';
     state.betaMeetingTask = '';
+    state.bodyDoubleTodos = [];
     const question = `${oc.userTitle || '大小姐'}，今天想做什么？`;
     caption.textContent = '';
     try {
@@ -498,16 +508,61 @@
       caption.textContent = messages[0];
     }
     startButton.hidden = false;
+    document.getElementById('bnBetaBodyDouble').hidden = false;
   }
 
-  function startBetaFocus() {
+  async function startBetaFocus() {
     const task = state.betaMeetingTask || '专注任务';
+    const activityInput = document.getElementById('bnBetaBodyDoubleInput');
+    const startButton = document.getElementById('bnBetaStartTogether');
+    const activity = activityInput?.value.trim() || '看书';
+    state.bodyDoubleActivity = activity;
+    startButton.disabled = true;
+    startButton.textContent = 'TA 正在安排自己的计划…';
+    try {
+      const oc = currentOC();
+      const response = await fetch('/api/companion-observe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'body_double_plan', activity, durationMinutes: 25, persona: betaPersona(oc), roleContext: betaRoleContext(oc) })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || '计划生成失败');
+      state.bodyDoubleTodos = Array.isArray(payload.data?.todos) ? payload.data.todos : [];
+    } catch (error) {
+      console.warn('Body double plan failed:', error);
+      state.bodyDoubleTodos = [{ id: 1, title: `${activity}一会儿`, minutes: 8 }, { id: 2, title: `继续${activity}`, minutes: 9 }, { id: 3, title: '简单整理一下', minutes: 8 }];
+    } finally {
+      startButton.disabled = false;
+      startButton.textContent = '一起开始';
+    }
     selectedMinutes = 25;
     currentTime = 25 * 60;
     document.getElementById('bnTaskInput').value = task;
     document.querySelectorAll('.bn-duration').forEach(button => button.classList.toggle('is-active', button.dataset.bnMinutes === '25'));
     window.focusCompanion?.markMeetingComplete();
     startFocus();
+    renderBodyDoublePlan();
+  }
+
+  function rollBodyDouble() {
+    const choices = ['看书', '整理读书笔记', '处理工作邮件', '写今天的日记', '学习一门新课程', '整理桌面资料'];
+    const input = document.getElementById('bnBetaBodyDoubleInput');
+    if (input) input.value = choices[Math.floor(Math.random() * choices.length)];
+  }
+
+  function renderBodyDoublePlan() {
+    const card = document.getElementById('bnBodyDoubleCard');
+    const list = document.getElementById('bnBodyDoubleList');
+    if (!card || !list) return;
+    card.hidden = !state.bodyDoubleTodos.length;
+    document.getElementById('bnBodyDoubleName').textContent = currentOC().name || 'TA';
+    const elapsedMinutes = Math.max(0, ((Number(selectedMinutes) || 25) * 60 - (Number(currentTime) || 0)) / 60);
+    let cumulative = 0;
+    list.innerHTML = state.bodyDoubleTodos.map(todo => {
+      cumulative += Number(todo.minutes) || 0;
+      const done = elapsedMinutes >= cumulative;
+      return `<div class="${done ? 'is-done' : ''}"><i>${done ? '✓' : ''}</i><span>${escapeText(todo.title)}</span><time>${todo.minutes} min</time></div>`;
+    }).join('');
   }
 
   function ensureRainAudio() {
@@ -710,6 +765,7 @@
     const paused = typeof isPaused !== 'undefined' && isPaused;
     document.getElementById('bnPause').textContent = paused ? '▶' : '⏸';
     document.getElementById('bnCallTask').textContent = `${currentStatus && currentStatus.icon ? currentStatus.icon : '📖'} ${currentTask && currentTask.name ? currentTask.name : '专注中'}`;
+    renderBodyDoublePlan();
   }
 
   function refreshUI() {
@@ -810,6 +866,7 @@
         switchTab('beta-setup');
       }
       if (type === 'beta-start-together') startBetaFocus();
+      if (type === 'roll-body-double') rollBodyDouble();
       if (type === 'gifts' && typeof showGiftModal === 'function') showGiftModal();
       if (type === 'edit-oc' || type === 'new-oc' || type === 'advanced') {
         toast('该功能正在迁移到新界面');

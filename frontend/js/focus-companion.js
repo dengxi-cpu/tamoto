@@ -45,6 +45,18 @@
 
     const VISION_INTERVAL_MS = 20000;
     const TTS_BUFFER_MS = 180;
+    // 测试期高频策略：氛围语音约每30～60秒获得一次机会。
+    const AMBIENT_POLICY = {
+        checkMinMs: 30 * 1000,
+        checkJitterMs: 30 * 1000,
+        firstOpportunitySeconds: 20,
+        eventCooldownMs: 20 * 1000,
+        ambientCooldownMs: 45 * 1000,
+        baseChance: 0.85,
+        focusedChance: 0.95,
+        firstTenMinutesLimit: 20,
+        perTwentyFiveMinutesLimit: 50
+    };
     const LOG_STORAGE_KEY = 'bn_companion_production_logs_v1';
     const LOG_TTL_MS = 24 * 60 * 60 * 1000;
     const LOG_LIMIT = 20;
@@ -765,7 +777,7 @@
     function scheduleAmbientCheck() {
         stopAmbientLoop();
         if (!state.sessionActive || state.paused) return;
-        const delay = 60 * 1000 + Math.floor(Math.random() * 60 * 1000);
+        const delay = AMBIENT_POLICY.checkMinMs + Math.floor(Math.random() * AMBIENT_POLICY.checkJitterMs);
         state.ambientTimer = window.setTimeout(async () => {
             await considerAmbientSpeech();
             scheduleAmbientCheck();
@@ -777,14 +789,17 @@
         const elapsedSeconds = Math.floor((now - (state.sessionStartedAt || now)) / 1000);
         const policy = state.policyState || {};
         if (!state.sessionActive || state.paused || state.voiceHeld || state.visionInFlight || state.playback) return;
-        if (elapsedSeconds < 60 || policy.currentState !== 'STUDYING' || policy.phoneStartedAt) return;
-        if (state.lastEventOrDialogueAt && now - state.lastEventOrDialogueAt < 60 * 1000) return;
-        if (state.lastAmbientAt && now - state.lastAmbientAt < 90 * 1000) return;
-        const ambientLimit = elapsedSeconds <= 10 * 60 ? 10 : Math.ceil(elapsedSeconds / (25 * 60)) * 25;
+        const ambientSafe = !state.stream || !policy.currentState || policy.currentState === 'STUDYING';
+        if (elapsedSeconds < AMBIENT_POLICY.firstOpportunitySeconds || !ambientSafe || policy.phoneStartedAt) return;
+        if (state.lastEventOrDialogueAt && now - state.lastEventOrDialogueAt < AMBIENT_POLICY.eventCooldownMs) return;
+        if (state.lastAmbientAt && now - state.lastAmbientAt < AMBIENT_POLICY.ambientCooldownMs) return;
+        const ambientLimit = elapsedSeconds <= 10 * 60
+            ? AMBIENT_POLICY.firstTenMinutesLimit
+            : Math.ceil(elapsedSeconds / (25 * 60)) * AMBIENT_POLICY.perTwentyFiveMinutesLimit;
         if (state.ambientCount >= ambientLimit) return;
 
         const focusSeconds = policy.focusStreakStartedAt ? Math.floor((now - policy.focusStreakStartedAt) / 1000) : 0;
-        const speakChance = focusSeconds >= 5 * 60 ? 0.75 : 0.6;
+        const speakChance = focusSeconds >= 5 * 60 ? AMBIENT_POLICY.focusedChance : AMBIENT_POLICY.baseChance;
         if (Math.random() > speakChance) return;
         let type = 'presence';
         let priority = 5;

@@ -158,7 +158,7 @@
             <span>我</span>
           </div>
         </div>
-        <div class="bn-call-top"><span><i></i><span id="bnCallName"></span> · 陪伴中</span><button class="bn-close-focus" type="button" data-bn-action="stop-focus">×</button></div>
+        <div class="bn-call-top"><span><i></i><span id="bnCallName"></span> · 陪伴中</span></div>
         <div class="bn-call-task" id="bnCallTask">📖 专注中</div>
         <button class="bn-bgm-pill" id="bnRainBtn" type="button" data-bn-action="toggle-rain" aria-pressed="true">🌧️ 雨声</button>
         <div class="bn-caption" id="bnCaption"></div>
@@ -174,12 +174,20 @@
             <button class="bn-control" id="bnFocusChatBtn" type="button" data-bn-action="toggle-focus-chat" aria-expanded="false" aria-label="文字聊天" title="文字聊天">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4z"/></svg>
             </button>
-            <button class="bn-control is-primary" id="bnPause" type="button" data-bn-action="pause-focus" aria-label="暂停">⏸</button>
+            <button class="bn-control is-primary" id="bnPause" type="button" aria-label="短按暂停，长按结束" title="短按暂停 · 长按结束">⏸</button>
           </div>
           <form class="bn-focus-chat-form" id="bnFocusChatForm" hidden>
             <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="跟 TA 说点什么…">
             <button type="submit" aria-label="发送">↑</button>
           </form>
+        </div>
+        <div class="bn-end-confirm" id="bnEndConfirm" hidden>
+          <div class="bn-end-confirm-card" role="dialog" aria-modal="true" aria-labelledby="bnEndConfirmTitle">
+            <div class="bn-end-confirm-icon">⏹</div>
+            <h2 id="bnEndConfirmTitle">确认结束专注？</h2>
+            <p>当前专注进度会在这里结束。</p>
+            <div><button type="button" data-bn-action="cancel-end-focus">继续专注</button><button class="is-danger" type="button" data-bn-action="confirm-end-focus">确认结束</button></div>
+          </div>
         </div>
       </section>
 
@@ -286,7 +294,7 @@
   }
 
   function stopFocusSession() {
-    if (!confirm('结束这次专注吗？')) return;
+    showEndConfirm(false);
     stopBgm(true);
     if (typeof stopTimer === 'function') stopTimer();
     stopCaptions();
@@ -299,6 +307,12 @@
     if (isPaused) stopBgm(false);
     else startBgm();
     refreshTimer();
+  }
+
+  function showEndConfirm(show = true) {
+    const modal = document.getElementById('bnEndConfirm');
+    if (!modal) return;
+    modal.hidden = !show;
   }
 
   function populateBetaRoleForm() {
@@ -785,11 +799,12 @@
       if (type === 'start-focus') startFocus();
       if (type === 'show-running') (isTimerRunning || isPaused) ? switchTab('running') : toast('还没有正在进行的专注');
       if (type === 'stop-focus') stopFocusSession();
-      if (type === 'pause-focus') pauseFocus();
       if (type === 'toggle-camera' && window.focusCompanion) window.focusCompanion.toggleCamera();
       if (type === 'next-caption') nextCaption();
       if (type === 'toggle-rain') cycleBgm();
       if (type === 'toggle-focus-chat') toggleFocusChat();
+      if (type === 'cancel-end-focus') showEndConfirm(false);
+      if (type === 'confirm-end-focus') stopFocusSession();
       if (type === 'beta-edit-role') {
         populateBetaRoleForm();
         switchTab('beta-setup');
@@ -824,6 +839,35 @@
         });
       });
       voiceButton.addEventListener('contextmenu', event => event.preventDefault());
+    }
+    const pauseButton = document.getElementById('bnPause');
+    if (pauseButton) {
+      let holdTimer = null;
+      let longPressed = false;
+      const cancelHold = () => {
+        if (holdTimer) window.clearTimeout(holdTimer);
+        holdTimer = null;
+      };
+      pauseButton.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        longPressed = false;
+        pauseButton.setPointerCapture?.(event.pointerId);
+        pauseButton.classList.add('is-holding');
+        holdTimer = window.setTimeout(() => {
+          longPressed = true;
+          pauseButton.classList.remove('is-holding');
+          navigator.vibrate?.(40);
+          showEndConfirm(true);
+        }, 800);
+      });
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => pauseButton.addEventListener(type, event => {
+        event.preventDefault();
+        const shouldPause = type === 'pointerup' && !longPressed && Boolean(holdTimer);
+        cancelHold();
+        pauseButton.classList.remove('is-holding');
+        if (shouldPause) pauseFocus();
+      }));
+      pauseButton.addEventListener('contextmenu', event => event.preventDefault());
     }
     const source = document.getElementById('chatMessages');
     if (source) {

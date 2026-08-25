@@ -29,9 +29,15 @@
         { "key": "Content-Type", "value": "application/manifest+json; charset=utf-8" },
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
+    },
+    {
+      "source": "/beta",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
     }
   ],
   "rewrites": [
-    { "source": "/beta", "destination": "/index.html" }
+    { "source": "/beta", "destination": "/api/beta" }
   ]
 }

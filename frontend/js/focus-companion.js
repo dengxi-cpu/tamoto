@@ -16,6 +16,7 @@
         policyState: {},
         ambientTimer: null,
         ambientCount: 0,
+        productiveAmbientEncouragementCount: 0,
         lastAmbientAt: 0,
         lastPraiseAt: 0,
         lastEventOrDialogueAt: 0,
@@ -197,6 +198,7 @@
         state.recentObservations = [];
         state.policyState = {};
         state.ambientCount = 0;
+        state.productiveAmbientEncouragementCount = 0;
         state.lastAmbientAt = 0;
         state.lastPraiseAt = 0;
         state.lastEventOrDialogueAt = 0;
@@ -811,7 +813,12 @@
         let priority = 5;
         let activity = '';
         const studyRoll = Math.random();
-        if (studyPhase && studyRoll < 0.34 && (!state.lastPraiseAt || now - state.lastPraiseAt >= 3 * 60 * 1000)) {
+        const needsProductiveEncouragement = productiveStates.includes(policy.currentState)
+            && state.productiveAmbientEncouragementCount < 3;
+        if (needsProductiveEncouragement) {
+            type = 'encourage';
+            priority = 4;
+        } else if (studyPhase && studyRoll < 0.34 && (!state.lastPraiseAt || now - state.lastPraiseAt >= 3 * 60 * 1000)) {
             type = 'praise';
             priority = 4;
         } else if (studyPhase && studyRoll < 0.67) {
@@ -833,6 +840,7 @@
             state.lastAmbientAt = now;
             state.ambientCount += 1;
             state.policyState.lastAnySpokenAt = now;
+            if (needsProductiveEncouragement) state.productiveAmbientEncouragementCount += 1;
             if (type === 'praise') {
                 state.lastPraiseAt = now;
             }

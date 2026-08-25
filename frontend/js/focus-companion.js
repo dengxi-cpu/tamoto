@@ -240,9 +240,15 @@
 
     function normalizeMessages(messages, fallback = '') {
         const items = Array.isArray(messages) ? messages : [];
-        const normalized = items.map(item => String(item || '').trim()).filter(Boolean).slice(0, 3);
+        const splitClauses = source => source
+            .flatMap(item => String(item || '').replace(/[，,；;]+/g, '。').split(/[。！？!?\n]+/))
+            .map(item => item.trim().replace(/[，,；;。！？!?]+$/g, ''))
+            .filter(Boolean)
+            .slice(0, 6)
+            .map(item => `${item}。`);
+        const normalized = splitClauses(items);
         if (normalized.length) return normalized;
-        return String(fallback || '').split(/\n+/).map(item => item.trim()).filter(Boolean).slice(0, 3);
+        return splitClauses([fallback]);
     }
 
     function beginSpeechMessages() {

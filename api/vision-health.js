@@ -1,4 +1,25 @@
+const fs = require('fs');
+const path = require('path');
+
+let betaHtml = '';
+
+function serveBeta(req, res) {
+  if (!betaHtml) {
+    betaHtml = fs.readFileSync(path.join(process.cwd(), 'index.html'), 'utf8').replace(
+      '<link id="appManifest" rel="manifest" href="/manifest.webmanifest">',
+      '<link id="appManifest" rel="manifest" href="/manifest-beta.webmanifest">'
+    );
+  }
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  if (req.method === 'HEAD') return res.status(200).end();
+  return res.status(200).send(betaHtml);
+}
+
 function handler(req, res) {
+  if (req.query?.serve === 'beta' && (req.method === 'GET' || req.method === 'HEAD')) {
+    return serveBeta(req, res);
+  }
   if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
   let providerHost = '';

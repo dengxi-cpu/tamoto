@@ -38,6 +38,6 @@
     }
   ],
   "rewrites": [
-    { "source": "/beta", "destination": "/api/beta" }
+    { "source": "/beta", "destination": "/api/vision-health?serve=beta" }
   ]
 }

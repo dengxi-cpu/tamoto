@@ -1056,6 +1056,7 @@
         analyzeCurrentFrame,
         startVoiceInput,
         stopVoiceInput,
+        sendDialogue: text => respondToVoice(String(text || '').trim()),
         setPaused,
         prepareOpening,
         unlockAudio: ensureAudio,

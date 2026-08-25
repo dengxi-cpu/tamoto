@@ -160,6 +160,7 @@
         </div>
         <div class="bn-call-top"><span><i></i><span id="bnCallName"></span> · 陪伴中</span><button class="bn-close-focus" type="button" data-bn-action="stop-focus">×</button></div>
         <div class="bn-call-task" id="bnCallTask">📖 专注中</div>
+        <button class="bn-bgm-pill" id="bnRainBtn" type="button" data-bn-action="toggle-rain" aria-pressed="true">🌧️ 雨声</button>
         <div class="bn-caption" id="bnCaption"></div>
         <div class="bn-call-bottom">
           <div class="bn-call-time" id="bnTimer">25:00</div><div class="bn-call-sub">剩余专注时间</div>
@@ -170,9 +171,15 @@
             <button class="bn-control" id="bnVoiceInputBtn" type="button" aria-label="按住说话" title="按住说话">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3zM5 10v2a7 7 0 0014 0v-2M12 19v3M8 22h8"/></svg>
             </button>
+            <button class="bn-control" id="bnFocusChatBtn" type="button" data-bn-action="toggle-focus-chat" aria-expanded="false" aria-label="文字聊天" title="文字聊天">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4z"/></svg>
+            </button>
             <button class="bn-control is-primary" id="bnPause" type="button" data-bn-action="pause-focus" aria-label="暂停">⏸</button>
-            <button class="bn-control" id="bnRainBtn" type="button" data-bn-action="toggle-rain" aria-pressed="true" aria-label="关闭雨声" title="关闭雨声">🌧️</button>
           </div>
+          <form class="bn-focus-chat-form" id="bnFocusChatForm" hidden>
+            <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="跟 TA 说点什么…">
+            <button type="submit" aria-label="发送">↑</button>
+          </form>
         </div>
       </section>
 
@@ -515,15 +522,15 @@
     const button = document.getElementById('bnRainBtn');
     if (!button) return;
     const config = state.bgmMode === 'rain'
-      ? { icon: '🌧️', label: '当前背景音乐：雨声；点击切换咖啡馆钢琴', title: '雨声 · 点击切换咖啡馆钢琴' }
+      ? { icon: '🌧️', name: '雨声', label: '当前背景音乐：雨声；点击切换咖啡馆钢琴', title: '雨声 · 点击切换咖啡馆钢琴' }
       : state.bgmMode === 'piano'
-        ? { icon: '🎹', label: '当前背景音乐：咖啡馆钢琴；点击静音', title: '咖啡馆钢琴 · 点击静音' }
-        : { icon: '🔇', label: '背景音乐已静音；点击开启雨声', title: '静音 · 点击开启雨声' };
+        ? { icon: '🎹', name: '钢琴', label: '当前背景音乐：咖啡馆钢琴；点击静音', title: '咖啡馆钢琴 · 点击静音' }
+        : { icon: '🔇', name: '静音', label: '背景音乐已静音；点击开启雨声', title: '静音 · 点击开启雨声' };
     button.classList.toggle('rain-active', state.bgmMode !== 'muted');
     button.setAttribute('aria-pressed', String(state.bgmMode !== 'muted'));
     button.setAttribute('aria-label', config.label);
     button.title = config.title;
-    button.textContent = config.icon;
+    button.textContent = `${config.icon} ${config.name}`;
   }
 
   function startBgm() {
@@ -558,6 +565,36 @@
     window.focusCompanion?.unlockAudio().catch(() => {});
     startBgm();
     updateRainButton();
+  }
+
+  function toggleFocusChat(forceOpen) {
+    const form = document.getElementById('bnFocusChatForm');
+    const button = document.getElementById('bnFocusChatBtn');
+    if (!form || !button) return;
+    const opening = typeof forceOpen === 'boolean' ? forceOpen : form.hidden;
+    form.hidden = !opening;
+    button.classList.toggle('is-active', opening);
+    button.setAttribute('aria-expanded', String(opening));
+    if (opening) window.setTimeout(() => document.getElementById('bnFocusChatInput')?.focus(), 50);
+  }
+
+  async function submitFocusChat(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const input = document.getElementById('bnFocusChatInput');
+    const button = form.querySelector('button[type="submit"]');
+    const text = input?.value.trim();
+    if (!text || !window.focusCompanion?.sendDialogue) return;
+    input.value = '';
+    input.disabled = true;
+    button.disabled = true;
+    try {
+      await window.focusCompanion.sendDialogue(text);
+    } finally {
+      input.disabled = false;
+      button.disabled = false;
+      input.focus();
+    }
   }
 
   function nextCaption() {
@@ -752,6 +789,7 @@
       if (type === 'toggle-camera' && window.focusCompanion) window.focusCompanion.toggleCamera();
       if (type === 'next-caption') nextCaption();
       if (type === 'toggle-rain') cycleBgm();
+      if (type === 'toggle-focus-chat') toggleFocusChat();
       if (type === 'beta-edit-role') {
         populateBetaRoleForm();
         switchTab('beta-setup');
@@ -764,6 +802,7 @@
     });
     document.querySelectorAll('.bn-acc-head').forEach(button => button.addEventListener('click', () => button.parentElement.classList.toggle('is-open')));
     document.getElementById('bnChatForm').addEventListener('submit', submitChat);
+    document.getElementById('bnFocusChatForm').addEventListener('submit', submitFocusChat);
     document.getElementById('bnTaskInput').addEventListener('change', syncTaskInput);
     document.getElementById('bnBetaRoleForm').addEventListener('submit', saveBetaRole);
     document.getElementById('bnBetaMeetingForm').addEventListener('submit', submitBetaMeetingTask);

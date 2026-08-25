@@ -228,6 +228,7 @@ body.bn-ui-active .fixed.inset-0.pointer-events-none { display:none !important; 
 body.bn-ui-active .pwa-toast { bottom:max(82px,calc(env(safe-area-inset-bottom) + 78px)); }
 body.bn-ui-active > div:not(#bnApp) .floating,
 body.bn-ui-active > div:not(#bnApp) .sparkle { display:none !important; }
+body.bn-beta-mode .bn-app .bn-tabbar { display:none !important; }
 
 @media (min-width: 700px) {
   .bn-app { min-height:calc(100dvh - 40px); margin:20px auto; border:1px solid rgba(107,91,149,.12); border-radius:30px; }

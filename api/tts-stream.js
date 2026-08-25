@@ -4,6 +4,14 @@ const { updateTtsLog } = require('./companion-logs');
 const DEFAULT_TTS_API_URL = 'https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse';
 const DEFAULT_TTS_RESOURCE_ID = 'seed-tts-2.0';
 const DEFAULT_SAMPLE_RATE = 24000;
+const BUILT_IN_VOICES = [
+  'zh_male_ruyayichen_saturn_bigtts',
+  'zh_male_m191_uranus_bigtts',
+  'zh_male_taocheng_uranus_bigtts',
+  'zh_male_liufei_uranus_bigtts',
+  'zh_male_fanjuanqingnian_uranus_bigtts',
+  'zh_male_yizhipiannan_uranus_bigtts'
+];
 
 function json(res, status, body) {
   return res.status(status).json(body);
@@ -27,7 +35,7 @@ async function handler(req, res) {
   const apiUrl = process.env.TTS_API_URL || DEFAULT_TTS_API_URL;
   const resourceId = process.env.TTS_RESOURCE_ID || DEFAULT_TTS_RESOURCE_ID;
   const defaultSpeaker = process.env.TTS_VOICE_TYPE;
-  const allowedSpeakers = new Set([defaultSpeaker, ...(process.env.TTS_ALLOWED_VOICE_TYPES || '').split(',')].map(item => String(item || '').trim()).filter(Boolean));
+  const allowedSpeakers = new Set([defaultSpeaker, ...BUILT_IN_VOICES, ...(process.env.TTS_ALLOWED_VOICE_TYPES || '').split(',')].map(item => String(item || '').trim()).filter(Boolean));
   const requestedSpeaker = String(req.body?.voiceType || '').trim();
   const speaker = requestedSpeaker && allowedSpeakers.has(requestedSpeaker) ? requestedSpeaker : defaultSpeaker;
   if (!apiKey || !speaker) {

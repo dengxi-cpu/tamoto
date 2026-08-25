@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>伴柠 · 角色批量反应测试</title>
+  <style>
+    :root{font-family:Inter,"PingFang SC","Microsoft YaHei",sans-serif;background:#f6f4fb;color:#292337}*{box-sizing:border-box}body{margin:0;padding:24px}main{width:min(1280px,100%);margin:auto}h1,h2,p{margin-top:0}.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}.nav a{padding:9px 13px;border:1px solid #ddd4eb;border-radius:999px;color:#594796;text-decoration:none;background:#fff;font-weight:700}.nav a.active{color:#fff;background:#7257d8;border-color:#7257d8}.layout{display:grid;grid-template-columns:360px 1fr;gap:18px}.card{padding:18px;background:#fff;border:1px solid #e5dfef;border-radius:16px;box-shadow:0 8px 30px rgba(55,42,80,.05)}label{display:grid;gap:6px;margin-bottom:13px;color:#675e77;font-size:12px;font-weight:700}input,select,textarea{width:100%;padding:10px 11px;border:1px solid #dcd4e7;border-radius:10px;color:#292337;background:#fff;font:inherit}textarea{min-height:210px;resize:vertical;line-height:1.55}button{border:0;border-radius:11px;padding:11px 15px;color:#fff;background:#7257d8;font-weight:800;cursor:pointer}button:disabled{opacity:.5;cursor:wait}.hint{margin:12px 0 0;color:#7c738b;font-size:12px;line-height:1.6}.toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px}.progress{color:#756d85;font-size:13px}.results{display:grid;gap:11px}.result{padding:14px;border:1px solid #e8e2ef;border-radius:13px;background:#fcfbfd}.result-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:9px}.result h3{margin:0;font-size:15px}.meta{color:#83798f;font-size:11px}.scene{padding:9px 10px;border-radius:9px;background:#f3f0f7;color:#675e77;font-size:12px;line-height:1.5}.output{margin-top:10px;white-space:pre-wrap;font-size:15px;font-weight:750;line-height:1.65}.pending{color:#8a7e99}.error{color:#b42318}.prompt{margin-top:9px}.prompt summary{cursor:pointer;color:#6549ce;font-size:12px}.prompt pre{white-space:pre-wrap;word-break:break-word;font-size:11px;color:#675e77}.empty{padding:70px 20px;text-align:center;color:#8b8298}@media(max-width:860px){body{padding:14px}.layout{grid-template-columns:1fr}.card{padding:14px}}
+  </style>
+</head>
+<body><main>
+  <nav class="nav"><a href="/vision-test.html">单帧感知测试</a><a href="/companion-logs.html">正式监管日志</a><a class="active" href="/role-reaction-test.html">角色批量测试</a></nav>
+  <div class="layout">
+    <section class="card">
+      <h1>角色批量反应测试</h1>
+      <p class="hint">输入一套角色设定，一次查看 TA 在完整专注流程中的不同反应。使用正式伴柠的动态 Prompt 和生成函数，不调用摄像头与 TTS。</p>
+      <form id="form">
+        <label>TA 的名字<input id="name" value="沈砚" maxlength="30" required></label>
+        <label>TA 怎么叫你<input id="userTitle" value="大小姐" maxlength="30" required></label>
+        <label>你们的关系<input id="relationship" value="学习搭子" maxlength="40" required></label>
+        <label>本次任务<input id="task" value="完成数学习题" maxlength="200" required></label>
+        <label>TA 的完整人设<textarea id="persona" required>温柔但偶尔毒舌，观察细致，说话自然简短。不会打击用户，也不会主动劝用户放弃或休息。</textarea></label>
+        <button id="run" type="submit">批量生成全部反应</button>
+      </form>
+      <p class="hint">测试包含开场、四种认真状态、刚开始玩手机、认真40分钟后短暂看手机、离开、休息、喝水、伸展、夸奖、角色汇报与安静陪伴。</p>
+    </section>
+    <section class="card">
+      <div class="toolbar"><div><h2>批量结果</h2><div class="progress" id="progress">尚未开始</div></div><button id="rerun" type="button" hidden>重新测试</button></div>
+      <div class="empty" id="empty">填写左侧人设后，点击“批量生成全部反应”。</div>
+      <div class="results" id="results"></div>
+    </section>
+  </div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const escapeHtml=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+const cases=[
+  {id:'meeting',name:'见面后确认任务',mode:'session_opening',elapsedSeconds:0,scene:'用户刚输入本次专注任务'},
+  {id:'opening',name:'进入专注 · 第一秒氛围',mode:'ambient',type:'opening',elapsedSeconds:0,scene:'专注刚刚开始'},
+  {id:'studying',name:'认真学习 · 无法细分',mode:'reaction_test',elapsedSeconds:60,scene:'用户正坐在桌前认真学习，视线朝向桌面材料，未看手机',triggerReason:'首次识别到 STUDYING，鼓励一次'},
+  {id:'reading',name:'阅读',mode:'reaction_test',elapsedSeconds:180,scene:'用户手中拿着书，视线持续落在书页上，正在阅读',triggerReason:'首次识别到 READING，鼓励一次'},
+  {id:'writing',name:'手写',mode:'reaction_test',elapsedSeconds:300,scene:'用户握笔在纸上持续书写，视线落在练习本上',triggerReason:'首次识别到 WRITING，鼓励一次'},
+  {id:'computer',name:'电脑工作',mode:'reaction_test',elapsedSeconds:600,scene:'用户正看着电脑屏幕并操作键盘，持续处理当前任务',triggerReason:'首次识别到 COMPUTER_WORK，鼓励一次'},
+  {id:'phone_early',name:'刚开始不久就玩手机',mode:'reaction_test',elapsedSeconds:120,scene:'用户低头持续看手机并滑动屏幕',triggerReason:'专注开始2分钟即持续看手机，需要直接提醒'},
+  {id:'phone_late',name:'认真40分钟后短暂看手机',mode:'reaction_test',elapsedSeconds:2400,scene:'用户刚拿起手机低头查看屏幕',triggerReason:'用户此前已认真学习40分钟，现在短暂看手机，体谅但轻轻拉回',recentObservations:[{elapsedSeconds:2340,scene:'用户持续认真完成任务，没有分心'}]},
+  {id:'absent',name:'离开画面',mode:'reaction_test',elapsedSeconds:720,scene:'画面中没有人，座位空着',triggerReason:'首次识别到 ABSENT，作出一次有趣反应'},
+  {id:'resting',name:'趴桌休息',mode:'reaction_test',elapsedSeconds:900,scene:'用户趴在桌面上，眼睛闭着，停止了当前任务',triggerReason:'首次识别到 RESTING，温和拉回任务，不劝放弃'},
+  {id:'drinking',name:'喝水',mode:'reaction_test',elapsedSeconds:1080,scene:'用户拿起水杯喝水，随后把水杯放回桌面',triggerReason:'识别到 DRINKING，自然回应一次'},
+  {id:'stretching',name:'伸展',mode:'reaction_test',elapsedSeconds:1260,scene:'用户坐在桌前抬起双臂伸展肩颈',triggerReason:'识别到 STRETCHING，自然回应一次'},
+  {id:'praise',name:'持续认真后的夸奖',mode:'ambient',type:'praise',elapsedSeconds:1500,scene:'用户持续认真专注'},
+  {id:'activity',name:'角色汇报自己在做什么',mode:'ambient',type:'activity',elapsedSeconds:480,activity:'看书',scene:'角色在一旁看书'},
+  {id:'presence',name:'安静陪伴提醒',mode:'ambient',type:'presence',elapsedSeconds:1200,scene:'长时间没有互动'}
+];
+let running=false;
+function context(){return {name:$('name').value.trim(),userTitle:$('userTitle').value.trim(),relationship:$('relationship').value.trim(),persona:$('persona').value.trim(),voiceType:'zh_male_ruyayichen_saturn_bigtts'}}
+function resultShell(item){return `<article class="result" id="case-${item.id}"><div class="result-head"><h3>${escapeHtml(item.name)}</h3><span class="meta">${Math.floor(item.elapsedSeconds/60)} 分钟</span></div><div class="scene">${escapeHtml(item.scene)}</div><div class="output pending">等待生成…</div><details class="prompt"><summary>查看本项 AI 输入</summary><pre>${escapeHtml(JSON.stringify(item,null,2))}</pre></details></article>`}
+async function runCase(item,roleContext,epoch,index){const card=$(`case-${item.id}`);const output=card.querySelector('.output');const started=performance.now();try{const body={...item,task:$('task').value.trim(),roleContext,epoch,turnId:index+1};delete body.id;delete body.name;const response=await fetch('/api/companion-observe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||`HTTP ${response.status}`);const messages=payload.data?.messages||[];output.className='output';output.textContent=messages.join('\n')||'（没有输出）';card.querySelector('.meta').textContent+=` · ${Math.round(performance.now()-started)} ms`;const pre=card.querySelector('pre');pre.textContent=`动态角色 Prompt：\n${payload.data?.persona||'由后端组装'}\n\n场景请求：\n${JSON.stringify(body,null,2)}`}catch(error){output.className='output error';output.textContent=`失败：${error.message}`}}
+async function runAll(event){event?.preventDefault();if(running)return;const roleContext=context();if(!roleContext.name||!roleContext.userTitle||!roleContext.relationship||!roleContext.persona||!$('task').value.trim())return;running=true;$('run').disabled=true;$('rerun').hidden=true;$('empty').hidden=true;$('results').innerHTML=cases.map(resultShell).join('');const epoch=Date.now();let completed=0;$('progress').textContent=`0 / ${cases.length}`;for(let i=0;i<cases.length;i+=2){await Promise.all(cases.slice(i,i+2).map((item,offset)=>runCase(item,roleContext,epoch,i+offset)));completed=Math.min(i+2,cases.length);$('progress').textContent=`${completed} / ${cases.length}`}running=false;$('run').disabled=false;$('rerun').hidden=false;$('progress').textContent=`完成 ${cases.length} 项 · ${new Date().toLocaleTimeString()}`}
+$('form').addEventListener('submit',runAll);$('rerun').onclick=runAll;
+</script>
+</body></html>

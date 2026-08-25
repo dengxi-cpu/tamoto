@@ -77,8 +77,15 @@
           <label class="bn-beta-field bn-beta-custom-relation" id="bnBetaCustomRelationWrap" hidden><span>自定义关系</span><input id="bnBetaCustomRelationship" maxlength="20" placeholder="写下你们的关系"></label>
           <label class="bn-beta-field"><span>TA 的人设</span><textarea id="bnBetaPersona" maxlength="3000" rows="7" placeholder="直接粘贴完整人设。可以写性格、说话习惯、相处方式，以及希望 TA 怎么陪你。"></textarea></label>
 
-          <fieldset class="bn-beta-voices"><legend>音色选择</legend><button class="bn-beta-voice is-active" type="button" data-bn-beta-voice="zh_male_ruyayichen_saturn_bigtts" aria-pressed="true"><i>▶</i><span><b>温柔男声</b><small>当前已接入 · 实时 AI 语音</small></span><em>已选择</em></button></fieldset>
-          <p class="bn-beta-note">更多真实可用音色会在验证豆包接口后加入，不放置无法播放的假选项。</p>
+          <fieldset class="bn-beta-voices"><legend>音色选择 · 点击试听</legend>
+            <button class="bn-beta-voice is-active" type="button" data-bn-beta-voice="zh_male_ruyayichen_saturn_bigtts" aria-pressed="true"><i>▶</i><span><b>儒雅逸辰</b><small>温润 · 书卷气 · 陪伴感</small></span><em>已选择</em></button>
+            <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_m191_uranus_bigtts" aria-pressed="false"><i>▶</i><span><b>云舟 2.0</b><small>成熟 · 磁性 · 稳重</small></span><em>选择</em></button>
+            <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_taocheng_uranus_bigtts" aria-pressed="false"><i>▶</i><span><b>小天 2.0</b><small>年轻 · 清朗 · 阳光</small></span><em>选择</em></button>
+            <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_liufei_uranus_bigtts" aria-pressed="false"><i>▶</i><span><b>刘飞 2.0</b><small>自然 · 亲近 · 日常</small></span><em>选择</em></button>
+            <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_fanjuanqingnian_uranus_bigtts" aria-pressed="false"><i>▶</i><span><b>反卷青年</b><small>松弛 · 随性 · 朋友感</small></span><em>选择</em></button>
+            <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_yizhipiannan_uranus_bigtts" aria-pressed="false"><i>▶</i><span><b>译制片男声</b><small>低沉 · 戏剧感 · 成熟</small></span><em>选择</em></button>
+          </fieldset>
+          <p class="bn-beta-note">选择会应用到见面、氛围、事件和对话语音。</p>
           <div class="bn-focus-hint" id="bnBetaRoleHint"></div>
           <button class="bn-primary" type="submit">保存并见面 →</button>
         </form>
@@ -301,6 +308,12 @@
     document.getElementById('bnBetaCustomRelationship').value = standard ? '' : relation;
     document.getElementById('bnBetaCustomRelationWrap').hidden = standard;
     document.getElementById('bnBetaPersona').value = oc.characterDescription || '';
+    document.querySelectorAll('[data-bn-beta-voice]').forEach(button => {
+      const active = button.dataset.bnBetaVoice === (oc.voiceType || 'zh_male_ruyayichen_saturn_bigtts');
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+      button.querySelector('em').textContent = active ? '已选择' : '选择';
+    });
   }
 
   function compressBetaBackground(file) {
@@ -362,7 +375,7 @@
       userTitle,
       relationship,
       characterDescription: document.getElementById('bnBetaPersona').value.trim(),
-      voiceType: 'zh_male_ruyayichen_saturn_bigtts',
+      voiceType: document.querySelector('[data-bn-beta-voice].is-active')?.dataset.bnBetaVoice || 'zh_male_ruyayichen_saturn_bigtts',
       selected: true
     };
     ocData[currentOCIndex] = next;
@@ -702,8 +715,14 @@
       if (status) return setStatus(status);
       const betaVoice = event.target.closest('[data-bn-beta-voice]');
       if (betaVoice) {
-        window.focusCompanion?.previewVoice();
-        toast('正在试听温柔男声');
+        document.querySelectorAll('[data-bn-beta-voice]').forEach(button => {
+          const active = button === betaVoice;
+          button.classList.toggle('is-active', active);
+          button.setAttribute('aria-pressed', String(active));
+          button.querySelector('em').textContent = active ? '已选择' : '选择';
+        });
+        window.focusCompanion?.previewVoice(betaVoice.dataset.bnBetaVoice);
+        toast(`正在试听${betaVoice.querySelector('b')?.textContent || '男声'}`);
         return;
       }
       const task = event.target.closest('[data-bn-task-id]');

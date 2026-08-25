@@ -1,4 +1,4 @@
-const { CompanionPipelineError, generateAmbient, generateDialogue, generateSessionOpening, runCompanionPipeline } = require('../lib/companion-pipeline');
+const { CompanionPipelineError, generateReaction, generateAmbient, generateDialogue, generateSessionOpening, runCompanionPipeline } = require('../lib/companion-pipeline');
 const { assemblePersonaPrompt } = require('../lib/companion-prompt');
 const { upsertCompanionLog } = require('./companion-logs');
 
@@ -24,6 +24,33 @@ async function handler(req, res) {
     } catch (error) {
       console.error('Session opening generation failed:', error);
       return json(res, error.statusCode || 500, { success: false, error: error.message || '见面回应生成失败' });
+    }
+  }
+
+  if (req.body?.mode === 'reaction_test') {
+    try {
+      const startedAt = Date.now();
+      const scene = String(req.body?.scene || '').trim().slice(0, 300);
+      const task = String(req.body?.task || '保持专注').trim().slice(0, 200);
+      const elapsedSeconds = Math.max(0, Math.min(24 * 60 * 60, Number(req.body?.elapsedSeconds) || 0));
+      const triggerReason = String(req.body?.triggerReason || '批量测试场景').trim().slice(0, 300);
+      if (!scene) return json(res, 400, { success: false, error: '测试场景不能为空' });
+      const messages = await generateReaction({
+        scene,
+        task,
+        persona,
+        sessionStartedAt: new Date(Date.now() - elapsedSeconds * 1000).toISOString(),
+        elapsedSeconds,
+        recentObservations: Array.isArray(req.body?.recentObservations) ? req.body.recentObservations.slice(-1) : [],
+        triggerReason
+      });
+      return json(res, 200, {
+        success: true,
+        data: { messages, reaction: messages.join('\n'), persona, elapsedSeconds, durationMs: Date.now() - startedAt }
+      });
+    } catch (error) {
+      console.error('Companion reaction test failed:', error);
+      return json(res, error.statusCode || 500, { success: false, error: error.message || '批量反应生成失败' });
     }
   }
 

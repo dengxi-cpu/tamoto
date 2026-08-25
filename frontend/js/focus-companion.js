@@ -404,7 +404,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             signal: controller.signal,
-            body: JSON.stringify({ text, epoch: result.epoch, turnId: result.turnId, speechType, voiceType: getCompanionContext().roleContext.voiceType })
+            body: JSON.stringify({ text, epoch: result.epoch, turnId: result.turnId, speechType, voiceType: result.voiceType || getCompanionContext().roleContext.voiceType })
         });
         if (!response.ok) {
             const payload = await response.json().catch(() => ({}));
@@ -1052,7 +1052,7 @@
         createSpeechTurn: () => ({ epoch: state.epoch, turnId: ++state.turnId }),
         speakMessages: (messages, turn, speechType = 'session_opening', onMessage) => playMessageSequence(messages, turn, 1, speechType, onMessage),
         markMeetingComplete: () => { state.preparedOpening = null; },
-        previewVoice: () => playMessageSequence(['我在这。'], { epoch: state.epoch, turnId: ++state.turnId }, 1, 'voice_preview'),
+        previewVoice: voiceType => playMessageSequence(['我在这，陪你慢慢来。'], { epoch: state.epoch, turnId: ++state.turnId, voiceType }, 1, 'voice_preview'),
         isCameraEnabled: () => Boolean(state.stream)
     };
 

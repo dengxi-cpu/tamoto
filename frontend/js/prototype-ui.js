@@ -529,8 +529,16 @@
   function startBgm() {
     updateRainButton();
     stopBgm(false);
-    if (state.bgmMode === 'muted' || !isTimerRunning || isPaused) return;
+    if (!isTimerRunning || isPaused) return;
+    if (state.bgmMode === 'muted') {
+      const keepAliveAudio = ensureRainAudio();
+      keepAliveAudio.volume = 0.0001;
+      keepAliveAudio.play().catch(error => console.warn('iOS 音频会话保活失败:', error));
+      window.focusCompanion?.unlockAudio().catch(() => {});
+      return;
+    }
     const audio = state.bgmMode === 'piano' ? ensurePianoAudio() : ensureRainAudio();
+    audio.volume = 0.03;
     audio.play().catch(error => {
       console.warn('背景音乐播放失败:', error);
       toast('点一下背景音乐按钮即可播放');
@@ -547,6 +555,7 @@
   function cycleBgm() {
     state.bgmMode = state.bgmMode === 'rain' ? 'piano' : state.bgmMode === 'piano' ? 'muted' : 'rain';
     localStorage.setItem('bnBgmMode', state.bgmMode);
+    window.focusCompanion?.unlockAudio().catch(() => {});
     startBgm();
     updateRainButton();
   }

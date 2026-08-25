@@ -241,11 +241,11 @@
     function normalizeMessages(messages, fallback = '') {
         const items = Array.isArray(messages) ? messages : [];
         const splitClauses = source => source
-            .flatMap(item => String(item || '').replace(/[，,；;]+/g, '。').split(/[。！？!?\n]+/))
-            .map(item => item.trim().replace(/[，,；;。！？!?]+$/g, ''))
+            .flatMap(item => String(item || '').match(/[^。！？!?\n]+[。！？!?]?/g) || [])
+            .map(item => item.trim())
             .filter(Boolean)
-            .slice(0, 6)
-            .map(item => `${item}。`);
+            .slice(0, 3)
+            .map(item => /[。！？!?]$/.test(item) ? item : `${item}。`);
         const normalized = splitClauses(items);
         if (normalized.length) return normalized;
         return splitClauses([fallback]);
@@ -464,27 +464,32 @@
         beginSpeechMessages();
         let totalBytes = 0;
         try {
-            for (let index = 0; index < items.length; index += 1) {
-                if (sequenceId !== state.speechSequenceId || result.epoch !== state.epoch || state.voiceHeld || state.paused) break;
-                const message = items[index];
-                let messageShown = false;
-                const showMessage = () => {
-                    if (messageShown) return;
-                    messageShown = true;
-                    onMessage(message, index);
-                };
-                let bytes;
-                try {
-                    bytes = await playStreamingTts(message, result, priority, speechType, showMessage);
-                } catch (error) {
-                    showMessage();
-                    throw error;
+            if (result.epoch !== state.epoch || state.voiceHeld || state.paused) return 0;
+            const fullText = items.join('');
+            const shown = new Set();
+            const showItem = index => {
+                if (shown.has(index) || sequenceId !== state.speechSequenceId) return;
+                shown.add(index);
+                onMessage(items[index], index);
+            };
+            const scheduleCaptions = () => {
+                showItem(0);
+                const totalCharacters = Math.max(1, items.reduce((sum, item) => sum + Array.from(item).length, 0));
+                const estimatedDuration = Math.max(1400, Math.min(12000, totalCharacters * 220));
+                let passedCharacters = Array.from(items[0]).length;
+                for (let index = 1; index < items.length; index += 1) {
+                    const delay = Math.round(estimatedDuration * passedCharacters / totalCharacters);
+                    window.setTimeout(() => showItem(index), delay);
+                    passedCharacters += Array.from(items[index]).length;
                 }
-                if (!bytes) showMessage();
-                if (!bytes || sequenceId !== state.speechSequenceId) break;
-                totalBytes += bytes;
-                if (index < items.length - 1 && !await waitBetweenMessages(sequenceId)) break;
+            };
+            try {
+                totalBytes = await playStreamingTts(fullText, result, priority, speechType, scheduleCaptions);
+            } catch (error) {
+                items.forEach((_, index) => showItem(index));
+                throw error;
             }
+            if (!totalBytes) items.forEach((_, index) => showItem(index));
         } finally {
             if (state.activeSpeechSequence?.id === sequenceId) state.activeSpeechSequence = null;
         }
@@ -663,21 +668,17 @@
             if (!lineResponse.ok) throw new Error(linePayload.error || '开场台词预生成失败');
             const messages = normalizeMessages(linePayload.data?.messages, linePayload.data?.reaction);
             if (!messages.length) throw new Error('开场台词为空');
-            const preparedMessages = [];
-            for (const text of messages) {
-                const audioResponse = await fetch('/api/tts-stream', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text, epoch: preloadEpoch, turnId: preloadTurnId, speechType: 'opening', voiceType: roleContext.voiceType })
-                });
-                if (!audioResponse.ok) throw new Error('开场语音预生成失败');
-                preparedMessages.push({
-                    text,
-                    bytes: new Uint8Array(await audioResponse.arrayBuffer()),
-                    sampleRate: Number(audioResponse.headers.get('x-audio-sample-rate')) || 24000
-                });
-            }
-            state.preparedOpening = { messages: preparedMessages };
+            const audioResponse = await fetch('/api/tts-stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: messages.join(''), epoch: preloadEpoch, turnId: preloadTurnId, speechType: 'opening', voiceType: roleContext.voiceType })
+            });
+            if (!audioResponse.ok) throw new Error('开场语音预生成失败');
+            state.preparedOpening = {
+                messages,
+                bytes: new Uint8Array(await audioResponse.arrayBuffer()),
+                sampleRate: Number(audioResponse.headers.get('x-audio-sample-rate')) || 24000
+            };
             return state.preparedOpening;
         })().catch(error => {
             console.warn('Opening preload failed:', error);
@@ -696,33 +697,36 @@
         const sequenceId = ++state.speechSequenceId;
         state.activeSpeechSequence = { id: sequenceId, priority: 4 };
         beginSpeechMessages();
-        for (let index = 0; index < prepared.messages.length; index += 1) {
-            if (sequenceId !== state.speechSequenceId || !state.sessionActive || state.voiceHeld) return false;
-            const item = prepared.messages[index];
-            let resolveFinished;
-            const finished = new Promise(resolve => { resolveFinished = resolve; });
-            const playback = {
-                epoch: state.epoch,
-                controller: new AbortController(),
-                sources: new Set(),
-                nextPlayTime: 0,
-                carry: null,
-                sampleRate: item.sampleRate,
-                streamEnded: false,
-                priority: 4,
-                speechType: 'opening',
-                resolveFinished
-            };
-            state.playback = playback;
-            schedulePcmChunk(item.bytes, playback);
+        if (sequenceId !== state.speechSequenceId || !state.sessionActive || state.voiceHeld) return false;
+        let resolveFinished;
+        const finished = new Promise(resolve => { resolveFinished = resolve; });
+        const playback = {
+            epoch: state.epoch,
+            controller: new AbortController(),
+            sources: new Set(),
+            nextPlayTime: 0,
+            carry: null,
+            sampleRate: prepared.sampleRate,
+            streamEnded: false,
+            priority: 4,
+            speechType: 'opening',
+            resolveFinished
+        };
+        state.playback = playback;
+        schedulePcmChunk(prepared.bytes, playback);
+        const totalCharacters = Math.max(1, prepared.messages.reduce((sum, item) => sum + Array.from(item).length, 0));
+        const durationMs = prepared.bytes.length / (prepared.sampleRate * 2) * 1000;
+        let passedCharacters = 0;
+        prepared.messages.forEach((text, index) => {
+            const delay = TTS_BUFFER_MS + 60 + durationMs * passedCharacters / totalCharacters;
             window.setTimeout(() => {
-                if (sequenceId === state.speechSequenceId) appendSpeechMessage(item.text);
-            }, TTS_BUFFER_MS + 60);
-            playback.streamEnded = true;
-            finishPlaybackIfDone(playback);
-            if (!await finished || sequenceId !== state.speechSequenceId) return false;
-            if (index < prepared.messages.length - 1 && !await waitBetweenMessages(sequenceId)) return false;
-        }
+                if (sequenceId === state.speechSequenceId) appendSpeechMessage(text);
+            }, delay);
+            passedCharacters += Array.from(text).length;
+        });
+        playback.streamEnded = true;
+        finishPlaybackIfDone(playback);
+        if (!await finished || sequenceId !== state.speechSequenceId) return false;
         if (state.activeSpeechSequence?.id === sequenceId) state.activeSpeechSequence = null;
         const now = Date.now();
         state.openingAmbientDone = true;

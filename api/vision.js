@@ -57,7 +57,19 @@ async function handler(req, res) {
     if (!response.ok) {
       const detail = await response.text();
       console.error('Vision provider failed:', response.status, detail.slice(0, 400));
-      return json(res, 502, { success: false, error: '视觉模型请求失败' });
+      let providerError = {};
+      try {
+        const parsedDetail = JSON.parse(detail);
+        providerError = {
+          code: parsedDetail?.error?.code || '',
+          message: parsedDetail?.error?.message || ''
+        };
+      } catch (_) {}
+      return json(res, 502, {
+        success: false,
+        error: '视觉模型请求失败',
+        provider: { status: response.status, ...providerError }
+      });
     }
 
     const payload = await response.json();

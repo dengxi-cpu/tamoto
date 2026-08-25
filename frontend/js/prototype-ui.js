@@ -160,6 +160,7 @@
   function switchTab(tab) {
     if (tab === 'focus' && (isTimerRunning || isPaused)) tab = 'running';
     if (tab === 'chat') prepareChat();
+    if (tab === 'focus') window.focusCompanion?.prepareOpening();
     state.tab = tab;
     document.querySelectorAll('[data-bn-screen]').forEach(el => el.classList.toggle('is-active', el.dataset.bnScreen === tab));
     document.querySelectorAll('.bn-tab').forEach(el => el.classList.toggle('is-active', el.dataset.bnGo === (tab === 'running' ? 'focus' : tab)));
@@ -215,9 +216,7 @@
     }
     if (typeof startStopTimer === 'function') startStopTimer();
     if (isTimerRunning || isPaused) {
-      startVoiceLoop();
       switchTab('running');
-      startCaptions();
     } else {
       document.getElementById('bnFocusHint').textContent = '请选择 TA 当前的陪伴状态';
     }
@@ -233,8 +232,7 @@
 
   function pauseFocus() {
     if (typeof pauseResumeTimer === 'function') pauseResumeTimer();
-    if (isPaused) stopVoiceLoop();
-    else if (isTimerRunning) startVoiceLoop();
+    window.focusCompanion?.setPaused(Boolean(isPaused));
     refreshTimer();
   }
 

@@ -113,7 +113,9 @@ body.bn-ui-active .fixed.inset-0.pointer-events-none { display:none !important; 
 .bn-call-top i { display:inline-block; width:8px; height:8px; border-radius:50%; background:#72df92; margin-right:7px; box-shadow:0 0 0 5px rgba(114,223,146,.15); }
 .bn-close-focus { width:36px; height:36px; border:1px solid rgba(255,255,255,.25); border-radius:50%; color:#fff; background:rgba(0,0,0,.22); font-size:18px; }
 .bn-call-task { position:absolute; z-index:2; top:84px; left:50%; transform:translateX(-50%); max-width:80%; padding:8px 13px; overflow:hidden; border-radius:999px; color:#fff; background:rgba(31,22,42,.48); backdrop-filter:blur(8px); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
-.bn-caption { position:absolute; z-index:2; left:30px; right:30px; bottom:205px; min-height:50px; color:#fff; text-align:center; font-size:14px; line-height:1.7; text-shadow:0 2px 10px #000; }
+.bn-caption { position:absolute; z-index:2; left:30px; right:30px; bottom:205px; min-height:50px; display:flex; flex-direction:column; align-items:flex-start; gap:7px; color:#fff; text-align:left; font-size:14px; line-height:1.55; text-shadow:0 2px 10px #000; pointer-events:none; }
+.bn-speech-message { max-width:82%; padding:8px 12px; border:1px solid rgba(255,255,255,.18); border-radius:14px 14px 14px 4px; background:rgba(22,20,27,.62); box-shadow:0 5px 18px rgba(0,0,0,.18); backdrop-filter:blur(9px); animation:bn-message-in .22s ease-out both; }
+@keyframes bn-message-in { from { opacity:0; transform:translateY(6px) scale(.98); } to { opacity:1; transform:none; } }
 .bn-call-bottom { position:absolute; z-index:2; left:0; right:0; bottom:max(30px,env(safe-area-inset-bottom)); text-align:center; color:#fff; }
 .bn-call-time { font-size:48px; font-weight:850; letter-spacing:.03em; }
 .bn-call-sub { margin-top:2px; color:rgba(255,255,255,.7); font-size:11px; }

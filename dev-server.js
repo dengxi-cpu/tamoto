@@ -15,7 +15,7 @@ const PORT = 3000;
 app.use(cors());
 
 // 解析 JSON 请求体
-app.use(express.json());
+app.use(express.json({ limit: '4mb' }));
 
 // 静态文件服务（index.html 在根目录）
 app.use(express.static(__dirname));
@@ -30,6 +30,11 @@ const apiModules = {
   sync: require('./api/sync.js'),
   push: require('./api/push.js'),
   reminders: require('./api/reminders.js'),
+  speech: require('./api/speech.js'),
+  companionObserve: require('./api/companion-observe.js'),
+  visionHealth: require('./api/vision-health.js'),
+  ttsStream: require('./api/tts-stream.js'),
+  companionLogs: require('./api/companion-logs.js'),
 };
 
 // 通用代理：把 Express req/res 包装成 Vercel 风格的 handler(req, res)
@@ -52,6 +57,11 @@ app.post('/api/auth', proxyApi(apiModules.auth));
 app.all('/api/sync', proxyApi(apiModules.sync));
 app.all('/api/push', proxyApi(apiModules.push));
 app.all('/api/reminders', proxyApi(apiModules.reminders));
+app.post('/api/speech', proxyApi(apiModules.speech.handler));
+app.post('/api/companion-observe', proxyApi(apiModules.companionObserve.handler));
+app.get('/api/vision-health', proxyApi(apiModules.visionHealth.handler));
+app.post('/api/tts-stream', proxyApi(apiModules.ttsStream.handler));
+app.all('/api/companion-logs', proxyApi(apiModules.companionLogs.handler));
 
 app.listen(PORT, () => {
   console.log(`🚀 伴柠番茄钟已启动: http://localhost:${PORT}`);

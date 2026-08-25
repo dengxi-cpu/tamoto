@@ -5,7 +5,7 @@
   "buildCommand": null,
   "functions": {
     "api/*.js": {
-      "maxDuration": 10
+      "maxDuration": 30
     }
   },
   "headers": [

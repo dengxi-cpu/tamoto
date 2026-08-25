@@ -27,7 +27,6 @@
         latestObservation: null,
         preparedOpening: null,
         preparingOpening: null,
-        skipNextOpening: false,
         dialogueController: null,
         dialogueHistory: [],
         pipelineController: null,
@@ -189,8 +188,6 @@
     }
 
     function startSession() {
-        const skipOpening = state.skipNextOpening;
-        state.skipNextOpening = false;
         ensureAudio().catch(error => console.warn('Audio unlock failed:', error));
         cancelReaction('新专注会话');
         state.epoch = Date.now();
@@ -206,17 +203,17 @@
         state.lastPraiseAt = 0;
         state.lastEventOrDialogueAt = 0;
         state.roleActivity = '看书';
-        state.openingAmbientDone = skipOpening;
-        state.openingEventDone = skipOpening;
+        state.openingAmbientDone = false;
+        state.openingEventDone = false;
         state.latestObservation = null;
         state.dialogueHistory = [];
         state.sessionActive = true;
         state.paused = false;
         state.visionUnavailable = false;
         stopCamera();
-        if (!skipOpening) scheduleOpeningSequence();
+        scheduleOpeningSequence();
         scheduleAmbientCheck();
-        if (!skipOpening) playPreparedOpening().catch(error => console.warn('Prepared opening playback failed:', error));
+        playPreparedOpening().catch(error => console.warn('Prepared opening playback failed:', error));
     }
 
     function stopSession() {
@@ -1054,7 +1051,7 @@
         unlockAudio: ensureAudio,
         createSpeechTurn: () => ({ epoch: state.epoch, turnId: ++state.turnId }),
         speakMessages: (messages, turn, speechType = 'session_opening', onMessage) => playMessageSequence(messages, turn, 1, speechType, onMessage),
-        markMeetingComplete: () => { state.skipNextOpening = true; },
+        markMeetingComplete: () => { state.preparedOpening = null; },
         previewVoice: () => playMessageSequence(['我在这。'], { epoch: state.epoch, turnId: ++state.turnId }, 1, 'voice_preview'),
         isCameraEnabled: () => Boolean(state.stream)
     };

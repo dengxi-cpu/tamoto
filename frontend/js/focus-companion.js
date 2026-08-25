@@ -286,8 +286,10 @@
         const oc = typeof ocData !== 'undefined' && Array.isArray(ocData)
             ? (ocData[typeof currentOCIndex === 'number' ? currentOCIndex : 0] || ocData[0])
             : null;
+        const betaMode = new URLSearchParams(location.search).get('mode') === 'beta';
+        const userTitle = betaMode ? (oc?.userTitle || '大小姐') : '大小姐';
         const persona = oc
-            ? `${oc.name || 'TA'}，需要称呼时只叫用户“大小姐”，不要使用用户姓名，也不要每句话都称呼。性格毒舌但关心用户，反应自然、简短。`
+            ? `${oc.name || 'TA'}，与用户的关系是${oc.relationship || '学习搭子'}。完整人设：${oc.characterDescription || '毒舌但关心用户'}。需要称呼时只叫用户“${userTitle}”，不要使用其他姓名，也不要每句话都称呼。反应自然、简短。`
             : '毒舌但关心用户的陪伴者，需要称呼时只叫用户“大小姐”，不要每句话都称呼，反应自然、简短。';
         return { task, persona };
     }
@@ -1017,6 +1019,7 @@
         stopVoiceInput,
         setPaused,
         prepareOpening,
+        previewVoice: () => playMessageSequence(['我在这。'], { epoch: state.epoch, turnId: ++state.turnId }, 1, 'voice_preview'),
         isCameraEnabled: () => Boolean(state.stream)
     };
 

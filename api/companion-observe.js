@@ -14,7 +14,7 @@ async function handler(req, res) {
       const messages = await generateAmbient({
         type,
         task: String(req.body?.task || '保持专注').slice(0, 200),
-        persona: String(req.body?.persona || '安静陪伴用户的角色').slice(0, 500),
+        persona: String(req.body?.persona || '安静陪伴用户的角色').slice(0, 3000),
         elapsedSeconds: Math.max(0, Number(req.body?.elapsedSeconds) || 0),
         activity: String(req.body?.activity || '').slice(0, 50),
         scene: String(req.body?.scene || '').slice(0, 300),
@@ -23,7 +23,7 @@ async function handler(req, res) {
       await upsertCompanionLog({
         source: 'ambient', epoch: req.body?.epoch, turnId: req.body?.turnId,
         task: String(req.body?.task || '保持专注').slice(0, 200),
-        persona: String(req.body?.persona || '').slice(0, 500),
+        persona: String(req.body?.persona || '').slice(0, 3000),
         scene: `[氛围输入] 类型=${type}；已专注=${Math.floor((Number(req.body?.elapsedSeconds) || 0) / 60)}分钟；角色活动=${String(req.body?.activity || '无')}；画面=${String(req.body?.scene || '无')}`,
         reaction: messages.join('\n'), status: 'success', ttsStatus: 'pending'
       }).catch(error => console.error('Ambient log write failed:', error));
@@ -33,7 +33,7 @@ async function handler(req, res) {
       await upsertCompanionLog({
         source: 'ambient', epoch: req.body?.epoch, turnId: req.body?.turnId,
         task: String(req.body?.task || '保持专注').slice(0, 200),
-        persona: String(req.body?.persona || '').slice(0, 500),
+        persona: String(req.body?.persona || '').slice(0, 3000),
         scene: `[氛围输入失败] 类型=${String(req.body?.type || 'presence')}；已专注=${Math.floor((Number(req.body?.elapsedSeconds) || 0) / 60)}分钟`,
         status: 'failed', error: error.message, ttsStatus: 'skipped'
       }).catch(logError => console.error('Ambient failure log write failed:', logError));
@@ -48,7 +48,7 @@ async function handler(req, res) {
       const messages = await generateDialogue({
         text,
         task: String(req.body?.task || '保持专注').slice(0, 200),
-        persona: String(req.body?.persona || '毒舌但关心用户的陪伴者').slice(0, 500),
+        persona: String(req.body?.persona || '毒舌但关心用户的陪伴者').slice(0, 3000),
         elapsedSeconds: Math.max(0, Number(req.body?.elapsedSeconds) || 0),
         scene: String(req.body?.scene || '').slice(0, 300),
         history: Array.isArray(req.body?.history) ? req.body.history.slice(-6) : []
@@ -56,7 +56,7 @@ async function handler(req, res) {
       await upsertCompanionLog({
         source: 'dialogue', epoch: req.body?.epoch, turnId: req.body?.turnId,
         task: String(req.body?.task || '保持专注').slice(0, 200),
-        persona: String(req.body?.persona || '').slice(0, 500),
+        persona: String(req.body?.persona || '').slice(0, 3000),
         scene: `[对话输入] 用户说：${text}\n最近画面：${String(req.body?.scene || '无').slice(0, 300)}\n最近对话：${JSON.stringify(Array.isArray(req.body?.history) ? req.body.history.slice(-6) : [])}`,
         reaction: messages.join('\n'), status: 'success', ttsStatus: 'pending'
       }).catch(error => console.error('Dialogue log write failed:', error));
@@ -66,7 +66,7 @@ async function handler(req, res) {
       await upsertCompanionLog({
         source: 'dialogue', epoch: req.body?.epoch, turnId: req.body?.turnId,
         task: String(req.body?.task || '保持专注').slice(0, 200),
-        persona: String(req.body?.persona || '').slice(0, 500),
+        persona: String(req.body?.persona || '').slice(0, 3000),
         scene: `[对话输入失败] 用户说：${String(req.body?.text || '').slice(0, 500)}`,
         status: 'failed', error: error.message, ttsStatus: 'skipped'
       }).catch(logError => console.error('Dialogue failure log write failed:', logError));
@@ -85,7 +85,7 @@ async function handler(req, res) {
   const epoch = Number.isSafeInteger(req.body?.epoch) ? req.body.epoch : 1;
   const turnId = Number.isSafeInteger(req.body?.turnId) ? req.body.turnId : 1;
   const task = String(req.body?.task || '保持专注').trim().slice(0, 200);
-  const persona = String(req.body?.persona || '毒舌但关心用户的陪伴者').trim().slice(0, 500);
+  const persona = String(req.body?.persona || '毒舌但关心用户的陪伴者').trim().slice(0, 3000);
   const sessionStartedAt = Number.isFinite(Date.parse(req.body?.sessionStartedAt))
     ? new Date(req.body.sessionStartedAt).toISOString()
     : new Date().toISOString();

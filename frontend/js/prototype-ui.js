@@ -1,6 +1,8 @@
 (function () {
   'use strict';
 
+  const isBetaMode = new URLSearchParams(location.search).get('mode') === 'beta';
+
   const state = {
     tab: 'home',
     captionIndex: 0,
@@ -9,7 +11,8 @@
     chatObserver: null,
     toastTimer: null,
     rainAudio: null,
-    rainEnabled: localStorage.getItem('bnRainEnabled') !== 'false'
+    rainEnabled: localStorage.getItem('bnRainEnabled') !== 'false',
+    betaBackground: ''
   };
 
   const captions = [
@@ -49,7 +52,35 @@
     app.id = 'bnApp';
     app.className = 'bn-app';
     app.innerHTML = `
-      <section class="bn-screen is-active" data-bn-screen="home">
+      <section class="bn-screen bn-beta-setup${isBetaMode ? ' is-active' : ''}" data-bn-screen="beta-setup">
+        <div class="bn-beta-heading">
+          <div class="bn-eyebrow"><span class="bn-dot"></span>伴柠内测</div>
+          <h1>先让我认识 TA</h1>
+          <p>只设置陪伴需要的内容，之后随时可以回来修改。</p>
+        </div>
+        <form class="bn-beta-form" id="bnBetaRoleForm">
+          <label class="bn-beta-background" for="bnBetaBackgroundInput">
+            <img id="bnBetaBackgroundPreview" alt="TA 的背景预览">
+            <span><b>上传 TA 的背景</b><small>建议使用竖图，作为专注时的主画面</small></span>
+            <em>更换图片</em>
+          </label>
+          <input id="bnBetaBackgroundInput" type="file" accept="image/*" hidden>
+
+          <label class="bn-beta-field"><span>TA 的名字</span><input id="bnBetaName" maxlength="20" placeholder="TA 叫什么？" required></label>
+          <label class="bn-beta-field"><span>TA 怎么叫你</span><input id="bnBetaUserTitle" maxlength="20" list="bnBetaTitleOptions" placeholder="例如：大小姐、宝宝、姐姐" required></label>
+          <datalist id="bnBetaTitleOptions"><option value="大小姐"><option value="宝宝"><option value="姐姐"><option value="同学"></datalist>
+          <label class="bn-beta-field"><span>你们的关系</span><select id="bnBetaRelationship"><option>恋人</option><option>朋友</option><option selected>学习搭子</option><option>家人</option><option value="自定义">自定义</option></select></label>
+          <label class="bn-beta-field bn-beta-custom-relation" id="bnBetaCustomRelationWrap" hidden><span>自定义关系</span><input id="bnBetaCustomRelationship" maxlength="20" placeholder="写下你们的关系"></label>
+          <label class="bn-beta-field"><span>TA 的人设</span><textarea id="bnBetaPersona" maxlength="3000" rows="7" placeholder="直接粘贴完整人设。可以写性格、说话习惯、相处方式，以及希望 TA 怎么陪你。"></textarea></label>
+
+          <fieldset class="bn-beta-voices"><legend>音色选择</legend><button class="bn-beta-voice is-active" type="button" data-bn-beta-voice="zh_male_ruyayichen_saturn_bigtts" aria-pressed="true"><i>▶</i><span><b>温柔男声</b><small>当前已接入 · 实时 AI 语音</small></span><em>已选择</em></button></fieldset>
+          <p class="bn-beta-note">更多真实可用音色会在验证豆包接口后加入，不放置无法播放的假选项。</p>
+          <div class="bn-focus-hint" id="bnBetaRoleHint"></div>
+          <button class="bn-primary" type="submit">保存并继续 →</button>
+        </form>
+      </section>
+
+      <section class="bn-screen${isBetaMode ? '' : ' is-active'}" data-bn-screen="home">
         <div class="bn-home-top">
           <div><div class="bn-eyebrow"><span class="bn-dot"></span>伴柠番茄钟</div><div class="bn-date" id="bnDate"></div></div>
           <div class="bn-online"><i></i>TA 在等你</div>
@@ -235,6 +266,103 @@
     if (isPaused) stopRain(false);
     else startRain();
     refreshTimer();
+  }
+
+  function populateBetaRoleForm() {
+    if (!isBetaMode) return;
+    const oc = currentOC();
+    state.betaBackground = oc.avatar || fallbackAvatar;
+    document.getElementById('bnBetaBackgroundPreview').src = state.betaBackground;
+    document.getElementById('bnBetaName').value = oc.name || '';
+    document.getElementById('bnBetaUserTitle').value = oc.userTitle || '大小姐';
+    const relation = oc.relationship || '学习搭子';
+    const select = document.getElementById('bnBetaRelationship');
+    const standard = Array.from(select.options).some(option => option.value === relation && relation !== '自定义');
+    select.value = standard ? relation : '自定义';
+    document.getElementById('bnBetaCustomRelationship').value = standard ? '' : relation;
+    document.getElementById('bnBetaCustomRelationWrap').hidden = standard;
+    document.getElementById('bnBetaPersona').value = oc.characterDescription || '';
+  }
+
+  function compressBetaBackground(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error || new Error('图片读取失败'));
+      reader.onload = () => {
+        const image = new Image();
+        image.onerror = () => reject(new Error('图片格式无法识别'));
+        image.onload = () => {
+          const maxSide = 1440;
+          const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+          canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+          const context = canvas.getContext('2d', { alpha: false });
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        image.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleBetaBackground(file) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return toast('请选择图片文件');
+    if (file.size > 15 * 1024 * 1024) return toast('图片不能超过 15MB');
+    try {
+      state.betaBackground = await compressBetaBackground(file);
+      document.getElementById('bnBetaBackgroundPreview').src = state.betaBackground;
+    } catch (error) {
+      console.warn('Beta background processing failed:', error);
+      toast(error.message || '图片处理失败');
+    }
+  }
+
+  async function saveBetaRole(event) {
+    event.preventDefault();
+    const hint = document.getElementById('bnBetaRoleHint');
+    const name = document.getElementById('bnBetaName').value.trim();
+    const userTitle = document.getElementById('bnBetaUserTitle').value.trim();
+    const relationSelect = document.getElementById('bnBetaRelationship').value;
+    const relationship = relationSelect === '自定义'
+      ? document.getElementById('bnBetaCustomRelationship').value.trim()
+      : relationSelect;
+    if (!name || !userTitle || !relationship) {
+      hint.textContent = '请把名字、称呼和关系填写完整';
+      return;
+    }
+    const existing = currentOC();
+    const next = {
+      ...existing,
+      id: existing.id || Date.now(),
+      name,
+      avatar: state.betaBackground || existing.avatar || fallbackAvatar,
+      userTitle,
+      relationship,
+      characterDescription: document.getElementById('bnBetaPersona').value.trim(),
+      voiceType: 'zh_male_ruyayichen_saturn_bigtts',
+      selected: true
+    };
+    ocData[currentOCIndex] = next;
+    try {
+      if (next.avatar.startsWith('data:') && typeof saveAvatarData === 'function') {
+        await saveAvatarData(`oc_${next.id}`, next.avatar);
+      }
+      if (typeof persistOCData === 'function') persistOCData();
+      else localStorage.setItem('ocData', JSON.stringify(ocData));
+      localStorage.setItem('currentOCIndex', String(currentOCIndex));
+      localStorage.setItem('bnBetaRoleConfigured', 'true');
+      if (typeof updateCurrentOC === 'function') updateCurrentOC(currentOCIndex);
+      hint.textContent = '';
+      refreshUI();
+      switchTab('focus');
+      toast('角色已保存');
+    } catch (error) {
+      console.warn('Beta role save failed:', error);
+      hint.textContent = '保存失败，请重试';
+    }
   }
 
   function ensureRainAudio() {
@@ -443,6 +571,12 @@
       if (duration) return setDuration(duration.dataset.bnMinutes, duration);
       const status = event.target.closest('[data-bn-status]');
       if (status) return setStatus(status);
+      const betaVoice = event.target.closest('[data-bn-beta-voice]');
+      if (betaVoice) {
+        window.focusCompanion?.previewVoice();
+        toast('正在试听温柔男声');
+        return;
+      }
       const task = event.target.closest('[data-bn-task-id]');
       if (task && typeof toggleTaskStatus === 'function') {
         toggleTaskStatus(Number(task.dataset.bnTaskId), event);
@@ -469,6 +603,11 @@
     document.querySelectorAll('.bn-acc-head').forEach(button => button.addEventListener('click', () => button.parentElement.classList.toggle('is-open')));
     document.getElementById('bnChatForm').addEventListener('submit', submitChat);
     document.getElementById('bnTaskInput').addEventListener('change', syncTaskInput);
+    document.getElementById('bnBetaRoleForm').addEventListener('submit', saveBetaRole);
+    document.getElementById('bnBetaBackgroundInput').addEventListener('change', event => handleBetaBackground(event.target.files?.[0]));
+    document.getElementById('bnBetaRelationship').addEventListener('change', event => {
+      document.getElementById('bnBetaCustomRelationWrap').hidden = event.target.value !== '自定义';
+    });
     const voiceButton = document.getElementById('bnVoiceInputBtn');
     if (voiceButton && window.focusCompanion) {
       voiceButton.addEventListener('pointerdown', event => {
@@ -494,6 +633,7 @@
   function init() {
     renderShell();
     document.body.classList.add('bn-ui-active');
+    if (isBetaMode) document.body.classList.add('bn-beta-mode');
     document.querySelectorAll('body > div:not(#bnApp) .floating, body > div:not(#bnApp) .sparkle').forEach(element => {
       element.style.display = 'none';
     });
@@ -505,6 +645,10 @@
       prepareChat();
       const requested = new URLSearchParams(location.search).get('page');
       if (isTimerRunning || isPaused) switchTab('running');
+      else if (isBetaMode) {
+        populateBetaRoleForm();
+        switchTab('beta-setup');
+      }
       else if (['home', 'focus', 'chat', 'oc'].includes(requested)) switchTab(requested);
     }, 120);
     state.refreshTimer = setInterval(refreshUI, 1000);

@@ -39,7 +39,9 @@
         mediaRecorder: null,
         audioChunks: [],
         voiceHeld: false,
-        voiceInFlight: false
+        voiceInFlight: false,
+        voiceCancelled: false,
+        speechRecognition: null
     };
 
     const VISION_INTERVAL_MS = 20000;
@@ -484,6 +486,7 @@
         if (state.activeSpeechSequence) cancelSpeechSequence();
         const sequenceId = ++state.speechSequenceId;
         state.activeSpeechSequence = { id: sequenceId, priority };
+        elements().voiceButton?.classList.add('is-speaking');
         beginSpeechMessages();
         let totalBytes = 0;
         try {
@@ -515,6 +518,7 @@
             if (!totalBytes) items.forEach((_, index) => showItem(index));
         } finally {
             if (state.activeSpeechSequence?.id === sequenceId) state.activeSpeechSequence = null;
+            elements().voiceButton?.classList.remove('is-speaking');
         }
         return totalBytes;
     }
@@ -917,6 +921,7 @@
     async function startVoiceInput() {
         if (!state.sessionActive || state.audioStream || state.voiceInFlight || !navigator.mediaDevices?.getUserMedia) return;
         state.voiceHeld = true;
+        state.voiceCancelled = false;
         state.dialogueController?.abort();
         state.dialogueController = null;
         cancelReaction('用户开始说话');
@@ -948,10 +953,24 @@
             recorder.addEventListener('stop', async () => {
                 const blob = new Blob(state.audioChunks, { type: recorder.mimeType || 'audio/webm' });
                 state.audioChunks = [];
+                if (recorder.cancelled) return;
                 window.dispatchEvent(new CustomEvent('focus-voice-captured', { detail: { blob } }));
                 await transcribeVoice(blob);
             }, { once: true });
             recorder.start();
+            const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (Recognition) {
+                const recognition = new Recognition();
+                recognition.lang = 'zh-CN';
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.addEventListener('result', event => {
+                    const text = [...event.results].map(result => result[0]?.transcript || '').join('').trim();
+                    if (text) window.dispatchEvent(new CustomEvent('focus-voice-live', { detail:{ text } }));
+                });
+                recognition.addEventListener('end', () => { if (state.speechRecognition === recognition) state.speechRecognition = null; });
+                try { recognition.start(); state.speechRecognition = recognition; } catch (_) {}
+            }
             const { voiceButton } = elements();
             voiceButton?.classList.add('is-listening');
             voiceButton?.setAttribute('aria-label', '松开结束语音');
@@ -1007,7 +1026,7 @@
         } finally {
             state.voiceInFlight = false;
             voiceButton?.classList.remove('is-processing');
-            voiceButton?.setAttribute('aria-label', '按住说话');
+            voiceButton?.setAttribute('aria-label', '和 TA 说话');
         }
     }
 
@@ -1042,11 +1061,11 @@
             const reaction = messages.join('\n');
             state.dialogueHistory.push({ role: 'assistant', content: reaction });
             state.dialogueHistory = state.dialogueHistory.slice(-6);
+            window.dispatchEvent(new CustomEvent('focus-dialogue-spoken', { detail: { text, reaction, messages } }));
             const bytes = await playMessageSequence(messages, { epoch: requestEpoch, turnId }, 1, 'dialogue');
             if (bytes) {
                 state.lastEventOrDialogueAt = Date.now();
                 state.policyState.lastAnySpokenAt = state.lastEventOrDialogueAt;
-                window.dispatchEvent(new CustomEvent('focus-dialogue-spoken', { detail: { text, reaction, messages } }));
             }
         } catch (error) {
             if (error.name !== 'AbortError') {
@@ -1059,18 +1078,26 @@
         }
     }
 
-    function stopVoiceInput() {
+    function stopVoiceInput(cancel = false) {
+        state.voiceCancelled = Boolean(cancel);
         state.voiceHeld = false;
+        if (state.speechRecognition) {
+            try { cancel ? state.speechRecognition.abort() : state.speechRecognition.stop(); } catch (_) {}
+            state.speechRecognition = null;
+        }
         const recorder = state.mediaRecorder;
         state.mediaRecorder = null;
-        if (recorder && recorder.state !== 'inactive') recorder.stop();
+        if (recorder && recorder.state !== 'inactive') {
+            recorder.cancelled = Boolean(cancel);
+            recorder.stop();
+        }
         if (state.audioStream) {
             state.audioStream.getTracks().forEach(track => track.stop());
             state.audioStream = null;
         }
         const { voiceButton } = elements();
         voiceButton?.classList.remove('is-listening');
-        voiceButton?.setAttribute('aria-label', '按住说话');
+        voiceButton?.setAttribute('aria-label', '和 TA 说话');
     }
 
     window.focusCompanion = {

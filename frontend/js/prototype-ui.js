@@ -176,19 +176,29 @@
           <div class="bn-call-bottom">
             <div class="bn-call-time" id="bnTimer">25:00</div><div class="bn-call-sub">专注中<span>·</span>和 TA 一起</div>
             <div class="bn-controls">
-              <button class="bn-control" id="bnVoiceInputBtn" type="button" aria-label="按住说话" title="按住说话">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3zM5 10v2a7 7 0 0014 0v-2M12 19v3M8 22h8"/></svg>
+              <button class="bn-control" id="bnVoiceInputBtn" type="button" aria-label="和 TA 说话" title="轻触打字 · 长按说话">
+                <svg class="bn-dialogue-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a2.5 2.5 0 00-2.5 2.5v5a2.5 2.5 0 005 0v-5A2.5 2.5 0 0010.5 3zM5 9.5v1a5.5 5.5 0 0011 0v-1M10.5 16v3M7.5 19h6"/><path d="M15.5 14.5h3.8a1.7 1.7 0 011.7 1.7v1.6a1.7 1.7 0 01-1.7 1.7h-1.8L15 21v-4.8a1.7 1.7 0 01.5-1.2z"/></svg>
               </button>
+              <div class="bn-dialogue-tip" id="bnDialogueTip" hidden>长按说话 · 轻触打字</div>
+              <div class="bn-voice-status" id="bnVoiceStatus" hidden>松开发送</div>
               <button class="bn-control is-primary" id="bnPause" type="button" aria-label="短按暂停，长按结束" title="短按暂停 · 长按结束"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></button>
               <button class="bn-control" id="bnCameraBtn" type="button" data-bn-action="toggle-camera" aria-pressed="false" aria-label="开启视频" title="开启视频">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
               </button>
             </div>
+          </div>
+        </div>
+        <div class="bn-chat-sheet-layer" id="bnChatSheetLayer" hidden>
+          <button class="bn-chat-sheet-backdrop" type="button" aria-label="收起聊天面板"></button>
+          <section class="bn-chat-sheet" id="bnChatSheet" role="dialog" aria-modal="true" aria-label="和 TA 聊天">
+            <div class="bn-chat-sheet-handle" aria-hidden="true"></div>
+            <header><div><b>和 <span id="bnSheetName">TA</span> 说话</b><small>轻触打字 · 长按对话按钮说话</small></div><button type="button" data-bn-action="close-chat-sheet" aria-label="关闭">×</button></header>
+            <div class="bn-chat-sheet-messages" id="bnFocusChatHistory"></div>
             <form class="bn-focus-chat-form" id="bnFocusChatForm">
               <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="和小艾说点什么……">
               <button type="submit" aria-label="发送"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4 18-7z"/></svg></button>
             </form>
-          </div>
+          </section>
         </div>
         <div class="bn-end-confirm" id="bnEndConfirm" hidden>
           <div class="bn-end-confirm-card" role="dialog" aria-modal="true" aria-labelledby="bnEndConfirmTitle">
@@ -652,14 +662,71 @@
   }
 
   function toggleFocusChat(forceOpen) {
-    const form = document.getElementById('bnFocusChatForm');
-    const button = document.getElementById('bnFocusChatBtn');
-    if (!form) return;
-    const opening = typeof forceOpen === 'boolean' ? forceOpen : form.hidden;
-    form.hidden = !opening;
-    button?.classList.toggle('is-active', opening);
-    button?.setAttribute('aria-expanded', String(opening));
-    if (opening) window.setTimeout(() => document.getElementById('bnFocusChatInput')?.focus(), 50);
+    const layer = document.getElementById('bnChatSheetLayer');
+    if (!layer) return;
+    const opening = typeof forceOpen === 'boolean' ? forceOpen : layer.hidden;
+    layer.hidden = !opening;
+    layer.classList.toggle('is-open', opening);
+    renderFocusChatHistory();
+    if (opening) window.setTimeout(() => document.getElementById('bnFocusChatInput')?.focus({ preventScroll:true }), 80);
+  }
+
+  const focusChatStorageKey = 'bnFocusChatHistoryV1';
+
+  function readFocusChatHistory() {
+    try {
+      const history = JSON.parse(localStorage.getItem(focusChatStorageKey) || '[]');
+      return Array.isArray(history) ? history.slice(-100) : [];
+    } catch (_) { return []; }
+  }
+
+  function appendFocusChatHistory(role, text) {
+    const content = String(text || '').trim();
+    if (!content) return;
+    const history = readFocusChatHistory();
+    const previous = history[history.length - 1];
+    if (!previous || previous.role !== role || previous.text !== content) {
+      history.push({ role, text:content, at:Date.now() });
+      localStorage.setItem(focusChatStorageKey, JSON.stringify(history.slice(-100)));
+    }
+    renderFocusChatHistory();
+  }
+
+  function renderFocusChatHistory() {
+    const list = document.getElementById('bnFocusChatHistory');
+    if (!list) return;
+    const history = readFocusChatHistory();
+    list.innerHTML = history.length
+      ? history.map(item => `<div class="is-${item.role}">${escapeText(item.text)}</div>`).join('')
+      : '<p>现在还没有对话，和 TA 说点什么吧。</p>';
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function setupChatSheetDrag() {
+    const layer = document.getElementById('bnChatSheetLayer');
+    const sheet = document.getElementById('bnChatSheet');
+    if (!layer || !sheet) return;
+    let drag = null;
+    sheet.addEventListener('pointerdown', event => {
+      if (event.target.closest('input,button,.bn-chat-sheet-messages')) return;
+      drag = { id:event.pointerId, y:event.clientY };
+      sheet.setPointerCapture?.(event.pointerId);
+    });
+    sheet.addEventListener('pointermove', event => {
+      if (!drag || drag.id !== event.pointerId) return;
+      const distance = Math.max(0, event.clientY - drag.y);
+      sheet.style.transform = `translateY(${distance}px)`;
+      layer.style.setProperty('--bn-sheet-dim', String(Math.max(0, 1 - distance / 260)));
+    });
+    const finish = event => {
+      if (!drag || drag.id !== event.pointerId) return;
+      const distance = Math.max(0, event.clientY - drag.y);
+      drag = null;
+      sheet.style.transform = '';
+      layer.style.removeProperty('--bn-sheet-dim');
+      if (distance > 72) toggleFocusChat(false);
+    };
+    ['pointerup','pointercancel','lostpointercapture'].forEach(type => sheet.addEventListener(type, finish));
   }
 
   function setupCameraDrag() {
@@ -770,6 +837,7 @@
     const text = input?.value.trim();
     if (!text || !window.focusCompanion?.sendDialogue) return;
     input.value = '';
+    appendFocusChatHistory('user', text);
     input.disabled = true;
     button.disabled = true;
     try {
@@ -908,6 +976,7 @@
     document.getElementById('bnOCName').textContent = name;
     document.getElementById('bnOCRelation').textContent = `${oc.relationship || '你的学习搭子'} · 称呼你「${title}」`;
     document.getElementById('bnCallName').textContent = name;
+    document.getElementById('bnSheetName').textContent = name;
     renderTasks();
     renderGifts();
     renderOCPool();
@@ -976,6 +1045,7 @@
       if (type === 'next-caption') nextCaption();
       if (type === 'toggle-rain') cycleBgm();
       if (type === 'toggle-focus-chat') toggleFocusChat();
+      if (type === 'close-chat-sheet') toggleFocusChat(false);
       if (type === 'cancel-end-focus') showEndConfirm(false);
       if (type === 'confirm-end-focus') stopFocusSession();
       if (type === 'beta-edit-role') {
@@ -992,6 +1062,8 @@
     document.querySelectorAll('.bn-acc-head').forEach(button => button.addEventListener('click', () => button.parentElement.classList.toggle('is-open')));
     document.getElementById('bnChatForm').addEventListener('submit', submitChat);
     document.getElementById('bnFocusChatForm').addEventListener('submit', submitFocusChat);
+    document.querySelector('.bn-chat-sheet-backdrop').addEventListener('click', () => toggleFocusChat(false));
+    setupChatSheetDrag();
     document.getElementById('bnTaskInput').addEventListener('change', syncTaskInput);
     document.getElementById('bnBetaRoleForm').addEventListener('submit', saveBetaRole);
     document.getElementById('bnBetaMeetingForm').addEventListener('submit', submitBetaMeetingTask);
@@ -1001,19 +1073,49 @@
     });
     const voiceButton = document.getElementById('bnVoiceInputBtn');
     if (voiceButton && window.focusCompanion) {
+      let dialogueGesture = null;
       voiceButton.addEventListener('pointerdown', event => {
         event.preventDefault();
         voiceButton.setPointerCapture?.(event.pointerId);
-        window.focusCompanion.startVoiceInput();
+        dialogueGesture = { id:event.pointerId, startY:event.clientY, recording:false, cancel:false, timer:null };
+        voiceButton.classList.add('is-pressed');
+        dialogueGesture.timer = window.setTimeout(() => {
+          if (!dialogueGesture) return;
+          dialogueGesture.recording = true;
+          voiceButton.classList.add('is-listening');
+          document.getElementById('bnVoiceStatus').hidden = false;
+          window.focusCompanion.startVoiceInput();
+          navigator.vibrate?.(24);
+        }, 320);
+      });
+      voiceButton.addEventListener('pointermove', event => {
+        if (!dialogueGesture || dialogueGesture.id !== event.pointerId || !dialogueGesture.recording) return;
+        dialogueGesture.cancel = dialogueGesture.startY - event.clientY > 56;
+        voiceButton.classList.toggle('is-cancelling', dialogueGesture.cancel);
+        document.getElementById('bnVoiceStatus').textContent = dialogueGesture.cancel ? '松开取消' : '松开发送';
       });
       ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => {
         voiceButton.addEventListener(type, event => {
+          if (!dialogueGesture || dialogueGesture.id !== event.pointerId) return;
           event.preventDefault();
-          window.focusCompanion.stopVoiceInput();
+          window.clearTimeout(dialogueGesture.timer);
+          const { recording, cancel } = dialogueGesture;
+          dialogueGesture = null;
+          voiceButton.classList.remove('is-pressed','is-listening','is-cancelling');
+          document.getElementById('bnVoiceStatus').hidden = true;
+          document.getElementById('bnVoiceStatus').textContent = '松开发送';
+          if (recording) window.focusCompanion.stopVoiceInput(cancel || type !== 'pointerup');
+          else if (type === 'pointerup') toggleFocusChat(true);
         });
       });
       voiceButton.addEventListener('contextmenu', event => event.preventDefault());
     }
+    window.addEventListener('focus-voice-result', event => appendFocusChatHistory('user', event.detail?.text));
+    window.addEventListener('focus-voice-live', event => {
+      const status = document.getElementById('bnVoiceStatus');
+      if (status && !status.hidden) status.textContent = event.detail?.text || '松开发送';
+    });
+    window.addEventListener('focus-dialogue-spoken', event => appendFocusChatHistory('assistant', event.detail?.reaction));
     const pauseButton = document.getElementById('bnPause');
     if (pauseButton) {
       let holdTimer = null;
@@ -1059,6 +1161,13 @@
     });
     bindEvents();
     setupCameraDrag();
+    if (localStorage.getItem('bnDialogueTipSeen') !== 'true') {
+      const tip = document.getElementById('bnDialogueTip');
+      tip.hidden = false;
+      localStorage.setItem('bnDialogueTipSeen', 'true');
+      window.setTimeout(() => tip.classList.add('is-leaving'), 2400);
+      window.setTimeout(() => { tip.hidden = true; }, 3000);
+    }
     loadPrototypeScene();
     setTimeout(() => {
       if (!isStatusSelected) setStatus(document.querySelector('.bn-status[data-bn-status="学习"]'));

@@ -192,8 +192,6 @@
           <button class="bn-chat-sheet-backdrop" type="button" aria-label="收起聊天面板"></button>
           <section class="bn-chat-sheet" id="bnChatSheet" role="dialog" aria-modal="true" aria-label="和 TA 聊天">
             <div class="bn-chat-sheet-handle" aria-hidden="true"></div>
-            <header><div><b>和 <span id="bnSheetName">TA</span> 说话</b><small>轻触打字 · 长按对话按钮说话</small></div><button type="button" data-bn-action="close-chat-sheet" aria-label="关闭">×</button></header>
-            <div class="bn-chat-sheet-messages" id="bnFocusChatHistory"></div>
             <form class="bn-focus-chat-form" id="bnFocusChatForm">
               <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="和小艾说点什么……">
               <button type="submit" aria-label="发送"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4 18-7z"/></svg></button>
@@ -668,7 +666,11 @@
     layer.hidden = !opening;
     layer.classList.toggle('is-open', opening);
     renderFocusChatHistory();
-    if (opening) window.setTimeout(() => document.getElementById('bnFocusChatInput')?.focus({ preventScroll:true }), 80);
+    if (opening) {
+      const input = document.getElementById('bnFocusChatInput');
+      input?.focus({ preventScroll:true });
+      window.setTimeout(() => input?.focus({ preventScroll:true }), 80);
+    }
   }
 
   const focusChatStorageKey = 'bnFocusChatHistoryV1';
@@ -976,7 +978,6 @@
     document.getElementById('bnOCName').textContent = name;
     document.getElementById('bnOCRelation').textContent = `${oc.relationship || '你的学习搭子'} · 称呼你「${title}」`;
     document.getElementById('bnCallName').textContent = name;
-    document.getElementById('bnSheetName').textContent = name;
     renderTasks();
     renderGifts();
     renderOCPool();

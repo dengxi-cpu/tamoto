@@ -41,7 +41,8 @@
         voiceHeld: false,
         voiceInFlight: false,
         voiceCancelled: false,
-        speechRecognition: null
+        speechRecognition: null,
+        previousAudioSessionType: null
     };
 
     const VISION_INTERVAL_MS = 20000;
@@ -926,7 +927,19 @@
         state.dialogueController = null;
         cancelReaction('用户开始说话');
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            if (navigator.audioSession) {
+                state.previousAudioSessionType = navigator.audioSession.type;
+                try { navigator.audioSession.type = 'play-and-record'; } catch (_) {}
+            }
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    channelCount: 1
+                },
+                video: false
+            });
             if (!state.sessionActive || !state.voiceHeld) {
                 stream.getTracks().forEach(track => track.stop());
                 return;
@@ -976,6 +989,9 @@
             voiceButton?.setAttribute('aria-label', '松开结束语音');
             setCaption('我在听……');
         } catch (error) {
+            if (navigator.audioSession) {
+                try { navigator.audioSession.type = state.previousAudioSessionType || 'playback'; } catch (_) {}
+            }
             console.warn('Voice input failed:', error);
             notify('未获得麦克风权限');
         }
@@ -1094,6 +1110,12 @@
         if (state.audioStream) {
             state.audioStream.getTracks().forEach(track => track.stop());
             state.audioStream = null;
+        }
+        if (navigator.audioSession) {
+            const restoreType = state.previousAudioSessionType || 'playback';
+            window.setTimeout(() => {
+                try { navigator.audioSession.type = restoreType === 'auto' ? 'playback' : restoreType; } catch (_) {}
+            }, 80);
         }
         const { voiceButton } = elements();
         voiceButton?.classList.remove('is-listening');

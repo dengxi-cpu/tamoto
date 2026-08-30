@@ -572,11 +572,11 @@ body.bn-ui-active .fixed.inset-0.pointer-events-none { display:none !important; 
   left:0;
   right:0;
   bottom:0;
-  height:min(48dvh,430px);
+  height:auto;
   box-sizing:border-box;
   display:flex;
   flex-direction:column;
-  padding:7px 18px max(12px,env(safe-area-inset-bottom));
+  padding:7px 18px max(14px,env(safe-area-inset-bottom));
   border:1px solid rgba(255,255,255,.32);
   border-bottom:0;
   border-radius:28px 28px 0 0;
@@ -586,7 +586,7 @@ body.bn-ui-active .fixed.inset-0.pointer-events-none { display:none !important; 
   backdrop-filter:blur(34px) saturate(155%);
   touch-action:none;
 }
-.bn-chat-sheet-handle { flex:0 0 4px; width:38px; margin:0 auto 10px; border-radius:999px; background:rgba(255,255,255,.42); }
+.bn-chat-sheet-handle { flex:0 0 4px; width:38px; margin:0 auto 12px; border-radius:999px; background:rgba(255,255,255,.42); }
 .bn-chat-sheet header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
 .bn-chat-sheet header b,.bn-chat-sheet header small { display:block; }
 .bn-chat-sheet header b { font-size:13px; font-weight:580; }

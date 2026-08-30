@@ -196,7 +196,7 @@
           <button class="bn-chat-composer-dismiss" type="button" aria-label="收起文字输入"></button>
           <form class="bn-focus-chat-form bn-floating-composer" id="bnFocusChatForm">
             <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="和角色说点什么……">
-            <button type="submit" aria-label="发送"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4 18-7z"/></svg></button>
+            <button type="submit" aria-label="发送" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4 18-7z"/></svg></button>
           </form>
         </div>
         <div class="bn-end-confirm" id="bnEndConfirm" hidden>
@@ -852,6 +852,7 @@
     const text = input?.value.trim();
     if (!text || !window.focusCompanion?.sendDialogue) return;
     input.value = '';
+    button.disabled = true;
     appendFocusChatHistory('user', text);
     toggleFocusChat(false);
     input.disabled = true;
@@ -860,9 +861,15 @@
       await window.focusCompanion.sendDialogue(text);
     } finally {
       input.disabled = false;
-      button.disabled = false;
+      button.disabled = !input.value.trim();
       if (!document.getElementById('bnChatSheetLayer')?.hidden) input.focus({ preventScroll:true });
     }
+  }
+
+  function updateFocusChatSendState(event) {
+    const input = event.currentTarget;
+    const button = document.querySelector('#bnFocusChatForm button[type="submit"]');
+    if (button) button.disabled = !input.value.trim();
   }
 
   function nextCaption() {
@@ -1084,6 +1091,7 @@
     document.querySelectorAll('.bn-acc-head').forEach(button => button.addEventListener('click', () => button.parentElement.classList.toggle('is-open')));
     document.getElementById('bnChatForm').addEventListener('submit', submitChat);
     document.getElementById('bnFocusChatForm').addEventListener('submit', submitFocusChat);
+    document.getElementById('bnFocusChatInput').addEventListener('input', updateFocusChatSendState);
     document.querySelector('.bn-chat-composer-dismiss').addEventListener('click', () => toggleFocusChat(false));
     document.getElementById('bnTaskInput').addEventListener('change', syncTaskInput);
     document.getElementById('bnBetaRoleForm').addEventListener('submit', saveBetaRole);

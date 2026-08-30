@@ -586,20 +586,36 @@ body.bn-ui-active .fixed.inset-0.pointer-events-none { display:none !important; 
   height:54px;
   min-height:54px;
   margin:0;
-  padding:5px 5px 5px 17px;
-  border:1px solid rgba(255,255,255,.22);
-  border-radius:27px;
-  background:rgba(24,25,31,.3);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 7px 20px rgba(0,0,0,.13);
-  backdrop-filter:blur(28px) saturate(145%);
+  padding:5px 8px 5px 18px;
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:22px;
+  background:rgba(255,255,255,.075);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18);
+  -webkit-backdrop-filter:blur(18px) saturate(138%);
+  backdrop-filter:blur(18px) saturate(138%);
   opacity:0;
   transform:translateY(12px) scale(.985);
   animation:bn-composer-in 260ms cubic-bezier(.2,.8,.2,1) forwards;
 }
 .bn-focus-running .bn-floating-composer input { font-size:16px; font-weight:400; }
 .bn-focus-running .bn-floating-composer input::placeholder { color:rgba(255,255,255,.52); }
-.bn-focus-running .bn-floating-composer button { flex:0 0 42px; width:42px; height:42px; border-color:rgba(255,255,255,.2); background:rgba(255,255,255,.13); }
-.bn-focus-running .bn-floating-composer button svg { width:18px; height:18px; }
+.bn-focus-running .bn-floating-composer button {
+  flex:0 0 38px;
+  width:38px;
+  height:44px;
+  padding:0;
+  border:0;
+  border-radius:0;
+  color:rgba(255,255,255,.96);
+  background:transparent;
+  box-shadow:none;
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
+  transition:opacity 120ms ease-out,transform 120ms ease-out;
+}
+.bn-focus-running .bn-floating-composer button svg { display:block; width:21px; height:21px; margin:auto; filter:drop-shadow(0 0 3px rgba(255,255,255,.16)); }
+.bn-focus-running .bn-floating-composer button:disabled { opacity:.5; }
+.bn-focus-running .bn-floating-composer button:not(:disabled):active { opacity:.78; transform:scale(.94); }
 body.bn-composer-open .bn-focus-overlay { opacity:.88; transition:opacity 220ms ease-out; }
 @keyframes bn-composer-in { to { opacity:1; transform:translateY(0) scale(1); } }
 .bn-chat-composer-layer.is-closing .bn-floating-composer { animation:bn-composer-out 180ms ease-in forwards; }
@@ -680,9 +696,9 @@ body.bn-composer-open .bn-focus-overlay { opacity:.88; transition:opacity 220ms 
 .bn-focus-running .bn-floating-composer {
   border:.5px solid rgba(255,255,255,.12);
   background:rgba(255,255,255,.07);
-  box-shadow:inset 1px 1px 0 rgba(255,255,255,.2),inset -1px -1px 0 rgba(0,0,0,.03),0 5px 15px rgba(0,0,0,.075);
-  -webkit-backdrop-filter:blur(20px) saturate(142%) brightness(1.06);
-  backdrop-filter:blur(20px) saturate(142%) brightness(1.06);
+  box-shadow:inset 1px 1px 0 rgba(255,255,255,.2),inset -1px -1px 0 rgba(0,0,0,.025);
+  -webkit-backdrop-filter:blur(18px) saturate(138%) brightness(1.04);
+  backdrop-filter:blur(18px) saturate(138%) brightness(1.04);
 }
 .bn-focus-running .bn-floating-composer button { border:0; background:transparent; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; }
 

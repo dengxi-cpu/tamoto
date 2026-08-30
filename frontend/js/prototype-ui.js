@@ -116,6 +116,7 @@
               </div>
             </div>
           </section>
+          <button class="bn-beta-card-restore" type="button" data-bn-action="beta-show-settings">显示设置</button>
           <div class="bn-focus-hint" id="bnBetaRoleHint"></div>
           <button class="bn-beta-primary" type="submit"><strong>和<span id="bnBetaCtaName">TA</span>一起开始专注</strong><small>25 min · 番茄钟</small></button>
         </form>
@@ -124,13 +125,13 @@
       <section class="bn-screen bn-beta-meeting" data-bn-screen="beta-meeting">
         <img class="bn-beta-meeting-bg" id="bnBetaMeetingBackground" alt="TA 的陪伴背景">
         <div class="bn-beta-meeting-shade"></div>
-        <button class="bn-beta-meeting-back" type="button" data-bn-action="beta-edit-role">‹ 修改角色</button>
+        <button class="bn-beta-meeting-back" type="button" data-bn-action="beta-edit-role">‹ 返回</button>
         <div class="bn-beta-meeting-name"><i></i><span id="bnBetaMeetingName"></span> · 在这里</div>
         <div class="bn-beta-meeting-panel">
           <div class="bn-beta-meeting-caption" id="bnBetaMeetingCaption"></div>
           <form class="bn-beta-task-form" id="bnBetaMeetingForm" hidden>
             <input id="bnBetaMeetingTask" maxlength="60" autocomplete="off" placeholder="这次想完成什么？" required>
-            <button type="submit" aria-label="发送任务">↑</button>
+            <button type="submit" aria-label="发送任务"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4 18-7z"/></svg></button>
           </form>
           <div class="bn-beta-body-double" id="bnBetaBodyDouble" hidden>
             <label for="bnBetaBodyDoubleInput">这次 TA 会做什么</label>
@@ -382,6 +383,44 @@
       panel.classList.toggle('is-active', active);
       panel.setAttribute('aria-hidden', String(!active));
     });
+  }
+
+  function setupBetaCardDismiss() {
+    const form = document.getElementById('bnBetaRoleForm');
+    const card = form?.querySelector('.bn-beta-glass-card');
+    const handle = card?.querySelector('.bn-beta-tabs');
+    if (!form || !card || !handle) return;
+    let gesture = null;
+
+    handle.addEventListener('pointerdown', event => {
+      if (event.button !== undefined && event.button !== 0) return;
+      gesture = { id:event.pointerId, startY:event.clientY, lastY:event.clientY, lastAt:performance.now(), velocity:0, dragging:false };
+      handle.setPointerCapture?.(event.pointerId);
+    });
+    handle.addEventListener('pointermove', event => {
+      if (!gesture || gesture.id !== event.pointerId) return;
+      const delta = Math.max(0, event.clientY - gesture.startY);
+      const now = performance.now();
+      gesture.velocity = (event.clientY - gesture.lastY) / Math.max(1, now - gesture.lastAt) * 1000;
+      gesture.lastY = event.clientY;
+      gesture.lastAt = now;
+      if (!gesture.dragging && delta < 10) return;
+      gesture.dragging = true;
+      card.classList.add('is-dragging');
+      card.style.setProperty('--bn-beta-card-drag', `${delta}px`);
+      event.preventDefault();
+    });
+    const finishGesture = event => {
+      if (!gesture || gesture.id !== event.pointerId) return;
+      const delta = Math.max(0, event.clientY - gesture.startY);
+      const dismiss = gesture.dragging && (delta > Math.min(96, card.offsetHeight * .26) || gesture.velocity > 520);
+      card.classList.remove('is-dragging');
+      card.style.removeProperty('--bn-beta-card-drag');
+      form.classList.toggle('is-card-hidden', dismiss);
+      gesture = null;
+    };
+    handle.addEventListener('pointerup', finishGesture);
+    handle.addEventListener('pointercancel', finishGesture);
   }
 
   function setBetaRelationship(value) {
@@ -1205,6 +1244,7 @@
         populateBetaRoleForm();
         switchTab('beta-setup');
       }
+      if (type === 'beta-show-settings') document.getElementById('bnBetaRoleForm')?.classList.remove('is-card-hidden');
       if (type === 'beta-start-together') startBetaFocus();
       if (type === 'roll-body-double') rollBodyDouble();
       if (type === 'beta-improve-persona') improveBetaPersona();
@@ -1317,6 +1357,7 @@
       element.style.display = 'none';
     });
     bindEvents();
+    setupBetaCardDismiss();
     setupCameraDrag();
     if (localStorage.getItem('bnDialogueTipSeen') !== 'true') {
       const tip = document.getElementById('bnDialogueTip');

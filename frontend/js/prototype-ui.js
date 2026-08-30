@@ -450,9 +450,11 @@
 
     const updatePosition = () => {
       if (!meeting.classList.contains('is-keyboard-active')) return;
-      const visibleBottom = viewport ? viewport.height + viewport.offsetTop : window.innerHeight;
+      const viewportOffset = viewport ? Math.max(0, viewport.offsetTop) : 0;
+      const visibleBottom = viewport ? viewport.height + viewportOffset : window.innerHeight;
       const keyboardInset = Math.max(0, state.betaMeetingLayoutHeight - visibleBottom);
       panel.style.setProperty('--bn-beta-keyboard-inset', `${Math.round(keyboardInset)}px`);
+      meeting.style.setProperty('--bn-beta-viewport-offset', `${Math.round(viewportOffset)}px`);
     };
     const lock = () => {
       window.clearTimeout(state.betaMeetingUnlockTimer);
@@ -460,6 +462,7 @@
         state.betaMeetingLayoutHeight = Math.round(meeting.getBoundingClientRect().height || window.innerHeight);
         meeting.style.setProperty('--bn-beta-meeting-height', `${state.betaMeetingLayoutHeight}px`);
         meeting.classList.add('is-keyboard-active');
+        document.body.classList.add('bn-beta-meeting-keyboard');
       }
       if (!state.betaMeetingViewportHandler) {
         state.betaMeetingViewportHandler = updatePosition;
@@ -475,11 +478,16 @@
         viewport?.removeEventListener('scroll', state.betaMeetingViewportHandler);
         state.betaMeetingViewportHandler = null;
         meeting.classList.remove('is-keyboard-active');
+        document.body.classList.remove('bn-beta-meeting-keyboard');
         meeting.style.removeProperty('--bn-beta-meeting-height');
+        meeting.style.removeProperty('--bn-beta-viewport-offset');
         panel.style.removeProperty('--bn-beta-keyboard-inset');
       }, 260);
     };
 
+    meeting.addEventListener('pointerdown', event => {
+      if (event.target.matches('input,textarea')) lock();
+    }, true);
     meeting.addEventListener('focusin', event => {
       if (!event.target.matches('input,textarea')) return;
       lock();

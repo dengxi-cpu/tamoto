@@ -183,7 +183,10 @@ body.bn-ui-active .fixed.inset-0.pointer-events-none { display:none !important; 
 .bn-beta-meeting-name { position:absolute; z-index:2; top:max(22px,env(safe-area-inset-top)); left:50%; display:flex; align-items:center; gap:6px; transform:translateX(-50%); font-size:11px; font-weight:800; white-space:nowrap; text-shadow:0 2px 9px rgba(0,0,0,.5); }
 .bn-beta-meeting-name i { width:7px; height:7px; border-radius:50%; background:#8ee6a7; box-shadow:0 0 0 4px rgba(142,230,167,.18); }
 .bn-beta-meeting-panel { position:absolute; z-index:2; left:22px; right:22px; bottom:calc(34px + env(safe-area-inset-bottom) + var(--bn-beta-keyboard-inset,0px)); display:grid; gap:14px; transition:bottom 180ms cubic-bezier(.2,.8,.2,1); }
-.bn-beta-meeting.is-keyboard-active .bn-beta-meeting-bg,.bn-beta-meeting.is-keyboard-active .bn-beta-meeting-shade { transform:none; }
+.bn-beta-meeting.is-keyboard-active { position:fixed; z-index:12; inset:0; width:100%; }
+.bn-beta-meeting.is-keyboard-active .bn-beta-meeting-bg,.bn-beta-meeting.is-keyboard-active .bn-beta-meeting-shade,.bn-beta-meeting.is-keyboard-active .bn-beta-meeting-back { transform:translateY(var(--bn-beta-viewport-offset,0px)); }
+.bn-beta-meeting.is-keyboard-active .bn-beta-meeting-name { transform:translate(-50%,var(--bn-beta-viewport-offset,0px)); }
+body.bn-beta-meeting-keyboard { overflow:hidden; overscroll-behavior:none; }
 .bn-beta-meeting-caption { min-height:52px; color:#fff; font-size:20px; font-weight:750; line-height:1.5; text-align:center; text-shadow:0 3px 18px rgba(0,0,0,.72); }
 .bn-beta-task-form { display:flex; align-items:center; gap:7px; height:54px; box-sizing:border-box; padding:5px 8px 5px 18px; border:1px solid rgba(255,255,255,.2); border-radius:22px; background:rgba(255,255,255,.075); box-shadow:inset 0 1px 0 rgba(255,255,255,.18); -webkit-backdrop-filter:blur(18px) saturate(138%); backdrop-filter:blur(18px) saturate(138%); }
 .bn-beta-task-form[hidden],.bn-beta-start-together[hidden] { display:none; }

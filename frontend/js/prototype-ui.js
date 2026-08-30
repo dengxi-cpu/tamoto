@@ -993,10 +993,6 @@
     stopBgm(false);
     if (!isTimerRunning || isPaused) return;
     if (state.bgmMode === 'muted') {
-      const keepAliveAudio = ensureRainAudio();
-      keepAliveAudio.volume = 0.0001;
-      keepAliveAudio.play().catch(error => console.warn('iOS 音频会话保活失败:', error));
-      window.focusCompanion?.unlockAudio().catch(() => {});
       return;
     }
     const audio = state.bgmMode === 'piano' ? ensurePianoAudio() : ensureRainAudio();
@@ -1012,6 +1008,9 @@
       audio.pause();
       if (reset) audio.currentTime = 0;
     });
+    // The legacy focus player can be started by startStopTimer(). Keep both
+    // players in sync so the BGM control's muted state is genuinely silent.
+    if (typeof stopBackgroundMusic === 'function') stopBackgroundMusic();
   }
 
   function cycleBgm() {

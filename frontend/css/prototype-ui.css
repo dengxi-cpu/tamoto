@@ -882,7 +882,8 @@ body.bn-beta-mode { background:#15161b; }
 body.bn-beta-mode .bn-app:not(.is-running) { padding-bottom:0; background:#15161b; }
 .bn-screen.bn-beta-setup {
   position:relative;
-  min-height:100dvh;
+  height:var(--bn-beta-setup-height,100dvh);
+  min-height:var(--bn-beta-setup-height,100dvh);
   padding:0;
   overflow:hidden;
   color:#fff;
@@ -911,7 +912,7 @@ body.bn-beta-mode .bn-app:not(.is-running) { padding-bottom:0; background:#15161
 .bn-beta-role-presence {
   position:absolute;
   z-index:2;
-  top:15.5dvh;
+  top:max(62px,calc(env(safe-area-inset-top) + 48px));
   left:20px;
   display:flex;
   flex-direction:column;
@@ -921,11 +922,11 @@ body.bn-beta-mode .bn-app:not(.is-running) { padding-bottom:0; background:#15161
 .bn-beta-role-presence strong { font-size:clamp(25px,7vw,34px); font-weight:560; letter-spacing:-.04em; }
 .bn-beta-role-presence > span { margin-top:4px; color:rgba(255,255,255,.68); font-size:11px; }
 .bn-beta-role-presence small { display:flex; align-items:center; gap:7px; margin-top:8px; color:rgba(255,255,255,.88); font-size:11px; }
-.bn-beta-role-presence i { width:7px; height:7px; border-radius:50%; background:#9a96df; box-shadow:0 0 0 4px rgba(154,150,223,.12); }
+.bn-beta-role-presence i { width:7px; height:7px; border-radius:50%; background:#82d39a; box-shadow:0 0 0 4px rgba(130,211,154,.12); }
 .bn-beta-role-bubble {
   position:absolute;
   z-index:2;
-  top:31dvh;
+  top:23dvh;
   left:20px;
   max-width:152px;
   padding:12px 15px;
@@ -977,7 +978,7 @@ body.bn-beta-crop-open { overflow:hidden; }
   top:50dvh;
   left:14px;
   right:14px;
-  bottom:max(10px,env(safe-area-inset-bottom));
+  bottom:calc(max(10px,env(safe-area-inset-bottom)) + var(--bn-beta-setup-keyboard-inset,0px));
   display:grid;
   grid-template-rows:minmax(0,1fr) auto;
   gap:8px;
@@ -997,6 +998,9 @@ body.bn-beta-crop-open { overflow:hidden; }
   will-change:transform;
 }
 .bn-beta-glass-card.is-dragging { transition:none; }
+.bn-beta-card-grabber { flex:0 0 12px; display:grid; place-items:center; touch-action:none; cursor:grab; }
+.bn-beta-card-grabber:active { cursor:grabbing; }
+.bn-beta-card-grabber i { display:block; width:34px; height:3px; border-radius:999px; background:rgba(255,255,255,.28); box-shadow:0 .5px 0 rgba(0,0,0,.08); }
 .bn-beta-form.is-card-hidden .bn-beta-glass-card { transform:translateY(calc(100% + 18px)); opacity:0; pointer-events:none; }
 .bn-beta-tabs { touch-action:pan-x; cursor:grab; }
 .bn-beta-tabs:active { cursor:grabbing; }
@@ -1100,8 +1104,8 @@ body.bn-beta-crop-open { overflow:hidden; }
 .bn-beta-primary strong { font-size:14px; font-weight:720; }.bn-beta-primary small { margin-top:2px; color:rgba(255,255,255,.62); font-size:9px; font-weight:450; }
 
 @media (max-height:700px) {
-  .bn-beta-role-presence { top:14dvh; }
-  .bn-beta-role-bubble { top:29dvh; padding:9px 12px; font-size:10.5px; }
+  .bn-beta-role-presence { top:max(54px,calc(env(safe-area-inset-top) + 40px)); }
+  .bn-beta-role-bubble { top:21dvh; padding:9px 12px; font-size:10.5px; }
   .bn-beta-setup .bn-beta-form { left:10px; right:10px; gap:6px; }
   .bn-beta-tabs { height:34px; }
   .bn-beta-tab-stage { height:calc(100% - 34px); }
@@ -1117,6 +1121,7 @@ body.bn-beta-crop-open { overflow:hidden; }
   display:flex;
   flex-direction:column;
   gap:7px;
+  transition:bottom 180ms cubic-bezier(.2,.8,.2,1);
 }
 .bn-beta-glass-card {
   flex:0 1 auto;
@@ -1148,10 +1153,16 @@ body.bn-beta-crop-open { overflow:hidden; }
   flex:0 0 34px;
   height:34px;
   padding:2px 9px 0;
+  touch-action:auto;
+  cursor:default;
 }
+.bn-beta-tabs:active { cursor:default; }
 .bn-beta-tabs button { color:rgba(255,255,255,.43); font-size:10.5px; font-weight:460; }
 .bn-beta-tabs button::after { left:36%; right:36%; bottom:0; height:.5px; background:rgba(183,178,238,.72); }
 .bn-beta-tabs button.is-active { color:rgba(255,255,255,.88); font-weight:580; }
+.bn-beta-setup.is-keyboard-active { position:fixed; z-index:12; inset:0; width:100%; }
+.bn-beta-setup.is-keyboard-active .bn-beta-scene,.bn-beta-setup.is-keyboard-active .bn-beta-scene-shade,.bn-beta-setup.is-keyboard-active .bn-beta-role-presence,.bn-beta-setup.is-keyboard-active .bn-beta-role-bubble,.bn-beta-setup.is-keyboard-active .bn-beta-image-change { transform:translateY(var(--bn-beta-setup-viewport-offset,0px)); }
+body.bn-beta-setup-keyboard { overflow:hidden; overscroll-behavior:none; }
 .bn-beta-tab-stage { flex:0 1 auto; height:auto; min-height:0; overflow:auto; scrollbar-width:none; }
 .bn-beta-tab-panel {
   position:relative;

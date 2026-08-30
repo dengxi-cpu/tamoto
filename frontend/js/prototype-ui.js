@@ -26,6 +26,9 @@
     betaMeetingLayoutHeight: 0,
     betaMeetingViewportHandler: null,
     betaMeetingUnlockTimer: null,
+    betaSetupLayoutHeight: 0,
+    betaSetupViewportHandler: null,
+    betaSetupUnlockTimer: null,
     betaCrop: null
   };
 
@@ -69,10 +72,6 @@
       <section class="bn-screen bn-beta-setup${isBetaMode ? ' is-active' : ''}" data-bn-screen="beta-setup">
         <img class="bn-beta-scene" id="bnBetaBackgroundPreview" alt="TA 的完整陪伴场景">
         <div class="bn-beta-scene-shade"></div>
-        <header class="bn-beta-heading">
-          <h1>今天，想让谁陪你？</h1>
-          <p>选一个喜欢的人，陪你把今天的事情做完。</p>
-        </header>
         <div class="bn-beta-role-presence">
           <strong id="bnBetaHeroName">TA</strong>
           <span>你的专注伙伴 · 已陪伴 20 天</span>
@@ -91,6 +90,7 @@
         </div>
         <form class="bn-beta-form" id="bnBetaRoleForm">
           <section class="bn-beta-glass-card">
+            <div class="bn-beta-card-grabber" aria-hidden="true"><i></i></div>
             <div class="bn-beta-tabs" role="tablist" aria-label="角色设置">
               <button class="is-active" type="button" role="tab" aria-selected="true" data-bn-beta-tab="partner">伙伴设定</button>
               <button type="button" role="tab" aria-selected="false" data-bn-beta-tab="voice">声音设定</button>
@@ -407,7 +407,7 @@
   function setupBetaCardDismiss() {
     const form = document.getElementById('bnBetaRoleForm');
     const card = form?.querySelector('.bn-beta-glass-card');
-    const handle = card?.querySelector('.bn-beta-tabs');
+    const handle = card?.querySelector('.bn-beta-card-grabber');
     if (!form || !card || !handle) return;
     let gesture = null;
 
@@ -494,6 +494,62 @@
       window.requestAnimationFrame(updatePosition);
     });
     meeting.addEventListener('focusout', event => {
+      if (event.target.matches('input,textarea')) unlock();
+    });
+  }
+
+  function setupBetaSetupKeyboard() {
+    const setup = document.querySelector('.bn-beta-setup');
+    const form = document.getElementById('bnBetaRoleForm');
+    const viewport = window.visualViewport;
+    if (!setup || !form) return;
+
+    const updatePosition = () => {
+      if (!setup.classList.contains('is-keyboard-active')) return;
+      const viewportOffset = viewport ? Math.max(0, viewport.offsetTop) : 0;
+      const visibleBottom = viewport ? viewport.height + viewportOffset : window.innerHeight;
+      const keyboardInset = Math.max(0, state.betaSetupLayoutHeight - visibleBottom);
+      setup.style.setProperty('--bn-beta-setup-height', `${state.betaSetupLayoutHeight}px`);
+      setup.style.setProperty('--bn-beta-setup-viewport-offset', `${Math.round(viewportOffset)}px`);
+      form.style.setProperty('--bn-beta-setup-keyboard-inset', `${Math.round(keyboardInset)}px`);
+    };
+    const lock = () => {
+      window.clearTimeout(state.betaSetupUnlockTimer);
+      if (!setup.classList.contains('is-keyboard-active')) {
+        state.betaSetupLayoutHeight = Math.round(setup.getBoundingClientRect().height || window.innerHeight);
+        setup.classList.add('is-keyboard-active');
+        document.body.classList.add('bn-beta-setup-keyboard');
+      }
+      if (!state.betaSetupViewportHandler) {
+        state.betaSetupViewportHandler = updatePosition;
+        viewport?.addEventListener('resize', updatePosition);
+        viewport?.addEventListener('scroll', updatePosition);
+      }
+      updatePosition();
+    };
+    const unlock = () => {
+      state.betaSetupUnlockTimer = window.setTimeout(() => {
+        if (form.contains(document.activeElement) && document.activeElement?.matches('input,textarea')) return;
+        viewport?.removeEventListener('resize', state.betaSetupViewportHandler);
+        viewport?.removeEventListener('scroll', state.betaSetupViewportHandler);
+        state.betaSetupViewportHandler = null;
+        setup.classList.remove('is-keyboard-active');
+        document.body.classList.remove('bn-beta-setup-keyboard');
+        setup.style.removeProperty('--bn-beta-setup-height');
+        setup.style.removeProperty('--bn-beta-setup-viewport-offset');
+        form.style.removeProperty('--bn-beta-setup-keyboard-inset');
+      }, 260);
+    };
+
+    form.addEventListener('pointerdown', event => {
+      if (event.target.matches('input,textarea')) lock();
+    }, true);
+    form.addEventListener('focusin', event => {
+      if (!event.target.matches('input,textarea')) return;
+      lock();
+      window.requestAnimationFrame(updatePosition);
+    });
+    form.addEventListener('focusout', event => {
       if (event.target.matches('input,textarea')) unlock();
     });
   }
@@ -1526,6 +1582,7 @@
     });
     bindEvents();
     setupBetaCardDismiss();
+    setupBetaSetupKeyboard();
     setupBetaCrop();
     setupBetaMeetingKeyboard();
     setupCameraDrag();

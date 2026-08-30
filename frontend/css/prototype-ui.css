@@ -606,6 +606,86 @@ body.bn-composer-open .bn-focus-overlay { opacity:.88; transition:opacity 220ms 
 .bn-chat-composer-layer.is-closing .bn-chat-composer-dismiss { opacity:0; transition:opacity 180ms ease-in; }
 @keyframes bn-composer-out { from { opacity:1; transform:translateY(0) scale(1); } to { opacity:0; transform:translateY(7px) scale(.99); } }
 
+/* Optical Liquid Glass tiers. Geometry intentionally stays unchanged. */
+.bn-focus-running .bn-bgm-pill {
+  position:relative;
+  overflow:hidden;
+  border:.5px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.035);
+  box-shadow:inset .7px .7px 0 rgba(255,255,255,.16),inset -.5px -.5px 0 rgba(0,0,0,.025),0 3px 10px rgba(0,0,0,.055);
+  -webkit-backdrop-filter:blur(10px) saturate(132%) brightness(1.04);
+  backdrop-filter:blur(10px) saturate(132%) brightness(1.04);
+}
+.bn-focus-running .bn-bgm-pill.rain-active { background:rgba(255,255,255,.04); }
+.bn-focus-running .bn-bgm-pill::before {
+  content:'';
+  position:absolute;
+  top:2px;
+  left:12px;
+  right:18px;
+  height:.5px;
+  border-radius:999px;
+  background:rgba(255,255,255,.2);
+  pointer-events:none;
+}
+.bn-focus-running .bn-caption:not(:empty):not(:has(.bn-speech-message)),
+.bn-focus-running .bn-speech-message {
+  border:.5px solid rgba(255,255,255,.115);
+  background:rgba(255,255,255,.065);
+  box-shadow:inset .8px .8px 0 rgba(255,255,255,.19),inset -.6px -.6px 0 rgba(0,0,0,.025),0 4px 13px rgba(0,0,0,.07);
+  -webkit-backdrop-filter:blur(17px) saturate(138%) brightness(1.045);
+  backdrop-filter:blur(17px) saturate(138%) brightness(1.045);
+}
+.bn-focus-running .bn-speech-message.is-user { background:rgba(255,255,255,.085); }
+.bn-focus-running .bn-control {
+  position:relative;
+  overflow:hidden;
+  border:.5px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.06);
+  box-shadow:inset 1px 1px 0 rgba(255,255,255,.22),inset -1px -1px 0 rgba(0,0,0,.035),0 5px 15px rgba(0,0,0,.08);
+  -webkit-backdrop-filter:blur(18px) saturate(142%) brightness(1.07);
+  backdrop-filter:blur(18px) saturate(142%) brightness(1.07);
+}
+.bn-focus-running .bn-control::before {
+  content:'';
+  position:absolute;
+  z-index:0;
+  top:3px;
+  left:12px;
+  right:12px;
+  height:1px;
+  border-radius:50%;
+  background:rgba(255,255,255,.23);
+  filter:blur(.2px);
+  pointer-events:none;
+}
+.bn-focus-running .bn-control svg { position:relative; z-index:1; }
+.bn-focus-running .bn-control.is-primary {
+  border-color:rgba(255,255,255,.145);
+  background:rgba(255,255,255,.09);
+  box-shadow:inset 1px 1px 0 rgba(255,255,255,.28),inset -1px -1px 0 rgba(0,0,0,.035),0 6px 17px rgba(0,0,0,.085);
+  -webkit-backdrop-filter:blur(20px) saturate(145%) brightness(1.085);
+  backdrop-filter:blur(20px) saturate(145%) brightness(1.085);
+}
+.bn-focus-running .bn-control.camera-active,
+.bn-focus-running .bn-control.is-active,
+.bn-focus-running .bn-control.is-pressed { border-color:rgba(255,255,255,.17); background:rgba(255,255,255,.105); }
+.bn-dialogue-tip,.bn-voice-status {
+  border:.5px solid rgba(255,255,255,.11);
+  background:rgba(255,255,255,.065);
+  box-shadow:inset .8px .8px 0 rgba(255,255,255,.18),0 4px 12px rgba(0,0,0,.065);
+  -webkit-backdrop-filter:blur(15px) saturate(138%) brightness(1.05);
+  backdrop-filter:blur(15px) saturate(138%) brightness(1.05);
+}
+.bn-focus-running .bn-floating-composer {
+  border:.5px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.07);
+  box-shadow:inset 1px 1px 0 rgba(255,255,255,.2),inset -1px -1px 0 rgba(0,0,0,.03),0 5px 15px rgba(0,0,0,.075);
+  -webkit-backdrop-filter:blur(20px) saturate(142%) brightness(1.06);
+  backdrop-filter:blur(20px) saturate(142%) brightness(1.06);
+}
+.bn-focus-running .bn-floating-composer button { border:.5px solid rgba(255,255,255,.1); background:rgba(255,255,255,.075); box-shadow:inset .7px .7px 0 rgba(255,255,255,.16); }
+
 @media (max-height:700px) {
   .bn-focus-overlay { padding-left:18px; padding-right:18px; }
   .bn-focus-top-row { min-height:18%; }
@@ -628,7 +708,11 @@ body.bn-composer-open .bn-focus-overlay { opacity:.88; transition:opacity 220ms 
 }
 
 @media (prefers-reduced-transparency:reduce) {
-  .bn-focus-running .bn-floating-composer { background:rgba(28,29,34,.9); backdrop-filter:none; }
+  .bn-focus-running .bn-bgm-pill,
+  .bn-focus-running .bn-caption:not(:empty):not(:has(.bn-speech-message)),
+  .bn-focus-running .bn-speech-message,
+  .bn-focus-running .bn-control,
+  .bn-focus-running .bn-floating-composer { background:rgba(28,29,34,.84); -webkit-backdrop-filter:none; backdrop-filter:none; }
 }
 
 @media (min-width:700px) {

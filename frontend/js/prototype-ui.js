@@ -159,35 +159,34 @@
       <section class="bn-screen bn-focus-running" data-bn-screen="running">
         <div class="bn-stage">
           <img class="bn-stage-img" id="bnStageImage" alt="OC 陪伴场景">
-          <div class="bn-camera-preview" id="bnCameraPreview" hidden>
+          <div class="bn-camera-preview" id="bnCameraPreview" hidden aria-label="你的视频预览，可拖动或双指缩放">
             <video id="bnCameraVideo" autoplay muted playsinline aria-label="你的摄像头预览"></video>
-            <span>我</span>
           </div>
         </div>
         <div class="bn-focus-overlay">
           <div class="bn-focus-top-row">
             <div class="bn-focus-companion-block">
-              <div class="bn-call-top"><span><i></i><span id="bnCallName"></span> · 专注陪伴中</span><small>和你一起，慢慢把它完成</small></div>
+              <div class="bn-call-top"><span><span id="bnCallName"></span> · 专注陪伴中 <b aria-hidden="true">›</b></span><small>和你一起，慢慢把它完成</small></div>
               <div class="bn-call-task" id="bnCallTask">📖 专注中</div>
               <div class="bn-body-double-card" id="bnBodyDoubleCard" hidden><header><span id="bnBodyDoubleName">TA</span><small>也在专注</small></header><div id="bnBodyDoubleList"></div></div>
             </div>
-            <div class="bn-focus-top-right"><button class="bn-bgm-pill" id="bnRainBtn" type="button" data-bn-action="toggle-rain" aria-pressed="true">🌧️ 雨声</button></div>
+            <div class="bn-focus-top-right"><button class="bn-bgm-pill" id="bnRainBtn" type="button" data-bn-action="toggle-rain" aria-pressed="true"></button></div>
           </div>
-          <div class="bn-dialogue-row"><img class="bn-dialogue-avatar" id="bnDialogueAvatar" alt=""><div class="bn-caption" id="bnCaption"></div></div>
+          <div class="bn-dialogue-row"><div class="bn-caption" id="bnCaption"></div></div>
           <div class="bn-call-bottom">
             <div class="bn-call-time" id="bnTimer">25:00</div><div class="bn-call-sub">专注中<span>·</span>和 TA 一起</div>
             <div class="bn-controls">
               <button class="bn-control" id="bnVoiceInputBtn" type="button" aria-label="按住说话" title="按住说话">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3zM5 10v2a7 7 0 0014 0v-2M12 19v3M8 22h8"/></svg>
               </button>
-              <button class="bn-control is-primary" id="bnPause" type="button" aria-label="短按暂停，长按结束" title="短按暂停 · 长按结束">⏸</button>
+              <button class="bn-control is-primary" id="bnPause" type="button" aria-label="短按暂停，长按结束" title="短按暂停 · 长按结束"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></button>
               <button class="bn-control" id="bnCameraBtn" type="button" data-bn-action="toggle-camera" aria-pressed="false" aria-label="开启视频" title="开启视频">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
               </button>
             </div>
             <form class="bn-focus-chat-form" id="bnFocusChatForm">
-              <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="和 TA 说点什么…">
-              <button type="submit" aria-label="发送">➤</button>
+              <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="和小艾说点什么……">
+              <button type="submit" aria-label="发送"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4 18-7z"/></svg></button>
             </form>
           </div>
         </div>
@@ -561,7 +560,6 @@
     const companionName = currentOC().name || 'TA';
     const totalMinutes = Math.max(1, Number(selectedMinutes) || 25);
     const elapsedMinutes = Math.max(0, Math.min(totalMinutes, (totalMinutes * 60 - (Number(currentTime) || 0)) / 60));
-    const userProgress = Math.round((elapsedMinutes / totalMinutes) * 100);
     const taskName = currentTask?.name || '专注任务';
     document.getElementById('bnBodyDoubleName').textContent = '专注进度';
     let companionTask = `陪你${currentStatus?.name || currentStatus?.status || '专注'}`;
@@ -577,10 +575,9 @@
       }
     });
     const companionTotal = Math.max(1, state.bodyDoubleTodos.length || 1);
-    const companionProgress = state.bodyDoubleTodos.length ? Math.round((companionDone / companionTotal) * 100) : userProgress;
     list.innerHTML = `
-      <div class="bn-focus-progress-row"><span class="bn-progress-icon">📖</span><span class="bn-progress-copy"><b>我 · ${escapeText(taskName)}</b><em><span style="width:${userProgress}%"></span></em></span><time>${Math.floor(elapsedMinutes)} / ${totalMinutes}</time></div>
-      <div class="bn-focus-progress-row"><span class="bn-progress-icon">✓</span><span class="bn-progress-copy"><b>${escapeText(companionName)} · ${escapeText(companionTask)}</b><em><span style="width:${companionProgress}%"></span></em></span><time>${companionDone} / ${companionTotal}</time></div>`;
+      <div class="bn-focus-progress-row"><span class="bn-progress-icon"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/></svg></span><span class="bn-progress-copy"><b>我 · ${escapeText(taskName)}</b></span><time>${Math.floor(elapsedMinutes)} / ${totalMinutes}</time></div>
+      <div class="bn-focus-progress-row"><span class="bn-progress-icon"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/></svg></span><span class="bn-progress-copy"><b>${escapeText(companionName)} · ${escapeText(companionTask)}</b></span><time>${companionDone} / ${companionTotal}</time></div>`;
   }
 
   function ensureRainAudio() {
@@ -609,15 +606,15 @@
     const button = document.getElementById('bnRainBtn');
     if (!button) return;
     const config = state.bgmMode === 'rain'
-      ? { icon: '🌧️', name: '雨声', label: '当前背景音乐：雨声；点击切换咖啡馆钢琴', title: '雨声 · 点击切换咖啡馆钢琴' }
+      ? { name: 'rainning', label: '当前背景音乐：雨声；点击切换轻音乐', title: 'rainning · 点击切换' }
       : state.bgmMode === 'piano'
-        ? { icon: '🎹', name: '钢琴', label: '当前背景音乐：咖啡馆钢琴；点击静音', title: '咖啡馆钢琴 · 点击静音' }
-        : { icon: '🔇', name: '静音', label: '背景音乐已静音；点击开启雨声', title: '静音 · 点击开启雨声' };
+        ? { name: 'lo-fi', label: '当前背景音乐：轻音乐；点击静音', title: 'lo-fi · 点击静音' }
+        : { name: '静音', label: '背景音乐已静音；点击开启雨声', title: '静音 · 点击开启雨声' };
     button.classList.toggle('rain-active', state.bgmMode !== 'muted');
     button.setAttribute('aria-pressed', String(state.bgmMode !== 'muted'));
     button.setAttribute('aria-label', config.label);
     button.title = config.title;
-    button.textContent = `${config.icon} ${config.name}`;
+    button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${state.bgmMode === 'muted' ? '<path d="M11 5L6.5 9H3v6h3.5l4.5 4V5zM16 9l5 6M21 9l-5 6"/>' : '<path d="M9 18V5l11-2v13M9 9l11-2M6.5 21C4.6 21 3 20 3 18.5S4.6 16 6.5 16 10 17 10 18.5 8.4 21 6.5 21zM17.5 19c-1.9 0-3.5-1-3.5-2.5s1.6-2.5 3.5-2.5 3.5 1 3.5 2.5-1.6 2.5-3.5 2.5z"/>'}</svg><span>${config.name}</span>`;
   }
 
   function startBgm() {
@@ -671,12 +668,30 @@
     if (!preview || !stage) return;
     const storageKey = 'bnCameraPreviewPosition';
     let drag = null;
+    const pointers = new Map();
+    let pinch = null;
+
+    const pointerDistance = () => {
+      const [first, second] = [...pointers.values()];
+      return first && second ? Math.hypot(second.x - first.x, second.y - first.y) : 0;
+    };
+
+    const savePreview = () => {
+      const maxLeft = Math.max(1, stage.clientWidth - preview.offsetWidth);
+      const maxTop = Math.max(1, stage.clientHeight - preview.offsetHeight);
+      localStorage.setItem(storageKey, JSON.stringify({
+        x: Math.max(0, Math.min(1, preview.offsetLeft / maxLeft)),
+        y: Math.max(0, Math.min(1, preview.offsetTop / maxTop)),
+        width: preview.offsetWidth
+      }));
+    };
 
     const applySavedPosition = () => {
       if (preview.hidden) return;
       try {
         const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
         if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.y)) return;
+        if (Number.isFinite(saved.width)) preview.style.width = `${Math.max(68, Math.min(128, saved.width))}px`;
         const maxLeft = Math.max(0, stage.clientWidth - preview.offsetWidth);
         const maxTop = Math.max(0, stage.clientHeight - preview.offsetHeight);
         preview.style.left = `${Math.round(Math.max(0, Math.min(1, saved.x)) * maxLeft)}px`;
@@ -697,12 +712,26 @@
         left: previewRect.left - stageRect.left,
         top: previewRect.top - stageRect.top
       };
+      pointers.set(event.pointerId, { x:event.clientX, y:event.clientY });
+      if (pointers.size === 2) pinch = { distance:pointerDistance(), width:preview.offsetWidth };
       preview.setPointerCapture?.(event.pointerId);
       preview.classList.add('is-dragging');
       event.preventDefault();
     });
 
     preview.addEventListener('pointermove', event => {
+      if (!pointers.has(event.pointerId)) return;
+      pointers.set(event.pointerId, { x:event.clientX, y:event.clientY });
+      if (pointers.size >= 2 && pinch) {
+        const width = Math.max(68, Math.min(128, pinch.width * pointerDistance() / Math.max(1, pinch.distance)));
+        preview.style.width = `${Math.round(width)}px`;
+        const maxLeft = Math.max(0, stage.clientWidth - preview.offsetWidth);
+        const maxTop = Math.max(0, stage.clientHeight - preview.offsetHeight);
+        preview.style.left = `${Math.min(maxLeft, preview.offsetLeft)}px`;
+        preview.style.top = `${Math.min(maxTop, preview.offsetTop)}px`;
+        event.preventDefault();
+        return;
+      }
       if (!drag || drag.pointerId !== event.pointerId) return;
       const maxLeft = Math.max(0, stage.clientWidth - preview.offsetWidth);
       const maxTop = Math.max(0, stage.clientHeight - preview.offsetHeight);
@@ -716,15 +745,17 @@
     });
 
     const finishDrag = event => {
-      if (!drag || drag.pointerId !== event.pointerId) return;
-      const maxLeft = Math.max(1, stage.clientWidth - preview.offsetWidth);
-      const maxTop = Math.max(1, stage.clientHeight - preview.offsetHeight);
-      localStorage.setItem(storageKey, JSON.stringify({
-        x: Math.max(0, Math.min(1, preview.offsetLeft / maxLeft)),
-        y: Math.max(0, Math.min(1, preview.offsetTop / maxTop))
-      }));
-      preview.classList.remove('is-dragging');
-      drag = null;
+      if (!pointers.has(event.pointerId)) return;
+      pointers.delete(event.pointerId);
+      if (drag?.pointerId === event.pointerId) drag = null;
+      pinch = null;
+      if (pointers.size === 1) {
+        const [pointerId, point] = pointers.entries().next().value;
+        drag = { pointerId, startX:point.x, startY:point.y, left:preview.offsetLeft, top:preview.offsetTop };
+      } else {
+        preview.classList.remove('is-dragging');
+      }
+      savePreview();
     };
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => preview.addEventListener(type, finishDrag));
     new MutationObserver(applySavedPosition).observe(preview, { attributes: true, attributeFilter: ['hidden'] });
@@ -847,7 +878,9 @@
     const minutes = Math.floor(seconds / 60);
     timer.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
     const paused = typeof isPaused !== 'undefined' && isPaused;
-    document.getElementById('bnPause').textContent = paused ? '▶' : '⏸';
+    document.getElementById('bnPause').innerHTML = paused
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7V5z"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>';
     document.getElementById('bnCallTask').textContent = `${currentStatus && currentStatus.icon ? currentStatus.icon : '📖'} ${currentTask && currentTask.name ? currentTask.name : '专注中'}`;
     renderBodyDoublePlan();
   }
@@ -870,7 +903,7 @@
     document.getElementById('bnGreetingSub').textContent = `${name}已经在这里，等你一起专注。`;
     const completed = typeof tasks !== 'undefined' ? tasks.filter(item => item.status === 'completed').length : 0;
     document.getElementById('bnStoryText').innerHTML = `今天你们一起完成了 <b>${completed}</b> 件事，${escapeText(name)}还悄悄准备了一份礼物。`;
-    ['bnChatAvatar', 'bnOCAvatar', 'bnDialogueAvatar'].forEach(id => document.getElementById(id).src = avatar);
+    ['bnChatAvatar', 'bnOCAvatar'].forEach(id => document.getElementById(id).src = avatar);
     document.getElementById('bnChatName').textContent = name;
     document.getElementById('bnOCName').textContent = name;
     document.getElementById('bnOCRelation').textContent = `${oc.relationship || '你的学习搭子'} · 称呼你「${title}」`;

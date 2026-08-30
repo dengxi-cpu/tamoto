@@ -254,10 +254,10 @@
     function beginSpeechMessages() {
         const { caption } = elements();
         if (!caption || caption.id === 'ocMessageText') return;
-        caption.replaceChildren();
+        caption.querySelectorAll('.is-pending').forEach(item => item.remove());
     }
 
-    function appendSpeechMessage(text) {
+    function appendConversationMessage(text, role = 'assistant', pending = false) {
         const { caption } = elements();
         if (!caption || !text) return;
         if (caption.id === 'ocMessageText') {
@@ -265,10 +265,14 @@
             return;
         }
         const bubble = document.createElement('div');
-        bubble.className = 'bn-speech-message';
+        bubble.className = `bn-speech-message is-${role}${pending ? ' is-pending' : ''}`;
         bubble.textContent = text;
         caption.appendChild(bubble);
-        while (caption.children.length > 3) caption.firstElementChild?.remove();
+        while (caption.children.length > 4) caption.firstElementChild?.remove();
+    }
+
+    function appendSpeechMessage(text) {
+        appendConversationMessage(text, 'assistant');
     }
 
     function captureFrame() {
@@ -970,7 +974,6 @@
             if (!response.ok) throw new Error(payload.error || `Speech HTTP ${response.status}`);
             const text = payload?.data?.text?.trim();
             if (text) {
-                setCaption(`你说：“${text}”`);
                 notify('语音识别完成');
                 window.dispatchEvent(new CustomEvent('focus-voice-result', { detail: { text } }));
                 await respondToVoice(text);
@@ -990,6 +993,9 @@
     }
 
     async function respondToVoice(text) {
+        if (!text) return;
+        const { caption } = elements();
+        if (caption && caption.id !== 'ocMessageText' && !caption.querySelector('.bn-speech-message')) caption.replaceChildren();
         const requestEpoch = state.epoch;
         const turnId = ++state.turnId;
         const controller = new AbortController();
@@ -1000,7 +1006,8 @@
             ? state.latestObservation.scene : '';
         const history = state.dialogueHistory.slice(-6);
         state.dialogueHistory.push({ role: 'user', content: text });
-        setCaption('TA 正在想……');
+        appendConversationMessage(text, 'user');
+        appendConversationMessage('正在想……', 'assistant', true);
         try {
             const response = await fetch('/api/companion-observe', {
                 method: 'POST',

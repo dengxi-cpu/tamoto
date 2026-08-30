@@ -126,7 +126,11 @@
             state.stream = null;
         }
         if (video) video.srcObject = null;
-        if (preview) preview.hidden = true;
+        if (preview) {
+            preview.hidden = false;
+            preview.classList.add('is-placeholder');
+            preview.setAttribute('aria-label', '用户摄像头未开启，可拖动或双指缩放');
+        }
         setButtonState(false);
         stopVisionLoop();
         cancelReaction('视频已关闭');
@@ -162,7 +166,11 @@
                 video.srcObject = stream;
                 await video.play().catch(() => {});
             }
-            if (preview) preview.hidden = false;
+            if (preview) {
+                preview.hidden = false;
+                preview.classList.remove('is-placeholder');
+                preview.setAttribute('aria-label', '你的摄像头预览，可拖动或双指缩放');
+            }
             setButtonState(true);
             startVisionLoop();
 

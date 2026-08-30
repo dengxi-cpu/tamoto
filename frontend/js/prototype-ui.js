@@ -159,7 +159,7 @@
       <section class="bn-screen bn-focus-running" data-bn-screen="running">
         <div class="bn-stage">
           <img class="bn-stage-img" id="bnStageImage" alt="OC 陪伴场景">
-          <div class="bn-camera-preview" id="bnCameraPreview" hidden aria-label="你的视频预览，可拖动或双指缩放">
+          <div class="bn-camera-preview is-placeholder" id="bnCameraPreview" aria-label="用户摄像头未开启，可拖动或双指缩放">
             <video id="bnCameraVideo" autoplay muted playsinline aria-label="你的摄像头预览"></video>
           </div>
         </div>
@@ -832,6 +832,7 @@
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => preview.addEventListener(type, finishDrag));
     new MutationObserver(applySavedPosition).observe(preview, { attributes: true, attributeFilter: ['hidden'] });
     window.addEventListener('resize', applySavedPosition);
+    window.requestAnimationFrame(applySavedPosition);
   }
 
   async function submitFocusChat(event) {

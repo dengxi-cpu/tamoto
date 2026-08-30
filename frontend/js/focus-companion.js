@@ -1050,7 +1050,7 @@
         } finally {
             state.voiceInFlight = false;
             voiceButton?.classList.remove('is-processing');
-            voiceButton?.setAttribute('aria-label', '和 TA 说话');
+            if (voiceButton) voiceButton.setAttribute('aria-label', `和${voiceButton.dataset.roleName || '角色'}说话`);
         }
     }
 
@@ -1127,7 +1127,7 @@
         }
         const { voiceButton } = elements();
         voiceButton?.classList.remove('is-listening');
-        voiceButton?.setAttribute('aria-label', '和 TA 说话');
+        if (voiceButton) voiceButton.setAttribute('aria-label', `和${voiceButton.dataset.roleName || '角色'}说话`);
     }
 
     window.focusCompanion = {

@@ -684,7 +684,7 @@ body.bn-composer-open .bn-focus-overlay { opacity:.88; transition:opacity 220ms 
   -webkit-backdrop-filter:blur(20px) saturate(142%) brightness(1.06);
   backdrop-filter:blur(20px) saturate(142%) brightness(1.06);
 }
-.bn-focus-running .bn-floating-composer button { border:.5px solid rgba(255,255,255,.1); background:rgba(255,255,255,.075); box-shadow:inset .7px .7px 0 rgba(255,255,255,.16); }
+.bn-focus-running .bn-floating-composer button { border:0; background:transparent; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; }
 
 @media (max-height:700px) {
   .bn-focus-overlay { padding-left:18px; padding-right:18px; }

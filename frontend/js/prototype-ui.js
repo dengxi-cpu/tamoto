@@ -178,10 +178,10 @@
           </div>
           <div class="bn-dialogue-row"><div class="bn-caption" id="bnCaption"></div></div>
           <div class="bn-call-bottom">
-            <div class="bn-call-time" id="bnTimer">25:00</div><div class="bn-call-sub">专注中<span>·</span>和 TA 一起</div>
+            <div class="bn-call-time" id="bnTimer">25:00</div><div class="bn-call-sub" id="bnCallSub">专注中<span>·</span>和角色一起</div>
             <div class="bn-controls">
               <button class="bn-control" id="bnVoiceInputBtn" type="button" aria-label="和 TA 说话" title="轻触打字 · 长按说话">
-                <svg class="bn-dialogue-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a2.5 2.5 0 00-2.5 2.5v5a2.5 2.5 0 005 0v-5A2.5 2.5 0 0010.5 3zM5 9.5v1a5.5 5.5 0 0011 0v-1M10.5 16v3M7.5 19h6"/><path d="M15.5 14.5h3.8a1.7 1.7 0 011.7 1.7v1.6a1.7 1.7 0 01-1.7 1.7h-1.8L15 21v-4.8a1.7 1.7 0 01.5-1.2z"/></svg>
+                <svg class="bn-dialogue-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h14a2.5 2.5 0 012.5 2.5v7a2.5 2.5 0 01-2.5 2.5h-7.2L6.5 21v-3.5H5A2.5 2.5 0 012.5 15V8A2.5 2.5 0 015 5.5zM7.5 11.5h.01M12 11.5h.01M16.5 11.5h.01"/></svg>
               </button>
               <div class="bn-dialogue-tip" id="bnDialogueTip" hidden>长按说话 · 轻触打字</div>
               <div class="bn-voice-status" id="bnVoiceStatus" hidden>松开发送</div>
@@ -195,7 +195,7 @@
         <div class="bn-chat-composer-layer" id="bnChatSheetLayer" hidden>
           <button class="bn-chat-composer-dismiss" type="button" aria-label="收起文字输入"></button>
           <form class="bn-focus-chat-form bn-floating-composer" id="bnFocusChatForm">
-            <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="和沈星回说点什么……">
+            <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="和角色说点什么……">
             <button type="submit" aria-label="发送"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4 18-7z"/></svg></button>
           </form>
         </div>
@@ -992,6 +992,13 @@
     document.getElementById('bnOCName').textContent = name;
     document.getElementById('bnOCRelation').textContent = `${oc.relationship || '你的学习搭子'} · 称呼你「${title}」`;
     document.getElementById('bnCallName').textContent = name;
+    document.getElementById('bnCallSub').innerHTML = `专注中<span>·</span>和 ${escapeText(name)} 一起`;
+    const focusChatInput = document.getElementById('bnFocusChatInput');
+    focusChatInput.placeholder = `和${name}说点什么……`;
+    const dialogueButton = document.getElementById('bnVoiceInputBtn');
+    dialogueButton.dataset.roleName = name;
+    if (!dialogueButton.matches('.is-listening,.is-processing')) dialogueButton.setAttribute('aria-label', `和${name}说话`);
+    dialogueButton.title = `和${name}说话 · 轻触打字 · 长按说话`;
     renderTasks();
     renderGifts();
     renderOCPool();

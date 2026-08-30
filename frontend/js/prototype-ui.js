@@ -25,7 +25,8 @@
     composerCloseTimer: null,
     betaMeetingLayoutHeight: 0,
     betaMeetingViewportHandler: null,
-    betaMeetingUnlockTimer: null
+    betaMeetingUnlockTimer: null,
+    betaCrop: null
   };
 
   const captions = [
@@ -78,8 +79,16 @@
           <small><i></i>在等你</small>
         </div>
         <div class="bn-beta-role-bubble">来了？<br>书已经拿好了，<br>今天也一起？</div>
-        <label class="bn-beta-image-change" for="bnBetaBackgroundInput">更换场景</label>
+        <label class="bn-beta-image-change" for="bnBetaBackgroundInput">更换角色</label>
         <input id="bnBetaBackgroundInput" type="file" accept="image/*" hidden>
+        <div class="bn-beta-crop" id="bnBetaCrop" hidden>
+          <div class="bn-beta-crop-sheet" role="dialog" aria-modal="true" aria-labelledby="bnBetaCropTitle">
+            <header><button type="button" data-bn-action="beta-cancel-crop">取消</button><strong id="bnBetaCropTitle">调整角色画面</strong><button type="button" data-bn-action="beta-apply-crop">使用图片</button></header>
+            <p>拖动图片调整位置，画面比例与专注页一致</p>
+            <div class="bn-beta-crop-frame" id="bnBetaCropFrame"><img id="bnBetaCropImage" alt="待裁切的角色图片"></div>
+            <label class="bn-beta-crop-zoom"><span>缩放</span><input id="bnBetaCropZoom" type="range" min="1" max="3" step="0.01" value="1" aria-label="缩放角色图片"></label>
+          </div>
+        </div>
         <form class="bn-beta-form" id="bnBetaRoleForm">
           <section class="bn-beta-glass-card">
             <div class="bn-beta-tabs" role="tablist" aria-label="角色设置">
@@ -548,26 +557,113 @@
     setBetaTab('partner');
   }
 
-  function compressBetaBackground(file) {
+  function readBetaCropImage(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = () => reject(reader.error || new Error('图片读取失败'));
       reader.onload = () => {
         const image = new Image();
         image.onerror = () => reject(new Error('图片格式无法识别'));
-        image.onload = () => {
-          const maxSide = 1440;
-          const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
-          const canvas = document.createElement('canvas');
-          canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-          canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-          const context = canvas.getContext('2d', { alpha: false });
-          context.drawImage(image, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg', 0.82));
-        };
+        image.onload = () => resolve(image);
         image.src = reader.result;
       };
       reader.readAsDataURL(file);
+    });
+  }
+
+  function renderBetaCrop() {
+    const crop = state.betaCrop;
+    if (!crop) return;
+    const { frame, preview } = crop;
+    const renderedWidth = crop.baseWidth * crop.zoom;
+    const renderedHeight = crop.baseHeight * crop.zoom;
+    const maxX = Math.max(0, (renderedWidth - frame.clientWidth) / 2);
+    const maxY = Math.max(0, (renderedHeight - frame.clientHeight) / 2);
+    crop.x = Math.max(-maxX, Math.min(maxX, crop.x));
+    crop.y = Math.max(-maxY, Math.min(maxY, crop.y));
+    preview.style.width = `${crop.baseWidth}px`;
+    preview.style.height = `${crop.baseHeight}px`;
+    preview.style.transform = `translate(-50%,-50%) translate(${crop.x}px,${crop.y}px) scale(${crop.zoom})`;
+  }
+
+  function closeBetaCrop() {
+    document.getElementById('bnBetaCrop').hidden = true;
+    document.body.classList.remove('bn-beta-crop-open');
+    document.getElementById('bnBetaBackgroundInput').value = '';
+    state.betaCrop = null;
+  }
+
+  async function openBetaCrop(file) {
+    const image = await readBetaCropImage(file);
+    const modal = document.getElementById('bnBetaCrop');
+    const frame = document.getElementById('bnBetaCropFrame');
+    const preview = document.getElementById('bnBetaCropImage');
+    const zoom = document.getElementById('bnBetaCropZoom');
+    const aspect = Math.max(.42, Math.min(.8, window.innerWidth / window.innerHeight));
+    const frameWidth = Math.min(window.innerWidth - 48, window.innerHeight * .64 * aspect);
+    frame.style.width = `${Math.round(frameWidth)}px`;
+    frame.style.aspectRatio = String(aspect);
+    modal.hidden = false;
+    document.body.classList.add('bn-beta-crop-open');
+    preview.src = image.src;
+    const baseScale = Math.max(frame.clientWidth / image.naturalWidth, frame.clientHeight / image.naturalHeight);
+    state.betaCrop = {
+      image, frame, preview, zoom:1, x:0, y:0,
+      baseScale,
+      baseWidth:image.naturalWidth * baseScale,
+      baseHeight:image.naturalHeight * baseScale
+    };
+    zoom.value = '1';
+    renderBetaCrop();
+  }
+
+  function applyBetaCrop() {
+    const crop = state.betaCrop;
+    if (!crop) return;
+    const scale = crop.baseScale * crop.zoom;
+    const sourceWidth = crop.frame.clientWidth / scale;
+    const sourceHeight = crop.frame.clientHeight / scale;
+    const sourceX = (crop.image.naturalWidth - sourceWidth) / 2 - crop.x / scale;
+    const sourceY = (crop.image.naturalHeight - sourceHeight) / 2 - crop.y / scale;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = Math.max(1, Math.round(1080 / (crop.frame.clientWidth / crop.frame.clientHeight)));
+    canvas.getContext('2d', { alpha:false }).drawImage(
+      crop.image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height
+    );
+    state.betaBackground = canvas.toDataURL('image/jpeg', .84);
+    document.getElementById('bnBetaBackgroundPreview').src = state.betaBackground;
+    closeBetaCrop();
+    toast('角色画面已更新');
+  }
+
+  function setupBetaCrop() {
+    const frame = document.getElementById('bnBetaCropFrame');
+    const zoom = document.getElementById('bnBetaCropZoom');
+    let drag = null;
+    frame.addEventListener('pointerdown', event => {
+      if (!state.betaCrop) return;
+      drag = { id:event.pointerId, startX:event.clientX, startY:event.clientY, x:state.betaCrop.x, y:state.betaCrop.y };
+      frame.setPointerCapture?.(event.pointerId);
+      frame.classList.add('is-dragging');
+    });
+    frame.addEventListener('pointermove', event => {
+      if (!drag || drag.id !== event.pointerId || !state.betaCrop) return;
+      state.betaCrop.x = drag.x + event.clientX - drag.startX;
+      state.betaCrop.y = drag.y + event.clientY - drag.startY;
+      renderBetaCrop();
+    });
+    const stop = event => {
+      if (!drag || drag.id !== event.pointerId) return;
+      drag = null;
+      frame.classList.remove('is-dragging');
+    };
+    frame.addEventListener('pointerup', stop);
+    frame.addEventListener('pointercancel', stop);
+    zoom.addEventListener('input', event => {
+      if (!state.betaCrop) return;
+      state.betaCrop.zoom = Number(event.target.value);
+      renderBetaCrop();
     });
   }
 
@@ -576,8 +672,7 @@
     if (!file.type.startsWith('image/')) return toast('请选择图片文件');
     if (file.size > 15 * 1024 * 1024) return toast('图片不能超过 15MB');
     try {
-      state.betaBackground = await compressBetaBackground(file);
-      document.getElementById('bnBetaBackgroundPreview').src = state.betaBackground;
+      await openBetaCrop(file);
     } catch (error) {
       console.warn('Beta background processing failed:', error);
       toast(error.message || '图片处理失败');
@@ -1296,6 +1391,8 @@
         switchTab('beta-setup');
       }
       if (type === 'beta-show-settings') document.getElementById('bnBetaRoleForm')?.classList.remove('is-card-hidden');
+      if (type === 'beta-cancel-crop') closeBetaCrop();
+      if (type === 'beta-apply-crop') applyBetaCrop();
       if (type === 'beta-start-together') startBetaFocus();
       if (type === 'roll-body-double') rollBodyDouble();
       if (type === 'beta-improve-persona') improveBetaPersona();
@@ -1409,6 +1506,7 @@
     });
     bindEvents();
     setupBetaCardDismiss();
+    setupBetaCrop();
     setupBetaMeetingKeyboard();
     setupCameraDrag();
     if (localStorage.getItem('bnDialogueTipSeen') !== 'true') {

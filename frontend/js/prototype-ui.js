@@ -361,6 +361,13 @@
     returnFromFocusSession();
   }
 
+  function syncBetaFocusBackground(avatar) {
+    if (!isBetaMode) return;
+    const target = document.getElementById('bnStageImage');
+    const source = avatar || currentOC().avatar || state.betaBackground || fallbackAvatar;
+    if (target && target.getAttribute('src') !== source) target.src = source;
+  }
+
   function returnFromFocusSession() {
     if (isBetaMode) {
       populateBetaRoleForm();
@@ -1284,6 +1291,7 @@
     const name = oc.name || '你的 TA';
     const title = oc.userTitle || '你';
     const avatar = oc.avatar || fallbackAvatar;
+    syncBetaFocusBackground(avatar);
     document.getElementById('bnDate').textContent = formatDate();
     document.getElementById('bnHomeAvatar').src = avatar;
     document.getElementById('bnGreeting').textContent = `早安，${title}！`;
@@ -1311,6 +1319,10 @@
 
   async function loadPrototypeScene() {
     const target = document.getElementById('bnStageImage');
+    if (isBetaMode) {
+      syncBetaFocusBackground();
+      return;
+    }
     try {
       const response = await fetch('/%E4%BC%B4%E6%9F%A0%E7%95%AA%E8%8C%84%E9%92%9F_%E4%BA%A7%E5%93%81%E5%8E%9F%E5%9E%8B.html');
       if (!response.ok) throw new Error('prototype not found');

@@ -626,13 +626,13 @@ body.bn-composer-open .bn-focus-overlay { opacity:.88; transition:opacity 220ms 
 .bn-focus-running .bn-bgm-pill {
   position:relative;
   overflow:hidden;
-  border:.5px solid rgba(255,255,255,.1);
-  background:rgba(255,255,255,.035);
-  box-shadow:inset .7px .7px 0 rgba(255,255,255,.16),inset -.5px -.5px 0 rgba(0,0,0,.025),0 3px 10px rgba(0,0,0,.055);
-  -webkit-backdrop-filter:blur(10px) saturate(132%) brightness(1.04);
-  backdrop-filter:blur(10px) saturate(132%) brightness(1.04);
+  border:.5px solid rgba(255,255,255,.14);
+  background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.055) 56%,rgba(255,255,255,.085));
+  box-shadow:inset .8px .8px 0 rgba(255,255,255,.2),inset -.5px -.5px 0 rgba(0,0,0,.025),0 4px 13px rgba(0,0,0,.07);
+  -webkit-backdrop-filter:blur(13px) saturate(138%) brightness(1.055);
+  backdrop-filter:blur(13px) saturate(138%) brightness(1.055);
 }
-.bn-focus-running .bn-bgm-pill.rain-active { background:rgba(255,255,255,.04); }
+.bn-focus-running .bn-bgm-pill.rain-active { background:linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,.06) 56%,rgba(255,255,255,.09)); }
 .bn-focus-running .bn-bgm-pill::before {
   content:'';
   position:absolute;
@@ -656,36 +656,69 @@ body.bn-composer-open .bn-focus-overlay { opacity:.88; transition:opacity 220ms 
 .bn-focus-running .bn-control {
   position:relative;
   overflow:hidden;
-  border:.5px solid rgba(255,255,255,.12);
-  background:rgba(255,255,255,.06);
-  box-shadow:inset 1px 1px 0 rgba(255,255,255,.22),inset -1px -1px 0 rgba(0,0,0,.035),0 5px 15px rgba(0,0,0,.08);
-  -webkit-backdrop-filter:blur(18px) saturate(142%) brightness(1.07);
-  backdrop-filter:blur(18px) saturate(142%) brightness(1.07);
+  border:.5px solid rgba(255,255,255,.16);
+  background:
+    radial-gradient(circle at 32% 22%,rgba(255,255,255,.2),transparent 44%),
+    linear-gradient(150deg,rgba(255,255,255,.15),rgba(255,255,255,.075) 58%,rgba(255,255,255,.11));
+  box-shadow:inset 1px 1px 0 rgba(255,255,255,.27),inset -1px -1px 0 rgba(0,0,0,.035),0 7px 20px rgba(0,0,0,.1);
+  -webkit-backdrop-filter:blur(21px) saturate(148%) brightness(1.075);
+  backdrop-filter:blur(21px) saturate(148%) brightness(1.075);
 }
 .bn-focus-running .bn-control::before {
   content:'';
   position:absolute;
   z-index:0;
-  top:3px;
-  left:12px;
-  right:12px;
-  height:1px;
-  border-radius:50%;
-  background:rgba(255,255,255,.23);
-  filter:blur(.2px);
+  inset:1px;
+  border-radius:inherit;
+  background:linear-gradient(145deg,rgba(255,255,255,.095),transparent 48%,rgba(255,255,255,.025));
   pointer-events:none;
 }
 .bn-focus-running .bn-control svg { position:relative; z-index:1; }
 .bn-focus-running .bn-control.is-primary {
-  border-color:rgba(255,255,255,.145);
-  background:rgba(255,255,255,.09);
-  box-shadow:inset 1px 1px 0 rgba(255,255,255,.28),inset -1px -1px 0 rgba(0,0,0,.035),0 6px 17px rgba(0,0,0,.085);
-  -webkit-backdrop-filter:blur(20px) saturate(145%) brightness(1.085);
-  backdrop-filter:blur(20px) saturate(145%) brightness(1.085);
+  border-color:rgba(255,255,255,.19);
+  background:
+    radial-gradient(circle at 32% 21%,rgba(255,255,255,.25),transparent 45%),
+    linear-gradient(150deg,rgba(255,255,255,.2),rgba(255,255,255,.1) 58%,rgba(255,255,255,.14));
+  box-shadow:inset 1px 1px 0 rgba(255,255,255,.32),inset -1px -1px 0 rgba(0,0,0,.035),0 8px 23px rgba(0,0,0,.11);
+  -webkit-backdrop-filter:blur(23px) saturate(150%) brightness(1.095);
+  backdrop-filter:blur(23px) saturate(150%) brightness(1.095);
 }
 .bn-focus-running .bn-control.camera-active,
 .bn-focus-running .bn-control.is-active,
-.bn-focus-running .bn-control.is-pressed { border-color:rgba(255,255,255,.17); background:rgba(255,255,255,.105); }
+.bn-focus-running .bn-control.is-pressed { border-color:rgba(255,255,255,.2); background:linear-gradient(150deg,rgba(255,255,255,.22),rgba(255,255,255,.11)); }
+
+/* Clear camera content wrapped by a thin, directional Liquid Glass frame. */
+.bn-focus-running .bn-camera-preview {
+  border:0;
+  border-radius:18px;
+  corner-shape:squircle;
+  background:#21162d;
+  box-shadow:0 16px 38px rgba(0,0,0,.16),0 3px 10px rgba(0,0,0,.08);
+  isolation:isolate;
+}
+.bn-focus-running .bn-camera-preview::before,
+.bn-focus-running .bn-camera-preview::after {
+  content:'';
+  position:absolute;
+  z-index:2;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  mask-composite:exclude;
+}
+.bn-focus-running .bn-camera-preview::before {
+  padding:.75px;
+  background:linear-gradient(145deg,rgba(255,255,255,.58) 0%,rgba(255,255,255,.2) 29%,rgba(255,255,255,.07) 63%,rgba(255,255,255,.025) 100%);
+}
+.bn-focus-running .bn-camera-preview::after {
+  inset:1px;
+  padding:.5px;
+  background:linear-gradient(150deg,rgba(255,255,255,.28),rgba(255,255,255,.055) 48%,transparent 78%);
+}
+.bn-focus-running .bn-camera-preview.is-dragging { box-shadow:0 18px 42px rgba(0,0,0,.18),0 4px 12px rgba(0,0,0,.09); }
 .bn-dialogue-tip,.bn-voice-status {
   border:.5px solid rgba(255,255,255,.11);
   background:rgba(255,255,255,.065);

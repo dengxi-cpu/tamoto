@@ -345,6 +345,15 @@
     stopBgm(true);
     if (typeof stopTimer === 'function') stopTimer();
     stopCaptions();
+    returnFromFocusSession();
+  }
+
+  function returnFromFocusSession() {
+    if (isBetaMode) {
+      populateBetaRoleForm();
+      switchTab('beta-setup');
+      return;
+    }
     switchTab('focus');
   }
 
@@ -1140,6 +1149,12 @@
   }
 
   function bindEvents() {
+    window.addEventListener('tamoto:focus-complete', () => {
+      if (!isBetaMode) return;
+      stopBgm(true);
+      stopCaptions();
+      returnFromFocusSession();
+    });
     document.getElementById('bnApp').addEventListener('click', event => {
       const go = event.target.closest('[data-bn-go]');
       if (go) return switchTab(go.dataset.bnGo);

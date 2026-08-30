@@ -1011,6 +1011,7 @@ function loadDetailedStats() {
      resetToSingleButton();
      stopHeartbeatAnimation();
      stopEncourageLoop();
+     window.dispatchEvent(new CustomEvent('tamoto:focus-complete'));
  }
 
  function runTimerTick() {

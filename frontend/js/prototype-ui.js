@@ -164,7 +164,9 @@
             <span>我</span>
           </div>
         </div>
-        <div class="bn-call-top"><span><i></i><span id="bnCallName"></span> · 陪伴中</span></div>
+        <div class="bn-call-top">
+          <span class="bn-call-presence"><span><i></i><span id="bnCallName"></span> · 专注陪伴中</span><small>我在这里，和你一起慢慢完成</small></span>
+        </div>
         <div class="bn-call-task" id="bnCallTask">📖 专注中</div>
         <div class="bn-body-double-card" id="bnBodyDoubleCard" hidden><header><span id="bnBodyDoubleName">TA</span><small>也在专注</small></header><div id="bnBodyDoubleList"></div></div>
         <button class="bn-bgm-pill" id="bnRainBtn" type="button" data-bn-action="toggle-rain" aria-pressed="true">🌧️ 雨声</button>

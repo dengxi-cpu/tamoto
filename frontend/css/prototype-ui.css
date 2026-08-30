@@ -105,6 +105,81 @@ body.bn-ui-active .fixed.inset-0.pointer-events-none { display:none !important; 
 .bn-status.is-active { color:#fff; background:var(--bn-primary); }
 .bn-focus-hint { min-height:18px; margin:9px 0; text-align:center; color:#b15f82; font-size:12px; }
 
+/* Focus setup uses the same existing companion background as the running view. */
+.bn-screen[data-bn-screen="focus"] {
+  position:relative;
+  min-height:100dvh;
+  padding:max(22px,calc(env(safe-area-inset-top) + 12px)) 16px max(28px,calc(env(safe-area-inset-bottom) + 18px));
+  overflow:hidden;
+  color:#fff;
+  background:#17131f;
+}
+.bn-focus-setup-stage { position:absolute; z-index:0; inset:0; overflow:hidden; }
+.bn-focus-setup-stage img { width:100%; height:100%; object-fit:cover; }
+.bn-focus-setup-stage::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(180deg,rgba(10,8,13,.48),rgba(10,8,13,.12) 34%,rgba(10,8,13,.72) 100%);
+}
+#bnFocusSetup {
+  position:relative;
+  z-index:1;
+  width:100%;
+  max-width:430px;
+  margin:0 auto;
+  padding:18px 16px 16px;
+  border:1px solid rgba(255,255,255,.22);
+  border-radius:26px;
+  color:#fff;
+  background:rgba(22,18,28,.38);
+  box-shadow:0 20px 55px rgba(0,0,0,.25);
+  backdrop-filter:blur(20px) saturate(140%);
+}
+.bn-focus-setup-heading { margin-bottom:14px; }
+.bn-focus-setup-heading .bn-eyebrow { color:#fff; font-size:13px; }
+.bn-focus-setup-heading small { display:block; margin-top:5px; color:rgba(255,255,255,.7); font-size:10.5px; }
+#bnFocusSetup .bn-dot { background:#fff; box-shadow:0 0 0 5px rgba(255,255,255,.13); }
+#bnFocusSetup .bn-segment { margin:12px 0 18px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.1); }
+#bnFocusSetup .bn-segment button { color:rgba(255,255,255,.7); }
+#bnFocusSetup .bn-segment button.is-active { color:#fff; background:rgba(255,255,255,.18); box-shadow:none; }
+#bnFocusSetup .bn-field-label { margin:15px 0 8px; color:#fff; font-size:12px; }
+#bnFocusSetup .bn-durations { gap:7px; }
+#bnFocusSetup .bn-duration {
+  border-color:rgba(255,255,255,.2);
+  color:rgba(255,255,255,.66);
+  background:rgba(255,255,255,.09);
+  backdrop-filter:blur(12px);
+}
+#bnFocusSetup .bn-duration b { color:#fff; }
+#bnFocusSetup .bn-duration.is-active { border-color:rgba(255,255,255,.52); background:rgba(255,255,255,.2); box-shadow:0 8px 22px rgba(0,0,0,.14); }
+#bnFocusSetup .bn-duration.is-active b { color:#fff; }
+#bnFocusSetup .bn-task-input {
+  border-color:rgba(255,255,255,.2);
+  color:#fff;
+  background:rgba(255,255,255,.1);
+  backdrop-filter:blur(12px);
+}
+#bnFocusSetup .bn-task-input::placeholder { color:rgba(255,255,255,.52); }
+#bnFocusSetup .bn-task-input:focus { border-color:rgba(255,255,255,.55); box-shadow:0 0 0 3px rgba(255,255,255,.1); }
+#bnFocusSetup .bn-statuses { gap:7px; margin-bottom:18px; }
+#bnFocusSetup .bn-status { border:1px solid rgba(255,255,255,.17); color:#fff; background:rgba(255,255,255,.1); }
+#bnFocusSetup .bn-status.is-active { border-color:rgba(255,255,255,.52); color:#fff; background:rgba(255,255,255,.22); }
+#bnFocusSetup .bn-focus-hint { color:#fff; }
+#bnFocusSetup .bn-primary { color:#2e2737; background:rgba(255,255,255,.9); box-shadow:0 12px 30px rgba(0,0,0,.2); }
+
+@media (min-height:760px) {
+  .bn-screen[data-bn-screen="focus"] { display:none; align-items:flex-end; }
+  .bn-screen[data-bn-screen="focus"].is-active { display:flex; }
+}
+
+@media (max-height:650px) {
+  .bn-screen[data-bn-screen="focus"] { overflow-y:auto; }
+  #bnFocusSetup { padding:14px; }
+  #bnFocusSetup .bn-field-label { margin-top:11px; }
+  #bnFocusSetup .bn-duration { padding:9px 4px; }
+}
+
 .bn-focus-running { padding:0; background:#17131f; }
 .bn-focus-running .bn-stage { position:absolute; inset:0; overflow:hidden; background:#17131f; }
 .bn-stage-img { width:100%; height:100%; object-fit:cover; }

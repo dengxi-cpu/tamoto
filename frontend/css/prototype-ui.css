@@ -373,7 +373,7 @@ body.bn-ui-active .fixed.inset-0.pointer-events-none { display:none !important; 
 }
 /* Keep the existing .bn-call-time font family, weight and number styling unchanged. */
 .bn-focus-running .bn-call-time { color:#fff; text-shadow:0 4px 24px rgba(0,0,0,.48); }
-.bn-focus-running .bn-call-sub { margin-top:5px; color:rgba(255,255,255,.72); font-size:11px; letter-spacing:.06em; }
+.bn-focus-running .bn-call-sub { display:none; }
 .bn-focus-running .bn-call-sub span { margin:0 7px; color:#fff; }
 .bn-focus-running .bn-controls { display:flex; justify-content:center; gap:14px; margin-top:14px; }
 .bn-focus-running .bn-control {

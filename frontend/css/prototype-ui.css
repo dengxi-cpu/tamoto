@@ -507,15 +507,18 @@ body.bn-ui-active .fixed.inset-0.pointer-events-none { display:none !important; 
 .bn-focus-running .bn-speech-message.is-leaving { padding-top:0; padding-bottom:0; border-width:0; opacity:0; transform:translateY(-10px); filter:blur(5px); pointer-events:none; }
 .bn-focus-running .bn-controls { gap:28px; margin-top:18px; align-items:center; }
 .bn-focus-running .bn-control {
+  display:grid;
+  place-items:center;
   width:52px;
   height:52px;
+  padding:0;
   border-color:rgba(255,255,255,.4);
   background:linear-gradient(145deg,rgba(255,255,255,.22),rgba(225,230,239,.1));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 10px 24px rgba(0,0,0,.15);
   backdrop-filter:blur(24px) saturate(150%);
 }
 .bn-focus-running .bn-control.is-primary { width:64px; height:64px; margin:0; border-color:rgba(255,255,255,.5); background:linear-gradient(145deg,rgba(255,255,255,.3),rgba(228,232,240,.13)); }
-.bn-focus-running .bn-control svg { width:21px; height:21px; stroke-width:1.8; }
+.bn-focus-running .bn-control svg { display:block; width:21px; height:21px; margin:0; stroke-width:1.8; }
 .bn-focus-running .bn-control.is-primary svg { width:24px; height:24px; }
 .bn-focus-running .bn-control.camera-active,.bn-focus-running .bn-control.is-active { background:rgba(255,255,255,.25); }
 .bn-focus-running .bn-focus-chat-form {

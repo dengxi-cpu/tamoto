@@ -130,11 +130,8 @@
       </section>
 
       <section class="bn-screen" data-bn-screen="focus">
-        <div class="bn-focus-setup-stage" aria-hidden="true">
-          <img id="bnFocusSetupImage" alt="">
-        </div>
         <div id="bnFocusSetup">
-          <div class="bn-focus-setup-heading"><div class="bn-eyebrow"><span class="bn-dot"></span>专注陪伴</div><small>准备好后，TA 会和你一起开始</small></div>
+          <div class="bn-eyebrow"><span class="bn-dot"></span>专注</div>
           <div class="bn-segment"><button class="is-active" type="button">准备开始</button><button type="button" data-bn-action="show-running">专注中</button></div>
           <label class="bn-field-label">专注时长</label>
           <div class="bn-durations">
@@ -804,11 +801,6 @@
 
   async function loadPrototypeScene() {
     const target = document.getElementById('bnStageImage');
-    const setupTarget = document.getElementById('bnFocusSetupImage');
-    const setSceneSource = source => {
-      target.src = source;
-      if (setupTarget) setupTarget.src = source;
-    };
     try {
       const response = await fetch('/%E4%BC%B4%E6%9F%A0%E7%95%AA%E8%8C%84%E9%92%9F_%E4%BA%A7%E5%93%81%E5%8E%9F%E5%9E%8B.html');
       if (!response.ok) throw new Error('prototype not found');
@@ -816,9 +808,9 @@
       const parsed = new DOMParser().parseFromString(html, 'text/html');
       const image = parsed.querySelector('.callstage-img');
       if (!image || !image.getAttribute('src')) throw new Error('scene not found');
-      setSceneSource(image.getAttribute('src'));
+      target.src = image.getAttribute('src');
     } catch (error) {
-      setSceneSource(currentOC().avatar || fallbackAvatar);
+      target.src = currentOC().avatar || fallbackAvatar;
       console.warn('原型 Base64 场景图加载失败，已回退到 OC 头像。', error);
     }
   }

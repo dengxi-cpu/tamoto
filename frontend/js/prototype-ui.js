@@ -184,11 +184,8 @@
               <button class="bn-control" id="bnCameraBtn" type="button" data-bn-action="toggle-camera" aria-pressed="false" aria-label="开启视频" title="开启视频">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
               </button>
-              <button class="bn-control bn-chat-control" id="bnFocusChatBtn" type="button" data-bn-action="toggle-focus-chat" aria-expanded="false" aria-label="文字聊天" title="文字聊天">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4z"/></svg>
-              </button>
             </div>
-            <form class="bn-focus-chat-form" id="bnFocusChatForm" hidden>
+            <form class="bn-focus-chat-form" id="bnFocusChatForm">
               <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="和 TA 说点什么…">
               <button type="submit" aria-label="发送">↑</button>
             </form>
@@ -560,8 +557,13 @@
     const card = document.getElementById('bnBodyDoubleCard');
     const list = document.getElementById('bnBodyDoubleList');
     if (!card || !list) return;
-    card.hidden = !state.bodyDoubleTodos.length;
+    card.hidden = false;
     document.getElementById('bnBodyDoubleName').textContent = currentOC().name || 'TA';
+    if (!state.bodyDoubleTodos.length) {
+      const activity = currentStatus?.name || currentStatus?.status || '专注';
+      list.innerHTML = `<div><i></i><span>${escapeText(currentOC().name || 'TA')} · 陪你${escapeText(activity)}</span><time>进行中</time></div>`;
+      return;
+    }
     const elapsedMinutes = Math.max(0, ((Number(selectedMinutes) || 25) * 60 - (Number(currentTime) || 0)) / 60);
     let cumulative = 0;
     list.innerHTML = state.bodyDoubleTodos.map(todo => {
@@ -645,12 +647,78 @@
   function toggleFocusChat(forceOpen) {
     const form = document.getElementById('bnFocusChatForm');
     const button = document.getElementById('bnFocusChatBtn');
-    if (!form || !button) return;
+    if (!form) return;
     const opening = typeof forceOpen === 'boolean' ? forceOpen : form.hidden;
     form.hidden = !opening;
-    button.classList.toggle('is-active', opening);
-    button.setAttribute('aria-expanded', String(opening));
+    button?.classList.toggle('is-active', opening);
+    button?.setAttribute('aria-expanded', String(opening));
     if (opening) window.setTimeout(() => document.getElementById('bnFocusChatInput')?.focus(), 50);
+  }
+
+  function setupCameraDrag() {
+    const preview = document.getElementById('bnCameraPreview');
+    const stage = preview?.parentElement;
+    if (!preview || !stage) return;
+    const storageKey = 'bnCameraPreviewPosition';
+    let drag = null;
+
+    const applySavedPosition = () => {
+      if (preview.hidden) return;
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+        if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.y)) return;
+        const maxLeft = Math.max(0, stage.clientWidth - preview.offsetWidth);
+        const maxTop = Math.max(0, stage.clientHeight - preview.offsetHeight);
+        preview.style.left = `${Math.round(Math.max(0, Math.min(1, saved.x)) * maxLeft)}px`;
+        preview.style.top = `${Math.round(Math.max(0, Math.min(1, saved.y)) * maxTop)}px`;
+        preview.style.right = 'auto';
+        preview.style.bottom = 'auto';
+      } catch (_) {}
+    };
+
+    preview.addEventListener('pointerdown', event => {
+      if (event.button !== 0) return;
+      const stageRect = stage.getBoundingClientRect();
+      const previewRect = preview.getBoundingClientRect();
+      drag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        left: previewRect.left - stageRect.left,
+        top: previewRect.top - stageRect.top
+      };
+      preview.setPointerCapture?.(event.pointerId);
+      preview.classList.add('is-dragging');
+      event.preventDefault();
+    });
+
+    preview.addEventListener('pointermove', event => {
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      const maxLeft = Math.max(0, stage.clientWidth - preview.offsetWidth);
+      const maxTop = Math.max(0, stage.clientHeight - preview.offsetHeight);
+      const left = Math.max(0, Math.min(maxLeft, drag.left + event.clientX - drag.startX));
+      const top = Math.max(0, Math.min(maxTop, drag.top + event.clientY - drag.startY));
+      preview.style.left = `${Math.round(left)}px`;
+      preview.style.top = `${Math.round(top)}px`;
+      preview.style.right = 'auto';
+      preview.style.bottom = 'auto';
+      event.preventDefault();
+    });
+
+    const finishDrag = event => {
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      const maxLeft = Math.max(1, stage.clientWidth - preview.offsetWidth);
+      const maxTop = Math.max(1, stage.clientHeight - preview.offsetHeight);
+      localStorage.setItem(storageKey, JSON.stringify({
+        x: Math.max(0, Math.min(1, preview.offsetLeft / maxLeft)),
+        y: Math.max(0, Math.min(1, preview.offsetTop / maxTop))
+      }));
+      preview.classList.remove('is-dragging');
+      drag = null;
+    };
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => preview.addEventListener(type, finishDrag));
+    new MutationObserver(applySavedPosition).observe(preview, { attributes: true, attributeFilter: ['hidden'] });
+    window.addEventListener('resize', applySavedPosition);
   }
 
   async function submitFocusChat(event) {
@@ -947,6 +1015,7 @@
       element.style.display = 'none';
     });
     bindEvents();
+    setupCameraDrag();
     loadPrototypeScene();
     setTimeout(() => {
       if (!isStatusSelected) setStatus(document.querySelector('.bn-status[data-bn-status="学习"]'));

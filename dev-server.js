@@ -41,6 +41,7 @@ const apiModules = {
   ttsStream: require('./api/tts-stream.js'),
   companionLogs: require('./api/companion-logs.js'),
   elevenlabsVoices: require('./api/elevenlabs-voices.js'),
+  personaImprove: require('./api/persona-improve.js'),
 };
 
 // 通用代理：把 Express req/res 包装成 Vercel 风格的 handler(req, res)
@@ -69,6 +70,7 @@ app.get('/api/vision-health', proxyApi(apiModules.visionHealth.handler));
 app.post('/api/tts-stream', proxyApi(apiModules.ttsStream.handler));
 app.all('/api/companion-logs', proxyApi(apiModules.companionLogs.handler));
 app.post('/api/elevenlabs-voices', proxyApi(apiModules.elevenlabsVoices.handler));
+app.post('/api/persona-improve', proxyApi(apiModules.personaImprove.handler));
 
 app.listen(PORT, () => {
   console.log(`🚀 伴柠番茄钟已启动: http://localhost:${PORT}`);

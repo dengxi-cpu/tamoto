@@ -96,7 +96,7 @@
           <section class="bn-beta-glass-card">
             <div class="bn-beta-card-grabber" aria-hidden="true"><i></i></div>
             <div class="bn-beta-tabs" role="tablist" aria-label="角色设置">
-              <button class="is-active" type="button" role="tab" aria-selected="true" data-bn-beta-tab="partner">伙伴设定</button>
+              <button class="is-active" type="button" role="tab" aria-selected="true" data-bn-beta-tab="partner">角色设定</button>
               <button type="button" role="tab" aria-selected="false" data-bn-beta-tab="voice">声音设定</button>
             </div>
             <div class="bn-beta-tab-stage">
@@ -587,21 +587,41 @@
     document.getElementById('bnBetaCtaName').textContent = name;
   }
 
-  function improveBetaPersona() {
+  async function improveBetaPersona() {
     const textarea = document.getElementById('bnBetaPersona');
     if (!textarea) return;
+    const button = document.querySelector('[data-bn-action="beta-improve-persona"]');
     const name = document.getElementById('bnBetaName')?.value.trim() || 'TA';
+    const userTitle = document.getElementById('bnBetaUserTitle')?.value.trim() || '你';
     const selectedRelationship = document.getElementById('bnBetaRelationship')?.value || '伙伴';
     const relationship = selectedRelationship === '自定义'
       ? (document.getElementById('bnBetaCustomRelationship')?.value.trim() || '伙伴')
       : selectedRelationship;
-    if (!textarea.value.trim()) {
-      textarea.value = `${name}安静温柔，会自然关注我的状态。作为我的${relationship}，平时陪我各自做事，只有在我分心太久时才轻声提醒。`;
-    } else if (!/陪|提醒|状态/.test(textarea.value)) {
-      textarea.value = `${textarea.value.trim()} 会留意我的状态，在我需要时温柔陪伴，并在分心太久时自然提醒。`;
+    const originalLabel = button?.textContent;
+    if (button) {
+      button.disabled = true;
+      button.textContent = '✦ 正在完善…';
     }
-    textarea.focus({ preventScroll:true });
-    toast('已帮你完善陪伴方式');
+    try {
+      const response = await fetch('/api/persona-improve', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ name, userTitle, relationship, persona:textarea.value.trim() })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'AI 完善失败');
+      textarea.value = payload.persona;
+      textarea.dispatchEvent(new Event('input', { bubbles:true }));
+      textarea.focus({ preventScroll:true });
+      toast('AI 已完善 TA 的人设');
+    } catch (error) {
+      toast(error.message || 'AI 完善失败，请重试');
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = originalLabel || '✦ AI 完善';
+      }
+    }
   }
 
   function previewSelectedBetaVoice() {

@@ -1107,6 +1107,156 @@ body.bn-beta-crop-open { overflow:hidden; }
   .bn-beta-primary { min-height:50px; }
 }
 
+/* Beta setup refinement: fewer containers, clearer iOS-style hierarchy. */
+.bn-beta-setup .bn-beta-form {
+  top:auto;
+  max-height:50dvh;
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+}
+.bn-beta-glass-card {
+  flex:0 1 auto;
+  min-height:0;
+  max-height:calc(50dvh - 59px);
+  display:flex;
+  flex-direction:column;
+  border:0;
+  border-radius:22px;
+  corner-shape:squircle;
+  background:linear-gradient(150deg,rgba(255,255,255,.105),rgba(255,255,255,.038) 62%,rgba(176,171,228,.035));
+  box-shadow:inset .7px .7px 0 rgba(255,255,255,.14),0 9px 28px rgba(0,0,0,.07);
+  -webkit-backdrop-filter:blur(17px) saturate(132%) brightness(1.025);
+  backdrop-filter:blur(17px) saturate(132%) brightness(1.025);
+}
+.bn-beta-glass-card::before {
+  content:'';
+  position:absolute;
+  z-index:1;
+  top:1px;
+  left:17px;
+  width:42%;
+  height:.5px;
+  border-radius:99px;
+  background:linear-gradient(90deg,rgba(255,255,255,.2),rgba(255,255,255,0));
+  pointer-events:none;
+}
+.bn-beta-tabs {
+  flex:0 0 34px;
+  height:34px;
+  padding:2px 9px 0;
+}
+.bn-beta-tabs button { color:rgba(255,255,255,.43); font-size:10.5px; font-weight:460; }
+.bn-beta-tabs button::after { left:36%; right:36%; bottom:0; height:.5px; background:rgba(183,178,238,.72); }
+.bn-beta-tabs button.is-active { color:rgba(255,255,255,.88); font-weight:580; }
+.bn-beta-tab-stage { flex:0 1 auto; height:auto; min-height:0; overflow:auto; scrollbar-width:none; }
+.bn-beta-tab-panel {
+  position:relative;
+  inset:auto;
+  display:none;
+  gap:7px;
+  padding:7px 12px 12px;
+  overflow:visible;
+  opacity:1;
+  visibility:visible;
+  transform:none;
+  transition:none;
+}
+.bn-beta-tab-panel.is-active { display:flex; animation:bn-beta-panel-in 190ms ease-out both; }
+@keyframes bn-beta-panel-in { from { opacity:0; transform:translateX(3px); } to { opacity:1; transform:none; } }
+.bn-beta-name-grid { gap:12px; }
+.bn-beta-setup .bn-beta-field { gap:1px; }
+.bn-beta-setup .bn-beta-field > span,.bn-beta-relation-block > span { color:rgba(255,255,255,.58); font-size:9px; font-weight:450; }
+.bn-beta-setup .bn-beta-field input {
+  height:29px;
+  border:0;
+  border-bottom:.5px solid rgba(255,255,255,.105);
+  border-radius:0;
+  padding:3px 1px 5px;
+  color:rgba(255,255,255,.92);
+  background:transparent;
+  box-shadow:none;
+  font-size:11.5px;
+  font-weight:480;
+}
+.bn-beta-setup .bn-beta-field input:focus { border-color:rgba(189,184,238,.38); box-shadow:none; }
+.bn-beta-relation-block { gap:3px; }
+.bn-beta-segments { grid-template-columns:repeat(5,1fr); gap:1px; padding:2px; border-radius:10px; background:rgba(255,255,255,.025); }
+.bn-beta-segments button,.bn-beta-voice {
+  border:0;
+  padding:5px 2px;
+  color:rgba(255,255,255,.48);
+  background:transparent;
+  box-shadow:none;
+  font-size:9.5px;
+  font-weight:460;
+}
+.bn-beta-segments button.is-active,.bn-beta-voice.is-active {
+  border:0;
+  color:rgba(255,255,255,.9);
+  background:rgba(170,165,226,.105);
+  box-shadow:inset .5px .5px 0 rgba(255,255,255,.1);
+}
+.bn-beta-persona-field { flex:0 0 auto; min-height:0; }
+.bn-beta-setup .bn-beta-persona-field textarea {
+  height:66px;
+  min-height:66px;
+  border:0;
+  border-radius:10px;
+  padding:7px 8px 23px;
+  color:rgba(255,255,255,.84);
+  background:rgba(255,255,255,.026);
+  box-shadow:inset .5px .5px 0 rgba(255,255,255,.055);
+  font-size:10.5px;
+  font-weight:430;
+  line-height:1.45;
+}
+.bn-beta-setup .bn-beta-persona-field textarea:focus { border:0; box-shadow:inset .5px .5px 0 rgba(255,255,255,.09); background:rgba(255,255,255,.038); }
+.bn-beta-persona-field button { right:5px; bottom:3px; color:rgba(255,255,255,.46); font-size:8.5px; font-weight:470; }
+.bn-beta-voice-chips { gap:3px; }
+.bn-beta-voice-chips .bn-beta-voice { flex-basis:calc(50% - 2px); padding:5px 4px; border-radius:9px; }
+.bn-beta-voice b { font-size:9.5px; font-weight:500; }
+.bn-beta-voice-preview {
+  grid-template-columns:30px minmax(0,1fr) 64px auto;
+  gap:7px;
+  margin-top:2px;
+  padding:8px 9px;
+  border:0;
+  border-radius:13px;
+  background:rgba(255,255,255,.045);
+  box-shadow:inset .6px .6px 0 rgba(255,255,255,.095);
+  -webkit-backdrop-filter:blur(8px) saturate(125%);
+  backdrop-filter:blur(8px) saturate(125%);
+}
+.bn-beta-voice-preview > button:first-child { width:28px; height:28px; border:0; background:rgba(255,255,255,.055); box-shadow:inset .5px .5px 0 rgba(255,255,255,.1); }
+.bn-beta-voice-preview > button:first-child svg { display:block; width:13px; height:13px; margin:auto; fill:rgba(255,255,255,.88); }
+.bn-beta-voice-preview b { font-size:10px; font-weight:540; }
+.bn-beta-voice-preview small { color:rgba(255,255,255,.4); font-size:8px; }
+.bn-beta-wave i { background:rgba(157,151,211,.5); }
+.bn-beta-voice-preview > button:last-child { color:rgba(255,255,255,.46); font-size:8.5px; }
+.bn-beta-tab-panel .bn-beta-note { margin:0 2px; color:rgba(255,255,255,.32); font-size:8px; line-height:1.35; }
+.bn-beta-primary {
+  flex:0 0 52px;
+  min-height:52px;
+  border:0;
+  border-radius:20px;
+  corner-shape:squircle;
+  background:linear-gradient(150deg,rgba(255,255,255,.17),rgba(188,184,238,.08) 62%,rgba(255,255,255,.055));
+  box-shadow:inset .8px .8px 0 rgba(255,255,255,.22),0 7px 22px rgba(0,0,0,.075);
+  -webkit-backdrop-filter:blur(15px) saturate(138%) brightness(1.075);
+  backdrop-filter:blur(15px) saturate(138%) brightness(1.075);
+}
+.bn-beta-primary::before { content:''; position:absolute; top:1px; left:18%; right:35%; height:.5px; border-radius:99px; background:linear-gradient(90deg,rgba(255,255,255,.28),transparent); }
+.bn-beta-primary strong { font-size:13px; font-weight:580; letter-spacing:-.01em; }
+.bn-beta-primary small { margin-top:1px; color:rgba(255,255,255,.48); font-size:8.5px; }
+@media (max-height:700px) {
+  .bn-beta-setup .bn-beta-form { max-height:51dvh; }
+  .bn-beta-glass-card { max-height:calc(51dvh - 55px); }
+  .bn-beta-tab-panel { gap:5px; padding:5px 9px 8px; }
+  .bn-beta-setup .bn-beta-persona-field textarea { height:58px; min-height:58px; }
+  .bn-beta-primary { flex-basis:48px; min-height:48px; }
+}
+
 @media (prefers-reduced-motion:reduce) { .bn-beta-tab-panel,.bn-beta-primary,.bn-beta-glass-card,.bn-beta-card-restore { transition-duration:1ms; } }
 @media (prefers-reduced-motion:reduce) { .bn-beta-meeting-panel { transition-duration:1ms; } }
 @media (prefers-reduced-transparency:reduce) { .bn-beta-glass-card,.bn-beta-primary,.bn-beta-crop { background:rgba(28,29,35,.94); -webkit-backdrop-filter:none; backdrop-filter:none; } }

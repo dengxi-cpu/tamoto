@@ -119,7 +119,7 @@
                   <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_liufei_uranus_bigtts" aria-pressed="false"><span><b>慵懒自然</b></span></button>
                 </div>
                 <div class="bn-beta-voice-preview">
-                  <button type="button" data-bn-action="beta-preview-voice" aria-label="试听当前声音">▶</button>
+                  <button type="button" data-bn-action="beta-preview-voice" aria-label="试听当前声音"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.2 5.7v12.6c0 .9 1 1.45 1.78.98l9.42-6.3a1.16 1.16 0 000-1.96l-9.42-6.3A1.16 1.16 0 008.2 5.7z"/></svg></button>
                   <div><b id="bnBetaVoiceName">温柔低沉</b><small>“我在，慢慢来。”</small></div>
                   <div class="bn-beta-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
                   <button type="button" data-bn-action="beta-next-voice">更换 ›</button>

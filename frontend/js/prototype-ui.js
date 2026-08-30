@@ -18,7 +18,11 @@
     betaBackground: '',
     betaMeetingTask: '',
     bodyDoubleActivity: '看书',
-    bodyDoubleTodos: []
+    bodyDoubleTodos: [],
+    composerLayoutHeight: 0,
+    composerViewportHandler: null,
+    composerUnlockTimer: null,
+    composerCloseTimer: null
   };
 
   const captions = [
@@ -188,15 +192,12 @@
             </div>
           </div>
         </div>
-        <div class="bn-chat-sheet-layer" id="bnChatSheetLayer" hidden>
-          <button class="bn-chat-sheet-backdrop" type="button" aria-label="收起聊天面板"></button>
-          <section class="bn-chat-sheet" id="bnChatSheet" role="dialog" aria-modal="true" aria-label="和 TA 聊天">
-            <div class="bn-chat-sheet-handle" aria-hidden="true"></div>
-            <form class="bn-focus-chat-form" id="bnFocusChatForm">
-              <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="和小艾说点什么……">
-              <button type="submit" aria-label="发送"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4 18-7z"/></svg></button>
-            </form>
-          </section>
+        <div class="bn-chat-composer-layer" id="bnChatSheetLayer" hidden>
+          <button class="bn-chat-composer-dismiss" type="button" aria-label="收起文字输入"></button>
+          <form class="bn-focus-chat-form bn-floating-composer" id="bnFocusChatForm">
+            <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="和沈星回说点什么……">
+            <button type="submit" aria-label="发送"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4 18-7z"/></svg></button>
+          </form>
         </div>
         <div class="bn-end-confirm" id="bnEndConfirm" hidden>
           <div class="bn-end-confirm-card" role="dialog" aria-modal="true" aria-labelledby="bnEndConfirmTitle">
@@ -665,14 +666,49 @@
   function toggleFocusChat(forceOpen) {
     const layer = document.getElementById('bnChatSheetLayer');
     if (!layer) return;
-    const opening = typeof forceOpen === 'boolean' ? forceOpen : layer.hidden;
-    layer.hidden = !opening;
-    layer.classList.toggle('is-open', opening);
-    renderFocusChatHistory();
+    const currentlyOpen = !layer.hidden && !layer.classList.contains('is-closing');
+    const opening = typeof forceOpen === 'boolean' ? forceOpen : !currentlyOpen;
+    const running = document.querySelector('.bn-focus-running');
+    const viewport = window.visualViewport;
+    window.clearTimeout(state.composerUnlockTimer);
+    window.clearTimeout(state.composerCloseTimer);
     if (opening) {
+      layer.hidden = false;
+      layer.classList.remove('is-closing');
+      layer.classList.add('is-open');
+      state.composerLayoutHeight = Math.round(running?.getBoundingClientRect().height || window.innerHeight);
+      running?.style.setProperty('--bn-focus-locked-height', `${state.composerLayoutHeight}px`);
+      document.body.classList.add('bn-composer-open');
+      const updatePosition = () => {
+        const visibleBottom = viewport ? viewport.height + viewport.offsetTop : window.innerHeight;
+        const keyboardInset = Math.max(0, state.composerLayoutHeight - visibleBottom);
+        layer.style.setProperty('--bn-keyboard-inset', `${Math.round(keyboardInset)}px`);
+      };
+      state.composerViewportHandler = updatePosition;
+      viewport?.addEventListener('resize', updatePosition);
+      viewport?.addEventListener('scroll', updatePosition);
+      updatePosition();
       const input = document.getElementById('bnFocusChatInput');
       input?.focus({ preventScroll:true });
       window.setTimeout(() => input?.focus({ preventScroll:true }), 80);
+    } else {
+      layer.classList.remove('is-open');
+      layer.classList.add('is-closing');
+      document.getElementById('bnFocusChatInput')?.blur();
+      if (state.composerViewportHandler) {
+        viewport?.removeEventListener('resize', state.composerViewportHandler);
+        viewport?.removeEventListener('scroll', state.composerViewportHandler);
+        state.composerViewportHandler = null;
+      }
+      state.composerUnlockTimer = window.setTimeout(() => {
+        running?.style.removeProperty('--bn-focus-locked-height');
+        document.body.classList.remove('bn-composer-open');
+        layer.style.removeProperty('--bn-keyboard-inset');
+      }, 320);
+      state.composerCloseTimer = window.setTimeout(() => {
+        layer.hidden = true;
+        layer.classList.remove('is-closing');
+      }, 190);
     }
   }
 
@@ -705,33 +741,6 @@
       ? history.map(item => `<div class="is-${item.role}">${escapeText(item.text)}</div>`).join('')
       : '<p>现在还没有对话，和 TA 说点什么吧。</p>';
     list.scrollTop = list.scrollHeight;
-  }
-
-  function setupChatSheetDrag() {
-    const layer = document.getElementById('bnChatSheetLayer');
-    const sheet = document.getElementById('bnChatSheet');
-    if (!layer || !sheet) return;
-    let drag = null;
-    sheet.addEventListener('pointerdown', event => {
-      if (event.target.closest('input,button,.bn-chat-sheet-messages')) return;
-      drag = { id:event.pointerId, y:event.clientY };
-      sheet.setPointerCapture?.(event.pointerId);
-    });
-    sheet.addEventListener('pointermove', event => {
-      if (!drag || drag.id !== event.pointerId) return;
-      const distance = Math.max(0, event.clientY - drag.y);
-      sheet.style.transform = `translateY(${distance}px)`;
-      layer.style.setProperty('--bn-sheet-dim', String(Math.max(0, 1 - distance / 260)));
-    });
-    const finish = event => {
-      if (!drag || drag.id !== event.pointerId) return;
-      const distance = Math.max(0, event.clientY - drag.y);
-      drag = null;
-      sheet.style.transform = '';
-      layer.style.removeProperty('--bn-sheet-dim');
-      if (distance > 72) toggleFocusChat(false);
-    };
-    ['pointerup','pointercancel','lostpointercapture'].forEach(type => sheet.addEventListener(type, finish));
   }
 
   function setupCameraDrag() {
@@ -844,6 +853,7 @@
     if (!text || !window.focusCompanion?.sendDialogue) return;
     input.value = '';
     appendFocusChatHistory('user', text);
+    toggleFocusChat(false);
     input.disabled = true;
     button.disabled = true;
     try {
@@ -851,7 +861,7 @@
     } finally {
       input.disabled = false;
       button.disabled = false;
-      input.focus();
+      if (!document.getElementById('bnChatSheetLayer')?.hidden) input.focus({ preventScroll:true });
     }
   }
 
@@ -1067,8 +1077,7 @@
     document.querySelectorAll('.bn-acc-head').forEach(button => button.addEventListener('click', () => button.parentElement.classList.toggle('is-open')));
     document.getElementById('bnChatForm').addEventListener('submit', submitChat);
     document.getElementById('bnFocusChatForm').addEventListener('submit', submitFocusChat);
-    document.querySelector('.bn-chat-sheet-backdrop').addEventListener('click', () => toggleFocusChat(false));
-    setupChatSheetDrag();
+    document.querySelector('.bn-chat-composer-dismiss').addEventListener('click', () => toggleFocusChat(false));
     document.getElementById('bnTaskInput').addEventListener('change', syncTaskInput);
     document.getElementById('bnBetaRoleForm').addEventListener('submit', saveBetaRole);
     document.getElementById('bnBetaMeetingForm').addEventListener('submit', submitBetaMeetingTask);

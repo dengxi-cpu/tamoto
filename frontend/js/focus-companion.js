@@ -287,7 +287,7 @@
         caption.appendChild(bubble);
         const visibleBubbles = [...caption.querySelectorAll('.bn-speech-message:not(.is-leaving)')];
         while (visibleBubbles.length > 2) dismissConversationMessage(visibleBubbles.shift());
-        messageTimers.set(bubble, window.setTimeout(() => dismissConversationMessage(bubble), 20000));
+        messageTimers.set(bubble, window.setTimeout(() => dismissConversationMessage(bubble), 8000));
     }
 
     function appendSpeechMessage(text) {

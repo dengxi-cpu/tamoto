@@ -1249,17 +1249,38 @@ body.bn-beta-crop-open { overflow:hidden; }
 .bn-beta-primary::before { content:''; position:absolute; top:1px; left:18%; right:35%; height:.5px; border-radius:99px; background:linear-gradient(90deg,rgba(255,255,255,.28),transparent); }
 .bn-beta-primary strong { font-size:13px; font-weight:580; letter-spacing:-.01em; }
 .bn-beta-primary small { margin-top:1px; color:rgba(255,255,255,.48); font-size:8.5px; }
+.bn-beta-start-together {
+  position:relative;
+  overflow:hidden;
+  min-height:52px;
+  border:0;
+  border-radius:20px;
+  corner-shape:squircle;
+  padding:12px 16px;
+  color:rgba(255,255,255,.96);
+  background:linear-gradient(150deg,rgba(255,255,255,.17),rgba(188,184,238,.08) 62%,rgba(255,255,255,.055));
+  box-shadow:inset .8px .8px 0 rgba(255,255,255,.22),0 7px 22px rgba(0,0,0,.075);
+  -webkit-backdrop-filter:blur(15px) saturate(138%) brightness(1.075);
+  backdrop-filter:blur(15px) saturate(138%) brightness(1.075);
+  font:580 13px/1.25 inherit;
+  letter-spacing:-.01em;
+  transition:transform 110ms ease-out,opacity 110ms ease-out;
+}
+.bn-beta-start-together::before { content:''; position:absolute; top:1px; left:18%; right:35%; height:.5px; border-radius:99px; background:linear-gradient(90deg,rgba(255,255,255,.28),transparent); pointer-events:none; }
+.bn-beta-start-together:active:not(:disabled) { transform:scale(.985); opacity:.86; }
+.bn-beta-start-together:disabled { opacity:.58; }
 @media (max-height:700px) {
   .bn-beta-setup .bn-beta-form { max-height:51dvh; }
   .bn-beta-glass-card { max-height:calc(51dvh - 55px); }
   .bn-beta-tab-panel { gap:5px; padding:5px 9px 8px; }
   .bn-beta-setup .bn-beta-persona-field textarea { height:58px; min-height:58px; }
   .bn-beta-primary { flex-basis:48px; min-height:48px; }
+  .bn-beta-start-together { min-height:48px; }
 }
 
 @media (prefers-reduced-motion:reduce) { .bn-beta-tab-panel,.bn-beta-primary,.bn-beta-glass-card,.bn-beta-card-restore { transition-duration:1ms; } }
 @media (prefers-reduced-motion:reduce) { .bn-beta-meeting-panel { transition-duration:1ms; } }
-@media (prefers-reduced-transparency:reduce) { .bn-beta-glass-card,.bn-beta-primary,.bn-beta-crop { background:rgba(28,29,35,.94); -webkit-backdrop-filter:none; backdrop-filter:none; } }
+@media (prefers-reduced-transparency:reduce) { .bn-beta-glass-card,.bn-beta-primary,.bn-beta-start-together,.bn-beta-crop { background:rgba(28,29,35,.94); -webkit-backdrop-filter:none; backdrop-filter:none; } }
 
 @media (min-width: 700px) {
   .bn-app { min-height:calc(100dvh - 40px); margin:20px auto; border:1px solid rgba(107,91,149,.12); border-radius:30px; }

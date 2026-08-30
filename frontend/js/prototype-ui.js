@@ -568,6 +568,7 @@
     const companionName = currentOC().name || 'TA';
     const totalMinutes = Math.max(1, Number(selectedMinutes) || 25);
     const elapsedMinutes = Math.max(0, Math.min(totalMinutes, (totalMinutes * 60 - (Number(currentTime) || 0)) / 60));
+    const userProgress = Math.round((elapsedMinutes / totalMinutes) * 100);
     const taskName = currentTask?.name || '专注任务';
     document.getElementById('bnBodyDoubleName').textContent = '专注进度';
     let companionTask = `陪你${currentStatus?.name || currentStatus?.status || '专注'}`;
@@ -582,10 +583,12 @@
         activeTaskFound = true;
       }
     });
-    const companionTotal = Math.max(1, state.bodyDoubleTodos.length || 1);
+    const companionTotal = Math.max(1, state.bodyDoubleTodos.reduce((sum, todo) => sum + (Number(todo.minutes) || 0), 0) || totalMinutes);
+    const companionElapsed = Math.floor(Math.min(companionTotal, elapsedMinutes));
+    const companionProgress = Math.round((companionElapsed / companionTotal) * 100);
     list.innerHTML = `
-      <div class="bn-focus-progress-row"><span class="bn-progress-icon"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/></svg></span><span class="bn-progress-copy"><b>我 · ${escapeText(taskName)}</b></span><time>${Math.floor(elapsedMinutes)} / ${totalMinutes}</time></div>
-      <div class="bn-focus-progress-row"><span class="bn-progress-icon"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/></svg></span><span class="bn-progress-copy"><b>${escapeText(companionName)} · ${escapeText(companionTask)}</b></span><time>${companionDone} / ${companionTotal}</time></div>`;
+      <div class="bn-focus-progress-row"><span class="bn-task-dot"></span><span class="bn-task-person">${escapeText(companionName)}</span><span class="bn-task-label">${escapeText(companionTask)}</span><time><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"/><circle class="is-value" cx="10" cy="10" r="7" pathLength="100" stroke-dasharray="${companionProgress} 100"/></svg>${companionElapsed}/${companionTotal}</time></div>
+      <div class="bn-focus-progress-row"><span class="bn-task-dot"></span><span class="bn-task-person">你</span><span class="bn-task-label">${escapeText(taskName)}</span><time><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"/><circle class="is-value" cx="10" cy="10" r="7" pathLength="100" stroke-dasharray="${userProgress} 100"/></svg>${Math.floor(elapsedMinutes)}/${totalMinutes}</time></div>`;
   }
 
   function ensureRainAudio() {

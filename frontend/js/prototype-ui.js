@@ -63,37 +63,61 @@
     app.className = 'bn-app';
     app.innerHTML = `
       <section class="bn-screen bn-beta-setup${isBetaMode ? ' is-active' : ''}" data-bn-screen="beta-setup">
-        <div class="bn-beta-heading">
-          <div class="bn-eyebrow"><span class="bn-dot"></span>伴柠内测</div>
-          <h1>先让我认识 TA</h1>
-          <p>只设置陪伴需要的内容，之后随时可以回来修改。</p>
+        <img class="bn-beta-scene" id="bnBetaBackgroundPreview" alt="TA 的完整陪伴场景">
+        <div class="bn-beta-scene-shade"></div>
+        <header class="bn-beta-heading">
+          <h1>今天，想让谁陪你？</h1>
+          <p>选一个喜欢的人，陪你把今天的事情做完。</p>
+        </header>
+        <div class="bn-beta-role-presence">
+          <strong id="bnBetaHeroName">TA</strong>
+          <span>你的专注伙伴 · 已陪伴 20 天</span>
+          <small><i></i>在等你</small>
         </div>
+        <div class="bn-beta-role-bubble">来了？<br>书已经拿好了，<br>今天也一起？</div>
+        <label class="bn-beta-image-change" for="bnBetaBackgroundInput">更换场景</label>
+        <input id="bnBetaBackgroundInput" type="file" accept="image/*" hidden>
         <form class="bn-beta-form" id="bnBetaRoleForm">
-          <label class="bn-beta-background" for="bnBetaBackgroundInput">
-            <img id="bnBetaBackgroundPreview" alt="TA 的背景预览">
-            <span><b>上传 TA 的背景</b><small>建议使用竖图，作为专注时的主画面</small></span>
-            <em>更换图片</em>
-          </label>
-          <input id="bnBetaBackgroundInput" type="file" accept="image/*" hidden>
-
-          <label class="bn-beta-field"><span>TA 的名字</span><input id="bnBetaName" maxlength="20" placeholder="TA 叫什么？" required></label>
-          <label class="bn-beta-field"><span>TA 怎么叫你</span><input id="bnBetaUserTitle" maxlength="20" list="bnBetaTitleOptions" placeholder="例如：大小姐、宝宝、姐姐" required></label>
-          <datalist id="bnBetaTitleOptions"><option value="大小姐"><option value="宝宝"><option value="姐姐"><option value="同学"></datalist>
-          <label class="bn-beta-field"><span>你们的关系</span><select id="bnBetaRelationship"><option>恋人</option><option>朋友</option><option selected>学习搭子</option><option>家人</option><option value="自定义">自定义</option></select></label>
-          <label class="bn-beta-field bn-beta-custom-relation" id="bnBetaCustomRelationWrap" hidden><span>自定义关系</span><input id="bnBetaCustomRelationship" maxlength="20" placeholder="写下你们的关系"></label>
-          <label class="bn-beta-field"><span>TA 的人设</span><textarea id="bnBetaPersona" maxlength="3000" rows="7" placeholder="直接粘贴完整人设。可以写性格、说话习惯、相处方式，以及希望 TA 怎么陪你。"></textarea></label>
-
-          <fieldset class="bn-beta-voices"><legend>音色选择 · 点击试听</legend>
-            <button class="bn-beta-voice is-active" type="button" data-bn-beta-voice="zh_male_ruyayichen_saturn_bigtts" aria-pressed="true"><i>▶</i><span><b>儒雅逸辰</b><small>温润 · 书卷气 · 陪伴感</small></span><em>已选择</em></button>
-            <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_m191_uranus_bigtts" aria-pressed="false"><i>▶</i><span><b>云舟 2.0</b><small>成熟 · 磁性 · 稳重</small></span><em>选择</em></button>
-            <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_taocheng_uranus_bigtts" aria-pressed="false"><i>▶</i><span><b>小天 2.0</b><small>年轻 · 清朗 · 阳光</small></span><em>选择</em></button>
-            <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_liufei_uranus_bigtts" aria-pressed="false"><i>▶</i><span><b>刘飞 2.0</b><small>自然 · 亲近 · 日常</small></span><em>选择</em></button>
-            <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_fanjuanqingnian_uranus_bigtts" aria-pressed="false"><i>▶</i><span><b>反卷青年</b><small>松弛 · 随性 · 朋友感</small></span><em>选择</em></button>
-            <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_yizhipiannan_uranus_bigtts" aria-pressed="false"><i>▶</i><span><b>译制片男声</b><small>低沉 · 戏剧感 · 成熟</small></span><em>选择</em></button>
-          </fieldset>
-          <p class="bn-beta-note">选择会应用到见面、氛围、事件和对话语音。</p>
+          <section class="bn-beta-glass-card">
+            <div class="bn-beta-tabs" role="tablist" aria-label="角色设置">
+              <button class="is-active" type="button" role="tab" aria-selected="true" data-bn-beta-tab="partner">伙伴设定</button>
+              <button type="button" role="tab" aria-selected="false" data-bn-beta-tab="voice">声音设定</button>
+            </div>
+            <div class="bn-beta-tab-stage">
+              <div class="bn-beta-tab-panel is-active" data-bn-beta-panel="partner" role="tabpanel">
+                <div class="bn-beta-name-grid">
+                  <label class="bn-beta-field"><span>TA 的名字</span><input id="bnBetaName" maxlength="20" placeholder="TA 叫什么？" required></label>
+                  <label class="bn-beta-field"><span>TA 怎么称呼你</span><input id="bnBetaUserTitle" maxlength="20" list="bnBetaTitleOptions" placeholder="例如：宝宝" required></label>
+                </div>
+                <datalist id="bnBetaTitleOptions"><option value="大小姐"><option value="宝宝"><option value="姐姐"><option value="同学"></datalist>
+                <div class="bn-beta-relation-block"><span>你的关系</span>
+                  <div class="bn-beta-segments" role="group" aria-label="你的关系">
+                    <button type="button" data-bn-beta-relation="恋人">恋人</button><button type="button" data-bn-beta-relation="朋友">朋友</button><button type="button" data-bn-beta-relation="暧昧">暧昧</button><button type="button" data-bn-beta-relation="搭子">搭子</button><button type="button" data-bn-beta-relation="自定义">自定义</button>
+                  </div>
+                  <select id="bnBetaRelationship" hidden><option>恋人</option><option>朋友</option><option>暧昧</option><option>搭子</option><option value="自定义">自定义</option></select>
+                </div>
+                <label class="bn-beta-field bn-beta-custom-relation" id="bnBetaCustomRelationWrap" hidden><span>自定义关系</span><input id="bnBetaCustomRelationship" maxlength="20" placeholder="写下你们的关系"></label>
+                <label class="bn-beta-field bn-beta-persona-field"><span>TA 的人设</span><textarea id="bnBetaPersona" maxlength="3000" rows="3" placeholder="写下 TA 的性格、说话习惯和陪伴方式。"></textarea><button type="button" data-bn-action="beta-improve-persona">✦ AI 完善</button></label>
+              </div>
+              <div class="bn-beta-tab-panel" data-bn-beta-panel="voice" role="tabpanel" aria-hidden="true">
+                <div class="bn-beta-voice-chips" role="group" aria-label="声音气质">
+                  <button class="bn-beta-voice is-active" type="button" data-bn-beta-voice="zh_male_ruyayichen_saturn_bigtts" aria-pressed="true"><span><b>温柔低沉</b></span></button>
+                  <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_m191_uranus_bigtts" aria-pressed="false"><span><b>清冷沉稳</b></span></button>
+                  <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_taocheng_uranus_bigtts" aria-pressed="false"><span><b>温暖治愈</b></span></button>
+                  <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_liufei_uranus_bigtts" aria-pressed="false"><span><b>慵懒自然</b></span></button>
+                </div>
+                <div class="bn-beta-voice-preview">
+                  <button type="button" data-bn-action="beta-preview-voice" aria-label="试听当前声音">▶</button>
+                  <div><b id="bnBetaVoiceName">温柔低沉</b><small>“我在，慢慢来。”</small></div>
+                  <div class="bn-beta-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                  <button type="button" data-bn-action="beta-next-voice">更换 ›</button>
+                </div>
+                <p class="bn-beta-note">声音会应用到见面、氛围、事件和对话。</p>
+              </div>
+            </div>
+          </section>
           <div class="bn-focus-hint" id="bnBetaRoleHint"></div>
-          <button class="bn-primary" type="submit">保存并见面 →</button>
+          <button class="bn-beta-primary" type="submit"><strong>和<span id="bnBetaCtaName">TA</span>一起开始专注</strong><small>25 min · 番茄钟</small></button>
         </form>
       </section>
 
@@ -338,6 +362,68 @@
     modal.hidden = !show;
   }
 
+  function setBetaTab(tabName) {
+    document.querySelectorAll('[data-bn-beta-tab]').forEach(button => {
+      const active = button.dataset.bnBetaTab === tabName;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-selected', String(active));
+    });
+    document.querySelectorAll('[data-bn-beta-panel]').forEach(panel => {
+      const active = panel.dataset.bnBetaPanel === tabName;
+      panel.classList.toggle('is-active', active);
+      panel.setAttribute('aria-hidden', String(!active));
+    });
+  }
+
+  function setBetaRelationship(value) {
+    const select = document.getElementById('bnBetaRelationship');
+    if (!select) return;
+    select.value = value;
+    document.querySelectorAll('[data-bn-beta-relation]').forEach(button => {
+      const active = button.dataset.bnBetaRelation === value;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    document.getElementById('bnBetaCustomRelationWrap').hidden = value !== '自定义';
+  }
+
+  function updateBetaIdentity() {
+    const name = document.getElementById('bnBetaName')?.value.trim() || 'TA';
+    document.getElementById('bnBetaHeroName').textContent = name;
+    document.getElementById('bnBetaCtaName').textContent = name;
+  }
+
+  function improveBetaPersona() {
+    const textarea = document.getElementById('bnBetaPersona');
+    if (!textarea) return;
+    const name = document.getElementById('bnBetaName')?.value.trim() || 'TA';
+    const selectedRelationship = document.getElementById('bnBetaRelationship')?.value || '伙伴';
+    const relationship = selectedRelationship === '自定义'
+      ? (document.getElementById('bnBetaCustomRelationship')?.value.trim() || '伙伴')
+      : selectedRelationship;
+    if (!textarea.value.trim()) {
+      textarea.value = `${name}安静温柔，会自然关注我的状态。作为我的${relationship}，平时陪我各自做事，只有在我分心太久时才轻声提醒。`;
+    } else if (!/陪|提醒|状态/.test(textarea.value)) {
+      textarea.value = `${textarea.value.trim()} 会留意我的状态，在我需要时温柔陪伴，并在分心太久时自然提醒。`;
+    }
+    textarea.focus({ preventScroll:true });
+    toast('已帮你完善陪伴方式');
+  }
+
+  function previewSelectedBetaVoice() {
+    const selected = document.querySelector('[data-bn-beta-voice].is-active');
+    if (!selected) return;
+    window.focusCompanion?.previewVoice(selected.dataset.bnBetaVoice);
+    toast(`正在试听${selected.querySelector('b')?.textContent || '当前声音'}`);
+  }
+
+  function selectNextBetaVoice() {
+    const voices = Array.from(document.querySelectorAll('[data-bn-beta-voice]'));
+    if (!voices.length) return;
+    const activeIndex = voices.findIndex(button => button.classList.contains('is-active'));
+    voices[(activeIndex + 1) % voices.length].click();
+  }
+
   function populateBetaRoleForm() {
     if (!isBetaMode) return;
     const oc = currentOC();
@@ -345,19 +431,22 @@
     document.getElementById('bnBetaBackgroundPreview').src = state.betaBackground;
     document.getElementById('bnBetaName').value = oc.name || '';
     document.getElementById('bnBetaUserTitle').value = oc.userTitle || '大小姐';
-    const relation = oc.relationship || '学习搭子';
+    const relation = oc.relationship === '学习搭子' ? '搭子' : (oc.relationship || '搭子');
     const select = document.getElementById('bnBetaRelationship');
     const standard = Array.from(select.options).some(option => option.value === relation && relation !== '自定义');
-    select.value = standard ? relation : '自定义';
+    setBetaRelationship(standard ? relation : '自定义');
     document.getElementById('bnBetaCustomRelationship').value = standard ? '' : relation;
-    document.getElementById('bnBetaCustomRelationWrap').hidden = standard;
     document.getElementById('bnBetaPersona').value = oc.characterDescription || '';
     document.querySelectorAll('[data-bn-beta-voice]').forEach(button => {
       const active = button.dataset.bnBetaVoice === (oc.voiceType || 'zh_male_ruyayichen_saturn_bigtts');
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', String(active));
-      button.querySelector('em').textContent = active ? '已选择' : '选择';
+      const label = button.querySelector('em');
+      if (label) label.textContent = active ? '已选择' : '选择';
+      if (active) document.getElementById('bnBetaVoiceName').textContent = button.querySelector('b')?.textContent || '当前声音';
     });
+    updateBetaIdentity();
+    setBetaTab('partner');
   }
 
   function compressBetaBackground(file) {
@@ -1054,6 +1143,10 @@
     document.getElementById('bnApp').addEventListener('click', event => {
       const go = event.target.closest('[data-bn-go]');
       if (go) return switchTab(go.dataset.bnGo);
+      const betaTab = event.target.closest('[data-bn-beta-tab]');
+      if (betaTab) return setBetaTab(betaTab.dataset.bnBetaTab);
+      const betaRelation = event.target.closest('[data-bn-beta-relation]');
+      if (betaRelation) return setBetaRelationship(betaRelation.dataset.bnBetaRelation);
       const duration = event.target.closest('[data-bn-minutes]');
       if (duration) return setDuration(duration.dataset.bnMinutes, duration);
       const status = event.target.closest('[data-bn-status]');
@@ -1064,8 +1157,10 @@
           const active = button === betaVoice;
           button.classList.toggle('is-active', active);
           button.setAttribute('aria-pressed', String(active));
-          button.querySelector('em').textContent = active ? '已选择' : '选择';
+          const label = button.querySelector('em');
+          if (label) label.textContent = active ? '已选择' : '选择';
         });
+        document.getElementById('bnBetaVoiceName').textContent = betaVoice.querySelector('b')?.textContent || '当前声音';
         window.focusCompanion?.previewVoice(betaVoice.dataset.bnBetaVoice);
         toast(`正在试听${betaVoice.querySelector('b')?.textContent || '男声'}`);
         return;
@@ -1097,6 +1192,9 @@
       }
       if (type === 'beta-start-together') startBetaFocus();
       if (type === 'roll-body-double') rollBodyDouble();
+      if (type === 'beta-improve-persona') improveBetaPersona();
+      if (type === 'beta-preview-voice') previewSelectedBetaVoice();
+      if (type === 'beta-next-voice') selectNextBetaVoice();
       if (type === 'gifts' && typeof showGiftModal === 'function') showGiftModal();
       if (type === 'edit-oc' || type === 'new-oc' || type === 'advanced') {
         toast('该功能正在迁移到新界面');
@@ -1112,8 +1210,9 @@
     document.getElementById('bnBetaMeetingForm').addEventListener('submit', submitBetaMeetingTask);
     document.getElementById('bnBetaBackgroundInput').addEventListener('change', event => handleBetaBackground(event.target.files?.[0]));
     document.getElementById('bnBetaRelationship').addEventListener('change', event => {
-      document.getElementById('bnBetaCustomRelationWrap').hidden = event.target.value !== '自定义';
+      setBetaRelationship(event.target.value);
     });
+    document.getElementById('bnBetaName').addEventListener('input', updateBetaIdentity);
     const voiceButton = document.getElementById('bnVoiceInputBtn');
     if (voiceButton && window.focusCompanion) {
       let dialogueGesture = null;

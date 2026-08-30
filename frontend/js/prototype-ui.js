@@ -163,8 +163,13 @@
       <section class="bn-screen bn-focus-running" data-bn-screen="running">
         <div class="bn-stage">
           <img class="bn-stage-img" id="bnStageImage" alt="OC 陪伴场景">
-          <div class="bn-camera-preview is-placeholder" id="bnCameraPreview" aria-label="用户摄像头未开启，可拖动或双指缩放">
+          <div class="bn-camera-preview is-placeholder" id="bnCameraPreview" data-camera-state="camera-off" role="button" tabindex="0" aria-label="点击开启摄像头，可拖动或双指缩放">
             <video id="bnCameraVideo" autoplay muted playsinline aria-label="你的摄像头预览"></video>
+            <div class="bn-camera-placeholder" aria-hidden="true">
+              <svg class="bn-camera-person" viewBox="0 0 32 32"><circle cx="16" cy="11" r="5"/><path d="M7.5 27c.7-6 4-9 8.5-9s7.8 3 8.5 9"/></svg>
+              <svg class="bn-camera-off-icon" viewBox="0 0 24 24"><path d="M4 7.5A2.5 2.5 0 016.5 5h8A2.5 2.5 0 0117 7.5v9a2.5 2.5 0 01-2.5 2.5h-8A2.5 2.5 0 014 16.5v-9zM17 10l4-2v8l-4-2M3 3l18 18"/></svg>
+              <span class="bn-camera-loader"></span>
+            </div>
           </div>
         </div>
         <div class="bn-focus-overlay">
@@ -791,7 +796,8 @@
         startX: event.clientX,
         startY: event.clientY,
         left: previewRect.left - stageRect.left,
-        top: previewRect.top - stageRect.top
+        top: previewRect.top - stageRect.top,
+        moved: false
       };
       pointers.set(event.pointerId, { x:event.clientX, y:event.clientY });
       if (pointers.size === 2) pinch = { distance:pointerDistance(), width:preview.offsetWidth };
@@ -814,6 +820,7 @@
         return;
       }
       if (!drag || drag.pointerId !== event.pointerId) return;
+      if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 6) drag.moved = true;
       const maxLeft = Math.max(0, stage.clientWidth - preview.offsetWidth);
       const maxTop = Math.max(0, stage.clientHeight - preview.offsetHeight);
       const left = Math.max(0, Math.min(maxLeft, drag.left + event.clientX - drag.startX));
@@ -827,18 +834,25 @@
 
     const finishDrag = event => {
       if (!pointers.has(event.pointerId)) return;
+      const tapped = event.type === 'pointerup' && pointers.size === 1 && drag?.pointerId === event.pointerId && !drag.moved;
       pointers.delete(event.pointerId);
       if (drag?.pointerId === event.pointerId) drag = null;
       pinch = null;
       if (pointers.size === 1) {
         const [pointerId, point] = pointers.entries().next().value;
-        drag = { pointerId, startX:point.x, startY:point.y, left:preview.offsetLeft, top:preview.offsetTop };
+        drag = { pointerId, startX:point.x, startY:point.y, left:preview.offsetLeft, top:preview.offsetTop, moved:true };
       } else {
         preview.classList.remove('is-dragging');
       }
       savePreview();
+      if (tapped) window.focusCompanion?.toggleCamera();
     };
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => preview.addEventListener(type, finishDrag));
+    preview.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      window.focusCompanion?.toggleCamera();
+    });
     new MutationObserver(applySavedPosition).observe(preview, { attributes: true, attributeFilter: ['hidden'] });
     window.addEventListener('resize', applySavedPosition);
     window.requestAnimationFrame(applySavedPosition);

@@ -474,8 +474,8 @@ body.bn-ui-active .fixed.inset-0.pointer-events-none { display:none !important; 
   background:#fff;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 12px 28px rgba(0,0,0,.2);
 }
-.bn-focus-running .bn-camera-preview video { opacity:1; transition:opacity 180ms ease; }
-.bn-focus-running .bn-camera-preview.is-placeholder video { opacity:0; }
+.bn-focus-running .bn-camera-preview video { position:relative; z-index:0; opacity:0; transition:opacity 240ms ease-out; }
+.bn-focus-running .bn-camera-preview[data-camera-state="camera-on"] video { opacity:1; }
 .bn-focus-running .bn-body-double-card { width:min(45vw,184px); margin-top:22px; }
 .bn-focus-running .bn-body-double-card #bnBodyDoubleList { gap:10px; }
 .bn-focus-running .bn-body-double-card #bnBodyDoubleList > .bn-focus-progress-row { grid-template-columns:4px 38px minmax(0,1fr) 42px; gap:5px; align-items:center; min-width:0; font-size:9.5px; }
@@ -692,10 +692,59 @@ body.bn-composer-open .bn-focus-overlay { opacity:.88; transition:opacity 220ms 
   border:0;
   border-radius:18px;
   corner-shape:squircle;
-  background:#21162d;
+  background:rgba(17,18,23,.18);
   box-shadow:0 16px 38px rgba(0,0,0,.16),0 3px 10px rgba(0,0,0,.08);
   isolation:isolate;
 }
+.bn-camera-placeholder {
+  position:absolute;
+  z-index:1;
+  inset:0;
+  display:grid;
+  place-items:center;
+  color:rgba(255,255,255,.42);
+  background:linear-gradient(145deg,rgba(17,19,25,.32),rgba(24,24,31,.16));
+  -webkit-backdrop-filter:blur(22px) saturate(125%) brightness(.88);
+  backdrop-filter:blur(22px) saturate(125%) brightness(.88);
+  opacity:1;
+  transition:opacity 240ms ease-out;
+  pointer-events:none;
+}
+.bn-camera-preview[data-camera-state="camera-on"] .bn-camera-placeholder { opacity:0; }
+.bn-camera-person {
+  width:34px;
+  height:34px;
+  fill:rgba(255,255,255,.07);
+  stroke:rgba(255,255,255,.25);
+  stroke-width:1.2;
+  stroke-linecap:round;
+}
+.bn-camera-off-icon {
+  position:absolute;
+  right:10px;
+  bottom:10px;
+  width:16px;
+  height:16px;
+  fill:none;
+  stroke:rgba(255,255,255,.38);
+  stroke-width:1.5;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.bn-camera-loader {
+  display:none;
+  width:14px;
+  height:14px;
+  border:1.5px solid rgba(255,255,255,.16);
+  border-top-color:rgba(255,255,255,.68);
+  border-radius:50%;
+  animation:bn-camera-spin .75s linear infinite;
+}
+.bn-camera-preview.is-requesting .bn-camera-person,
+.bn-camera-preview.is-requesting .bn-camera-off-icon { display:none; }
+.bn-camera-preview.is-requesting .bn-camera-loader { display:block; }
+.bn-camera-preview.is-denied .bn-camera-off-icon { stroke:rgba(255,255,255,.48); }
+@keyframes bn-camera-spin { to { transform:rotate(360deg); } }
 .bn-focus-running .bn-camera-preview::before,
 .bn-focus-running .bn-camera-preview::after {
   content:'';
@@ -754,6 +803,7 @@ body.bn-composer-open .bn-focus-overlay { opacity:.88; transition:opacity 220ms 
   .bn-focus-running .bn-speech-message.is-leaving { transform:none; filter:none; }
   .bn-focus-running .bn-control.is-listening,.bn-focus-running .bn-control.is-speaking { animation:none; }
   .bn-focus-running .bn-floating-composer,.bn-chat-composer-layer.is-closing .bn-floating-composer { animation-duration:1ms; }
+  .bn-focus-running .bn-camera-preview video,.bn-camera-placeholder { transition-duration:1ms; }
 }
 
 @media (prefers-reduced-transparency:reduce) {

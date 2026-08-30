@@ -3,6 +3,7 @@
 
     const state = {
         stream: null,
+        cameraState: 'camera-off',
         sessionActive: false,
         requestInFlight: false,
         visionTimer: null,
@@ -119,19 +120,37 @@
         button.title = enabled ? '关闭视频' : '开启视频';
     }
 
-    function stopCamera() {
-        const { preview, video } = elements();
-        if (state.stream) {
-            state.stream.getTracks().forEach(track => track.stop());
-            state.stream = null;
-        }
-        if (video) video.srcObject = null;
+    function setCameraState(cameraState) {
+        const { button, preview } = elements();
+        state.cameraState = cameraState;
+        const enabled = cameraState === 'camera-on';
+        const requesting = cameraState === 'camera-requesting';
         if (preview) {
             preview.hidden = false;
-            preview.classList.add('is-placeholder');
-            preview.setAttribute('aria-label', '用户摄像头未开启，可拖动或双指缩放');
+            preview.dataset.cameraState = cameraState;
+            preview.classList.toggle('is-placeholder', !enabled);
+            preview.classList.toggle('is-requesting', requesting);
+            preview.classList.toggle('is-denied', cameraState === 'camera-denied');
+            preview.setAttribute('aria-busy', String(requesting));
+            preview.setAttribute('aria-label', enabled
+                ? '你的摄像头预览，点击关闭，可拖动或双指缩放'
+                : requesting
+                    ? '正在请求摄像头权限'
+                    : '点击开启摄像头，可拖动或双指缩放');
         }
-        setButtonState(false);
+        if (button) button.disabled = requesting;
+        setButtonState(enabled);
+    }
+
+    function stopCamera(nextState = 'camera-off') {
+        const { video } = elements();
+        const streamToStop = state.stream;
+        state.stream = null;
+        setCameraState(nextState);
+        window.setTimeout(() => {
+            streamToStop?.getTracks().forEach(track => track.stop());
+            if (video?.srcObject === streamToStop) video.srcObject = null;
+        }, 260);
         stopVisionLoop();
         cancelReaction('视频已关闭');
     }
@@ -140,10 +159,12 @@
         if (!state.sessionActive || state.requestInFlight || state.stream) return;
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             notify('当前浏览器不支持摄像头');
+            setCameraState('camera-denied');
             return;
         }
 
         state.requestInFlight = true;
+        setCameraState('camera-requesting');
         try {
             await ensureAudio();
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -157,6 +178,7 @@
 
             if (!state.sessionActive) {
                 stream.getTracks().forEach(track => track.stop());
+                setCameraState('camera-off');
                 return;
             }
 
@@ -166,12 +188,7 @@
                 video.srcObject = stream;
                 await video.play().catch(() => {});
             }
-            if (preview) {
-                preview.hidden = false;
-                preview.classList.remove('is-placeholder');
-                preview.setAttribute('aria-label', '你的摄像头预览，可拖动或双指缩放');
-            }
-            setButtonState(true);
+            setCameraState('camera-on');
             startVisionLoop();
 
             stream.getVideoTracks().forEach(track => {
@@ -183,7 +200,7 @@
             const denied = error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError');
             notify(denied ? '未获得摄像头权限' : '摄像头开启失败，请检查设备');
             console.warn('Camera start failed:', error);
-            stopCamera();
+            stopCamera(denied ? 'camera-denied' : 'camera-off');
         } finally {
             state.requestInFlight = false;
         }

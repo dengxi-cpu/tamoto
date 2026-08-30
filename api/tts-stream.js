@@ -31,6 +31,8 @@ function parseEventData(block) {
 async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { success: false, error: 'Method not allowed' });
 
+  const voiceProvider = String(req.body?.voiceProvider || '').trim().toLowerCase();
+  const requestedVoiceId = String(req.body?.voiceId || '').trim();
   const apiKey = process.env.TTS_API_KEY || process.env.SPEECH_API_KEY;
   const apiUrl = process.env.TTS_API_URL || DEFAULT_TTS_API_URL;
   const resourceId = process.env.TTS_RESOURCE_ID || DEFAULT_TTS_RESOURCE_ID;
@@ -38,7 +40,7 @@ async function handler(req, res) {
   const allowedSpeakers = new Set([defaultSpeaker, ...BUILT_IN_VOICES, ...(process.env.TTS_ALLOWED_VOICE_TYPES || '').split(',')].map(item => String(item || '').trim()).filter(Boolean));
   const requestedSpeaker = String(req.body?.voiceType || '').trim();
   const speaker = requestedSpeaker && allowedSpeakers.has(requestedSpeaker) ? requestedSpeaker : defaultSpeaker;
-  if (!apiKey || !speaker) {
+  if (voiceProvider !== 'elevenlabs' && (!apiKey || !speaker)) {
     return json(res, 503, {
       success: false,
       error: !apiKey ? 'TTS API Key 尚未配置' : 'TTS 音色尚未配置'
@@ -63,6 +65,36 @@ async function handler(req, res) {
   await updateTtsLog({ epoch, turnId, source: logSource, status: 'streaming', bytes: 0 });
 
   try {
+    if (voiceProvider === 'elevenlabs') {
+      const elevenKey = process.env.ELEVENLABS_API_KEY;
+      if (!elevenKey) return json(res, 503, { success: false, error: 'ElevenLabs 尚未配置' });
+      if (!/^[A-Za-z0-9_-]{8,120}$/.test(requestedVoiceId)) return json(res, 400, { success: false, error: 'ElevenLabs voice_id 无效' });
+      const upstream = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(requestedVoiceId)}?output_format=mp3_44100_128`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'xi-api-key': elevenKey.trim() },
+        body: JSON.stringify({
+          text,
+          model_id: 'eleven_multilingual_v2',
+          voice_settings: { stability: 0.58, similarity_boost: 0.78, style: 0.18, use_speaker_boost: true }
+        })
+      });
+      if (!upstream.ok || !upstream.body) {
+        const detail = await upstream.text();
+        console.error('ElevenLabs TTS failed:', upstream.status, detail.slice(0, 500));
+        await updateTtsLog({ epoch, turnId, source: logSource, status: 'failed', bytes: 0, error: `ElevenLabs ${upstream.status}` });
+        return json(res, 502, { success: false, error: 'TA 的声音暂时无法播放' });
+      }
+      const audio = Buffer.from(await upstream.arrayBuffer());
+      res.status(200);
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('X-Audio-Format', 'mp3');
+      res.setHeader('X-Companion-Epoch', String(epoch));
+      res.setHeader('X-Companion-Turn-Id', String(turnId));
+      await updateTtsLog({ epoch, turnId, source: logSource, status: 'completed', bytes: audio.length });
+      return res.end(audio);
+    }
+
     const upstream = await fetch(apiUrl, {
       method: 'POST',
       headers: {

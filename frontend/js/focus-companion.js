@@ -350,7 +350,9 @@
             userTitle,
             relationship: oc?.relationship || '学习搭子',
             persona: oc?.characterDescription || '毒舌但关心用户',
-            voiceType: oc?.voiceType || 'zh_male_ruyayichen_saturn_bigtts'
+            voiceType: oc?.voiceType || 'zh_male_ruyayichen_saturn_bigtts',
+            voiceProvider: oc?.voiceProvider || 'volcengine',
+            voiceId: oc?.voiceId || ''
         };
         const persona = oc
             ? `与用户的关系是${roleContext.relationship}。完整人设：${roleContext.persona}。需要称呼时只叫用户“${roleContext.userTitle}”，不要使用其他姓名，也不要每句话都称呼。反应自然、简短。`
@@ -430,6 +432,23 @@
         };
     }
 
+    async function scheduleEncodedAudio(bytes, playback) {
+        const decoded = await state.audioContext.decodeAudioData(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+        if (state.playback !== playback) return 0;
+        const source = state.audioContext.createBufferSource();
+        source.buffer = decoded;
+        source.connect(state.gainNode);
+        playback.nextPlayTime = Math.max(playback.nextPlayTime, state.audioContext.currentTime + 0.04);
+        source.start(playback.nextPlayTime);
+        playback.nextPlayTime += decoded.duration;
+        playback.sources.add(source);
+        source.onended = () => {
+            playback.sources.delete(source);
+            finishPlaybackIfDone(playback);
+        };
+        return decoded.duration;
+    }
+
     function finishPlaybackIfDone(playback) {
         if (state.playback === playback && playback.streamEnded && playback.sources.size === 0) {
             state.playback = null;
@@ -461,11 +480,29 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             signal: controller.signal,
-            body: JSON.stringify({ text, epoch: result.epoch, turnId: result.turnId, speechType, voiceType: result.voiceType || getCompanionContext().roleContext.voiceType })
+            body: JSON.stringify((() => {
+                const voice = getCompanionContext().roleContext;
+                return {
+                    text, epoch: result.epoch, turnId: result.turnId, speechType,
+                    voiceType: result.voiceType || voice.voiceType,
+                    voiceProvider: result.voiceProvider || voice.voiceProvider,
+                    voiceId: result.voiceId || voice.voiceId
+                };
+            })())
         });
         if (!response.ok) {
             const payload = await response.json().catch(() => ({}));
             throw new Error(payload.error || `TTS HTTP ${response.status}`);
+        }
+        if (response.headers.get('x-audio-format') === 'mp3') {
+            const bytes = new Uint8Array(await response.arrayBuffer());
+            if (!bytes.length) throw new Error('TTS 没有返回音频');
+            await scheduleEncodedAudio(bytes, playback);
+            onPlaybackStarted?.();
+            playback.streamEnded = true;
+            finishPlaybackIfDone(playback);
+            const completed = await finished;
+            return completed ? bytes.length : 0;
         }
         playback.sampleRate = Number(response.headers.get('x-audio-sample-rate')) || 24000;
         const reader = response.body.getReader();
@@ -724,13 +761,14 @@
             const audioResponse = await fetch('/api/tts-stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: messages.join(''), epoch: preloadEpoch, turnId: preloadTurnId, speechType: 'opening', voiceType: roleContext.voiceType })
+                body: JSON.stringify({ text: messages.join(''), epoch: preloadEpoch, turnId: preloadTurnId, speechType: 'opening', voiceType: roleContext.voiceType, voiceProvider: roleContext.voiceProvider, voiceId: roleContext.voiceId })
             });
             if (!audioResponse.ok) throw new Error('开场语音预生成失败');
             state.preparedOpening = {
                 messages,
                 bytes: new Uint8Array(await audioResponse.arrayBuffer()),
-                sampleRate: Number(audioResponse.headers.get('x-audio-sample-rate')) || 24000
+                sampleRate: Number(audioResponse.headers.get('x-audio-sample-rate')) || 24000,
+                format: audioResponse.headers.get('x-audio-format') || 'pcm_s16le'
             };
             return state.preparedOpening;
         })().catch(error => {
@@ -766,9 +804,10 @@
             resolveFinished
         };
         state.playback = playback;
-        schedulePcmChunk(prepared.bytes, playback);
+        const encodedDuration = prepared.format === 'mp3' ? await scheduleEncodedAudio(prepared.bytes, playback) : 0;
+        if (prepared.format !== 'mp3') schedulePcmChunk(prepared.bytes, playback);
         const totalCharacters = Math.max(1, prepared.messages.reduce((sum, item) => sum + Array.from(item).length, 0));
-        const durationMs = prepared.bytes.length / (prepared.sampleRate * 2) * 1000;
+        const durationMs = encodedDuration ? encodedDuration * 1000 : prepared.bytes.length / (prepared.sampleRate * 2) * 1000;
         let passedCharacters = 0;
         prepared.messages.forEach((text, index) => {
             const delay = TTS_BUFFER_MS + 60 + durationMs * passedCharacters / totalCharacters;
@@ -1163,7 +1202,11 @@
         createSpeechTurn: () => ({ epoch: state.epoch, turnId: ++state.turnId }),
         speakMessages: (messages, turn, speechType = 'session_opening', onMessage) => playMessageSequence(messages, turn, 1, speechType, onMessage),
         markMeetingComplete: () => { state.preparedOpening = null; },
-        previewVoice: voiceType => playMessageSequence(['我在这，陪你慢慢来。'], { epoch: state.epoch, turnId: ++state.turnId, voiceType }, 1, 'voice_preview'),
+        previewVoice: voice => playMessageSequence(['准备好了吗？今天也一起专注吧。我就在这里陪你。'], {
+            epoch: state.epoch,
+            turnId: ++state.turnId,
+            ...(typeof voice === 'string' ? { voiceType: voice } : voice)
+        }, 1, 'voice_preview'),
         isCameraEnabled: () => Boolean(state.stream)
     };
 

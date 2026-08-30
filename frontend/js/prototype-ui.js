@@ -29,7 +29,11 @@
     betaSetupLayoutHeight: 0,
     betaSetupViewportHandler: null,
     betaSetupUnlockTimer: null,
-    betaCrop: null
+    betaCrop: null,
+    betaVoice: null,
+    betaVoicePreviews: [],
+    betaVoiceCandidateId: '',
+    betaVoiceAudio: null
   };
 
   const captions = [
@@ -112,19 +116,30 @@
                 <label class="bn-beta-field bn-beta-persona-field"><span>TA 的人设</span><textarea id="bnBetaPersona" maxlength="3000" rows="3" placeholder="写下 TA 的性格、说话习惯和陪伴方式。"></textarea><button type="button" data-bn-action="beta-improve-persona">✦ AI 完善</button></label>
               </div>
               <div class="bn-beta-tab-panel" data-bn-beta-panel="voice" role="tabpanel" aria-hidden="true">
-                <div class="bn-beta-voice-chips" role="group" aria-label="声音气质">
-                  <button class="bn-beta-voice is-active" type="button" data-bn-beta-voice="zh_male_ruyayichen_saturn_bigtts" aria-pressed="true"><span><b>温柔低沉</b></span></button>
-                  <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_m191_uranus_bigtts" aria-pressed="false"><span><b>清冷沉稳</b></span></button>
-                  <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_taocheng_uranus_bigtts" aria-pressed="false"><span><b>温暖治愈</b></span></button>
-                  <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_liufei_uranus_bigtts" aria-pressed="false"><span><b>慵懒自然</b></span></button>
-                </div>
-                <div class="bn-beta-voice-preview">
-                  <button type="button" data-bn-action="beta-preview-voice" aria-label="试听当前声音"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.2 5.7v12.6c0 .9 1 1.45 1.78.98l9.42-6.3a1.16 1.16 0 000-1.96l-9.42-6.3A1.16 1.16 0 008.2 5.7z"/></svg></button>
-                  <div><b id="bnBetaVoiceName">温柔低沉</b><small>“我在，慢慢来。”</small></div>
-                  <div class="bn-beta-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-                  <button type="button" data-bn-action="beta-next-voice">更换 ›</button>
-                </div>
-                <p class="bn-beta-note">声音会应用到见面、氛围、事件和对话。</p>
+                <header class="bn-voice-current"><span>TA 的声音</span><div><strong id="bnBetaVoiceName">清冷少年</strong><small id="bnBetaVoiceMeta">年轻 · 清冷 · 偏低沉</small></div><button type="button" data-bn-action="beta-preview-voice">▶ 试听</button></header>
+                <div class="bn-voice-mode" role="tablist" aria-label="声音创建方式"><button class="is-active" type="button" data-bn-voice-mode="library">音色库</button><button type="button" data-bn-voice-mode="design">自己捏一个 ✦</button></div>
+                <section class="bn-voice-mode-panel is-active" data-bn-voice-panel="library">
+                  <p class="bn-voice-section-title">选择一个声音</p>
+                  <div class="bn-beta-voice-library" role="listbox" aria-label="ElevenLabs 预设音色">
+                    <button class="bn-beta-voice is-active" type="button" data-bn-beta-voice="pNInz6obpgDQGcFmaJgB" data-voice-name="清冷少年" data-voice-meta="清冷 · 年轻 · 克制"><b>清冷少年</b><small>清冷 · 年轻 · 克制</small><i>▶</i></button>
+                    <button class="bn-beta-voice" type="button" data-bn-beta-voice="ErXwobaYiN019PkySvjV" data-voice-name="温柔青年" data-voice-meta="温柔 · 亲密 · 自然"><b>温柔青年</b><small>温柔 · 亲密 · 自然</small><i>▶</i></button>
+                    <button class="bn-beta-voice" type="button" data-bn-beta-voice="TxGEqnHWrfWFTfGW9XjX" data-voice-name="慵懒低音" data-voice-meta="低沉 · 松弛 · 安静"><b>慵懒低音</b><small>低沉 · 松弛 · 安静</small><i>▶</i></button>
+                    <button class="bn-beta-voice" type="button" data-bn-beta-voice="2EiwWnXFnvU5JabPnv8n" data-voice-name="阳光少年" data-voice-meta="明亮 · 自然 · 有活力"><b>阳光少年</b><small>明亮 · 自然 · 有活力</small><i>▶</i></button>
+                    <button class="bn-beta-voice" type="button" data-bn-beta-voice="onwK4e9ZLuTAKqWW03F9" data-voice-name="沉稳成熟" data-voice-meta="沉稳 · 成熟 · 可靠"><b>沉稳成熟</b><small>沉稳 · 成熟 · 可靠</small><i>▶</i></button>
+                  </div>
+                  <button class="bn-voice-use" type="button" data-bn-action="beta-use-preset-voice">使用这个声音</button>
+                </section>
+                <section class="bn-voice-mode-panel" data-bn-voice-panel="design" hidden>
+                  <label class="bn-voice-description"><span>你希望 TA 的声音是什么感觉？</span><textarea id="bnVoiceDescription" rows="2" maxlength="500" placeholder="例如：20 岁左右的男生，声音偏低，有一点气声，清冷克制，但跟我说话时很温柔。"></textarea></label>
+                  <div class="bn-voice-sliders">
+                    <label><span><b>声线</b><small>清亮　低沉</small></span><input id="bnVoiceTimbre" type="range" min="0" max="100" value="70"></label>
+                    <label><span><b>气质</b><small>清冷　温柔</small></span><input id="bnVoiceTemperament" type="range" min="0" max="100" value="62"></label>
+                    <label><span><b>表现</b><small>克制　丰富</small></span><input id="bnVoiceExpression" type="range" min="0" max="100" value="35"></label>
+                  </div>
+                  <button class="bn-voice-generate" type="button" data-bn-action="beta-generate-voice">✦ 生成声音</button>
+                  <p class="bn-voice-status-line" id="bnVoiceDesignStatus" aria-live="polite"></p>
+                  <div class="bn-voice-candidates" id="bnVoiceCandidates" hidden><p>选择最像 TA 的声音</p><div id="bnVoiceCandidateList"></div><button class="bn-voice-use" type="button" data-bn-action="beta-use-custom-voice">使用这个声音</button><button class="bn-voice-regenerate" type="button" data-bn-action="beta-generate-voice">↻ 再生成一组</button></div>
+                </section>
               </div>
             </div>
           </section>
@@ -590,17 +605,123 @@
   }
 
   function previewSelectedBetaVoice() {
-    const selected = document.querySelector('[data-bn-beta-voice].is-active');
-    if (!selected) return;
-    window.focusCompanion?.previewVoice(selected.dataset.bnBetaVoice);
-    toast(`正在试听${selected.querySelector('b')?.textContent || '当前声音'}`);
+    const voice = state.betaVoice || selectedPresetVoice();
+    if (!voice?.id) return toast('请先选择一个声音');
+    window.focusCompanion?.previewVoice({ voiceProvider: voice.provider, voiceId: voice.id, voiceType: voice.voiceType });
+    toast(`正在试听${voice.name || 'TA 的声音'}`);
   }
 
-  function selectNextBetaVoice() {
-    const voices = Array.from(document.querySelectorAll('[data-bn-beta-voice]'));
-    if (!voices.length) return;
-    const activeIndex = voices.findIndex(button => button.classList.contains('is-active'));
-    voices[(activeIndex + 1) % voices.length].click();
+  function selectedPresetVoice() {
+    const button = document.querySelector('[data-bn-beta-voice].is-active');
+    return button ? { provider:'elevenlabs', id:button.dataset.bnBetaVoice, name:button.dataset.voiceName, meta:button.dataset.voiceMeta, source:'preset' } : null;
+  }
+
+  function updateBetaVoiceCurrent(voice) {
+    if (!voice) return;
+    document.getElementById('bnBetaVoiceName').textContent = voice.name || 'TA 的声音';
+    document.getElementById('bnBetaVoiceMeta').textContent = voice.meta || voice.description || '专属声音';
+  }
+
+  function persistBetaVoiceChoice() {
+    if (!state.betaVoice || typeof ocData === 'undefined' || !ocData[currentOCIndex]) return;
+    ocData[currentOCIndex] = {
+      ...ocData[currentOCIndex],
+      voiceType: state.betaVoice.voiceType || ocData[currentOCIndex].voiceType || 'zh_male_ruyayichen_saturn_bigtts',
+      voiceProvider: state.betaVoice.provider,
+      voiceId: state.betaVoice.id,
+      voiceName: state.betaVoice.name,
+      voiceSource: state.betaVoice.source,
+      voiceDescription: state.betaVoice.description || state.betaVoice.meta || '',
+      voiceParameters: state.betaVoice.parameters || null
+    };
+    if (typeof persistOCData === 'function') persistOCData();
+    else localStorage.setItem('ocData', JSON.stringify(ocData));
+  }
+
+  function setBetaVoiceMode(mode) {
+    document.querySelectorAll('[data-bn-voice-mode]').forEach(button => button.classList.toggle('is-active', button.dataset.bnVoiceMode === mode));
+    document.querySelectorAll('[data-bn-voice-panel]').forEach(panel => {
+      const active = panel.dataset.bnVoicePanel === mode;
+      panel.hidden = !active;
+      panel.classList.toggle('is-active', active);
+    });
+  }
+
+  function voicePromptFromInputs() {
+    const description = document.getElementById('bnVoiceDescription').value.trim();
+    const timbre = Number(document.getElementById('bnVoiceTimbre').value);
+    const temperament = Number(document.getElementById('bnVoiceTemperament').value);
+    const expression = Number(document.getElementById('bnVoiceExpression').value);
+    const timbreText = timbre >= 67 ? 'deep, resonant and slightly breathy' : timbre <= 33 ? 'clear, bright and youthful' : 'balanced, smooth and gently low';
+    const temperamentText = temperament >= 67 ? 'warm, tender and intimate' : temperament <= 33 ? 'cool, composed and distant at first' : 'cool overall but quietly gentle';
+    const expressionText = expression >= 67 ? 'emotionally expressive with natural variation' : expression <= 33 ? 'restrained, subtle and calm' : 'natural conversational delivery with moderate expression';
+    return `${description || 'A young male companion voice.'} ${timbreText}. ${temperamentText}. ${expressionText}. Native Mandarin Chinese, natural close conversational delivery, never theatrical or announcer-like.`;
+  }
+
+  function stopBetaVoicePreview() {
+    if (!state.betaVoiceAudio) return;
+    state.betaVoiceAudio.pause();
+    state.betaVoiceAudio = null;
+    document.querySelectorAll('.bn-voice-candidate.is-playing').forEach(item => item.classList.remove('is-playing'));
+  }
+
+  function playBetaVoiceCandidate(button) {
+    const preview = state.betaVoicePreviews.find(item => item.id === button.dataset.voiceCandidate);
+    if (!preview) return;
+    if (button.classList.contains('is-playing')) return stopBetaVoicePreview();
+    stopBetaVoicePreview();
+    const audio = new Audio(preview.audio);
+    state.betaVoiceAudio = audio;
+    button.classList.add('is-playing');
+    audio.addEventListener('ended', stopBetaVoicePreview, { once:true });
+    audio.play().catch(() => { stopBetaVoicePreview(); toast('试听播放失败，请重试'); });
+  }
+
+  function renderBetaVoiceCandidates() {
+    const list = document.getElementById('bnVoiceCandidateList');
+    list.innerHTML = state.betaVoicePreviews.map((item, index) => `<button class="bn-voice-candidate${index === 0 ? ' is-selected' : ''}" type="button" data-voice-candidate="${escapeText(item.id)}"><i>▶</i><span>${escapeText(item.name)}</span><em>选择</em></button>`).join('');
+    state.betaVoiceCandidateId = state.betaVoicePreviews[0]?.id || '';
+    document.getElementById('bnVoiceCandidates').hidden = !state.betaVoicePreviews.length;
+  }
+
+  async function generateBetaVoice() {
+    const status = document.getElementById('bnVoiceDesignStatus');
+    const button = document.querySelector('[data-bn-action="beta-generate-voice"]');
+    stopBetaVoicePreview();
+    button.disabled = true;
+    status.textContent = '正在为 TA 生成声音…';
+    try {
+      const response = await fetch('/api/elevenlabs-voices', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ action:'design', voiceDescription:voicePromptFromInputs() }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || '声音生成失败');
+      state.betaVoicePreviews = payload.previews || [];
+      renderBetaVoiceCandidates();
+      status.textContent = state.betaVoicePreviews.length ? '已经生成 3 个候选，听听哪个最像 TA。' : '没有生成可用候选，请再试一次。';
+    } catch (error) {
+      status.textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function useCustomBetaVoice() {
+    const preview = state.betaVoicePreviews.find(item => item.id === state.betaVoiceCandidateId);
+    if (!preview) return toast('请先选择一个声音候选');
+    const description = voicePromptFromInputs();
+    const status = document.getElementById('bnVoiceDesignStatus');
+    status.textContent = '正在保存为 TA 的声音…';
+    try {
+      const response = await fetch('/api/elevenlabs-voices', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ action:'create', generatedVoiceId:preview.id, voiceDescription:description, voiceName:`${document.getElementById('bnBetaName').value.trim() || 'TA'} 的声音` }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || '声音保存失败');
+      state.betaVoice = { provider:'elevenlabs', id:payload.voice.id, name:payload.voice.name, meta:'专属定制声音', source:'custom', description, parameters:{ timbre:Number(document.getElementById('bnVoiceTimbre').value), temperament:Number(document.getElementById('bnVoiceTemperament').value), expression:Number(document.getElementById('bnVoiceExpression').value) } };
+      updateBetaVoiceCurrent(state.betaVoice);
+      persistBetaVoiceChoice();
+      status.textContent = '已保存为 TA 的声音';
+      toast('这就是 TA 的声音');
+    } catch (error) {
+      status.textContent = error.message;
+    }
   }
 
   function populateBetaRoleForm() {
@@ -616,14 +737,25 @@
     setBetaRelationship(standard ? relation : '自定义');
     document.getElementById('bnBetaCustomRelationship').value = standard ? '' : relation;
     document.getElementById('bnBetaPersona').value = oc.characterDescription || '';
+    state.betaVoice = {
+      provider: oc.voiceProvider || (oc.voiceId ? 'elevenlabs' : 'volcengine'),
+      id: oc.voiceId || '',
+      voiceType: oc.voiceType || 'zh_male_ruyayichen_saturn_bigtts',
+      name: oc.voiceName || '当前声音',
+      meta: oc.voiceDescription || (oc.voiceId ? 'TA 的专属声音' : '原有角色声音'),
+      source: oc.voiceSource || (oc.voiceId ? 'preset' : 'legacy'),
+      description: oc.voiceDescription || '',
+      parameters: oc.voiceParameters || null
+    };
     document.querySelectorAll('[data-bn-beta-voice]').forEach(button => {
-      const active = button.dataset.bnBetaVoice === (oc.voiceType || 'zh_male_ruyayichen_saturn_bigtts');
+      const active = button.dataset.bnBetaVoice === oc.voiceId;
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', String(active));
       const label = button.querySelector('em');
       if (label) label.textContent = active ? '已选择' : '选择';
-      if (active) document.getElementById('bnBetaVoiceName').textContent = button.querySelector('b')?.textContent || '当前声音';
+      if (active) state.betaVoice = selectedPresetVoice();
     });
+    updateBetaVoiceCurrent(state.betaVoice);
     updateBetaIdentity();
     setBetaTab('partner');
   }
@@ -773,7 +905,13 @@
       userTitle,
       relationship,
       characterDescription: document.getElementById('bnBetaPersona').value.trim(),
-      voiceType: document.querySelector('[data-bn-beta-voice].is-active')?.dataset.bnBetaVoice || 'zh_male_ruyayichen_saturn_bigtts',
+      voiceType: state.betaVoice?.voiceType || existing.voiceType || 'zh_male_ruyayichen_saturn_bigtts',
+      voiceProvider: state.betaVoice?.provider || existing.voiceProvider || 'volcengine',
+      voiceId: state.betaVoice?.id || existing.voiceId || '',
+      voiceName: state.betaVoice?.name || existing.voiceName || '当前声音',
+      voiceSource: state.betaVoice?.source || existing.voiceSource || 'legacy',
+      voiceDescription: state.betaVoice?.description || state.betaVoice?.meta || existing.voiceDescription || '',
+      voiceParameters: state.betaVoice?.parameters || existing.voiceParameters || null,
       selected: true
     };
     ocData[currentOCIndex] = next;
@@ -1422,6 +1560,15 @@
       if (betaTab) return setBetaTab(betaTab.dataset.bnBetaTab);
       const betaRelation = event.target.closest('[data-bn-beta-relation]');
       if (betaRelation) return setBetaRelationship(betaRelation.dataset.bnBetaRelation);
+      const voiceMode = event.target.closest('[data-bn-voice-mode]');
+      if (voiceMode) return setBetaVoiceMode(voiceMode.dataset.bnVoiceMode);
+      const voiceCandidate = event.target.closest('[data-voice-candidate]');
+      if (voiceCandidate) {
+        document.querySelectorAll('[data-voice-candidate]').forEach(button => button.classList.toggle('is-selected', button === voiceCandidate));
+        state.betaVoiceCandidateId = voiceCandidate.dataset.voiceCandidate;
+        playBetaVoiceCandidate(voiceCandidate);
+        return;
+      }
       const duration = event.target.closest('[data-bn-minutes]');
       if (duration) return setDuration(duration.dataset.bnMinutes, duration);
       const status = event.target.closest('[data-bn-status]');
@@ -1435,8 +1582,9 @@
           const label = button.querySelector('em');
           if (label) label.textContent = active ? '已选择' : '选择';
         });
-        document.getElementById('bnBetaVoiceName').textContent = betaVoice.querySelector('b')?.textContent || '当前声音';
-        window.focusCompanion?.previewVoice(betaVoice.dataset.bnBetaVoice);
+        const selected = selectedPresetVoice();
+        updateBetaVoiceCurrent(selected);
+        window.focusCompanion?.previewVoice({ voiceProvider:'elevenlabs', voiceId:selected.id });
         toast(`正在试听${betaVoice.querySelector('b')?.textContent || '男声'}`);
         return;
       }
@@ -1472,7 +1620,14 @@
       if (type === 'roll-body-double') rollBodyDouble();
       if (type === 'beta-improve-persona') improveBetaPersona();
       if (type === 'beta-preview-voice') previewSelectedBetaVoice();
-      if (type === 'beta-next-voice') selectNextBetaVoice();
+      if (type === 'beta-use-preset-voice') {
+        state.betaVoice = selectedPresetVoice();
+        updateBetaVoiceCurrent(state.betaVoice);
+        persistBetaVoiceChoice();
+        toast('已设为 TA 的声音');
+      }
+      if (type === 'beta-generate-voice') generateBetaVoice();
+      if (type === 'beta-use-custom-voice') useCustomBetaVoice();
       if (type === 'gifts' && typeof showGiftModal === 'function') showGiftModal();
       if (type === 'edit-oc' || type === 'new-oc' || type === 'advanced') {
         toast('该功能正在迁移到新界面');

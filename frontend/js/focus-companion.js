@@ -251,6 +251,23 @@
         return splitClauses([fallback]);
     }
 
+    const messageTimers = new WeakMap();
+
+    function dismissConversationMessage(bubble) {
+        if (!bubble?.isConnected || bubble.classList.contains('is-leaving')) return;
+        const timer = messageTimers.get(bubble);
+        if (timer) window.clearTimeout(timer);
+        bubble.style.height = `${bubble.offsetHeight}px`;
+        bubble.getBoundingClientRect();
+        bubble.classList.add('is-leaving');
+        window.requestAnimationFrame(() => { bubble.style.height = '0px'; });
+        const remove = () => bubble.remove();
+        bubble.addEventListener('transitionend', event => {
+            if (event.propertyName === 'height') remove();
+        }, { once:true });
+        window.setTimeout(remove, 800);
+    }
+
     function beginSpeechMessages() {
         const { caption } = elements();
         if (!caption || caption.id === 'ocMessageText') return;
@@ -268,7 +285,9 @@
         bubble.className = `bn-speech-message is-${role}${pending ? ' is-pending' : ''}`;
         bubble.textContent = text;
         caption.appendChild(bubble);
-        while (caption.children.length > 4) caption.firstElementChild?.remove();
+        const visibleBubbles = [...caption.querySelectorAll('.bn-speech-message:not(.is-leaving)')];
+        while (visibleBubbles.length > 2) dismissConversationMessage(visibleBubbles.shift());
+        messageTimers.set(bubble, window.setTimeout(() => dismissConversationMessage(bubble), 20000));
     }
 
     function appendSpeechMessage(text) {

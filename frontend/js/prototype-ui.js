@@ -173,7 +173,7 @@
             </div>
             <div class="bn-focus-top-right"><button class="bn-bgm-pill" id="bnRainBtn" type="button" data-bn-action="toggle-rain" aria-pressed="true">🌧️ 雨声</button></div>
           </div>
-          <div class="bn-caption" id="bnCaption"></div>
+          <div class="bn-dialogue-row"><img class="bn-dialogue-avatar" id="bnDialogueAvatar" alt=""><div class="bn-caption" id="bnCaption"></div></div>
           <div class="bn-call-bottom">
             <div class="bn-call-time" id="bnTimer">25:00</div><div class="bn-call-sub">专注中<span>·</span>和 TA 一起</div>
             <div class="bn-controls">
@@ -187,7 +187,7 @@
             </div>
             <form class="bn-focus-chat-form" id="bnFocusChatForm">
               <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="和 TA 说点什么…">
-              <button type="submit" aria-label="发送">↑</button>
+              <button type="submit" aria-label="发送">➤</button>
             </form>
           </div>
         </div>
@@ -558,19 +558,29 @@
     const list = document.getElementById('bnBodyDoubleList');
     if (!card || !list) return;
     card.hidden = false;
-    document.getElementById('bnBodyDoubleName').textContent = currentOC().name || 'TA';
-    if (!state.bodyDoubleTodos.length) {
-      const activity = currentStatus?.name || currentStatus?.status || '专注';
-      list.innerHTML = `<div><i></i><span>${escapeText(currentOC().name || 'TA')} · 陪你${escapeText(activity)}</span><time>进行中</time></div>`;
-      return;
-    }
-    const elapsedMinutes = Math.max(0, ((Number(selectedMinutes) || 25) * 60 - (Number(currentTime) || 0)) / 60);
+    const companionName = currentOC().name || 'TA';
+    const totalMinutes = Math.max(1, Number(selectedMinutes) || 25);
+    const elapsedMinutes = Math.max(0, Math.min(totalMinutes, (totalMinutes * 60 - (Number(currentTime) || 0)) / 60));
+    const userProgress = Math.round((elapsedMinutes / totalMinutes) * 100);
+    const taskName = currentTask?.name || '专注任务';
+    document.getElementById('bnBodyDoubleName').textContent = '专注进度';
+    let companionTask = `陪你${currentStatus?.name || currentStatus?.status || '专注'}`;
+    let companionDone = 0;
     let cumulative = 0;
-    list.innerHTML = state.bodyDoubleTodos.map(todo => {
+    let activeTaskFound = false;
+    state.bodyDoubleTodos.forEach(todo => {
       cumulative += Number(todo.minutes) || 0;
-      const done = elapsedMinutes >= cumulative;
-      return `<div class="${done ? 'is-done' : ''}"><i>${done ? '✓' : ''}</i><span>${escapeText(todo.title)}</span><time>${todo.minutes} min</time></div>`;
-    }).join('');
+      if (elapsedMinutes >= cumulative) companionDone += 1;
+      else if (!activeTaskFound) {
+        companionTask = todo.title;
+        activeTaskFound = true;
+      }
+    });
+    const companionTotal = Math.max(1, state.bodyDoubleTodos.length || 1);
+    const companionProgress = state.bodyDoubleTodos.length ? Math.round((companionDone / companionTotal) * 100) : userProgress;
+    list.innerHTML = `
+      <div class="bn-focus-progress-row"><span class="bn-progress-icon">📖</span><span class="bn-progress-copy"><b>我 · ${escapeText(taskName)}</b><em><span style="width:${userProgress}%"></span></em></span><time>${Math.floor(elapsedMinutes)} / ${totalMinutes}</time></div>
+      <div class="bn-focus-progress-row"><span class="bn-progress-icon">✓</span><span class="bn-progress-copy"><b>${escapeText(companionName)} · ${escapeText(companionTask)}</b><em><span style="width:${companionProgress}%"></span></em></span><time>${companionDone} / ${companionTotal}</time></div>`;
   }
 
   function ensureRainAudio() {
@@ -860,7 +870,7 @@
     document.getElementById('bnGreetingSub').textContent = `${name}已经在这里，等你一起专注。`;
     const completed = typeof tasks !== 'undefined' ? tasks.filter(item => item.status === 'completed').length : 0;
     document.getElementById('bnStoryText').innerHTML = `今天你们一起完成了 <b>${completed}</b> 件事，${escapeText(name)}还悄悄准备了一份礼物。`;
-    ['bnChatAvatar', 'bnOCAvatar'].forEach(id => document.getElementById(id).src = avatar);
+    ['bnChatAvatar', 'bnOCAvatar', 'bnDialogueAvatar'].forEach(id => document.getElementById(id).src = avatar);
     document.getElementById('bnChatName').textContent = name;
     document.getElementById('bnOCName').textContent = name;
     document.getElementById('bnOCRelation').textContent = `${oc.relationship || '你的学习搭子'} · 称呼你「${title}」`;

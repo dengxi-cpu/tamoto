@@ -22,7 +22,10 @@
     composerLayoutHeight: 0,
     composerViewportHandler: null,
     composerUnlockTimer: null,
-    composerCloseTimer: null
+    composerCloseTimer: null,
+    betaMeetingLayoutHeight: 0,
+    betaMeetingViewportHandler: null,
+    betaMeetingUnlockTimer: null
   };
 
   const captions = [
@@ -421,6 +424,54 @@
     };
     handle.addEventListener('pointerup', finishGesture);
     handle.addEventListener('pointercancel', finishGesture);
+  }
+
+  function setupBetaMeetingKeyboard() {
+    const meeting = document.querySelector('.bn-beta-meeting');
+    const panel = meeting?.querySelector('.bn-beta-meeting-panel');
+    const viewport = window.visualViewport;
+    if (!meeting || !panel) return;
+
+    const updatePosition = () => {
+      if (!meeting.classList.contains('is-keyboard-active')) return;
+      const visibleBottom = viewport ? viewport.height + viewport.offsetTop : window.innerHeight;
+      const keyboardInset = Math.max(0, state.betaMeetingLayoutHeight - visibleBottom);
+      panel.style.setProperty('--bn-beta-keyboard-inset', `${Math.round(keyboardInset)}px`);
+    };
+    const lock = () => {
+      window.clearTimeout(state.betaMeetingUnlockTimer);
+      if (!meeting.classList.contains('is-keyboard-active')) {
+        state.betaMeetingLayoutHeight = Math.round(meeting.getBoundingClientRect().height || window.innerHeight);
+        meeting.style.setProperty('--bn-beta-meeting-height', `${state.betaMeetingLayoutHeight}px`);
+        meeting.classList.add('is-keyboard-active');
+      }
+      if (!state.betaMeetingViewportHandler) {
+        state.betaMeetingViewportHandler = updatePosition;
+        viewport?.addEventListener('resize', updatePosition);
+        viewport?.addEventListener('scroll', updatePosition);
+      }
+      updatePosition();
+    };
+    const unlock = () => {
+      state.betaMeetingUnlockTimer = window.setTimeout(() => {
+        if (meeting.contains(document.activeElement) && document.activeElement?.matches('input,textarea')) return;
+        viewport?.removeEventListener('resize', state.betaMeetingViewportHandler);
+        viewport?.removeEventListener('scroll', state.betaMeetingViewportHandler);
+        state.betaMeetingViewportHandler = null;
+        meeting.classList.remove('is-keyboard-active');
+        meeting.style.removeProperty('--bn-beta-meeting-height');
+        panel.style.removeProperty('--bn-beta-keyboard-inset');
+      }, 260);
+    };
+
+    meeting.addEventListener('focusin', event => {
+      if (!event.target.matches('input,textarea')) return;
+      lock();
+      window.requestAnimationFrame(updatePosition);
+    });
+    meeting.addEventListener('focusout', event => {
+      if (event.target.matches('input,textarea')) unlock();
+    });
   }
 
   function setBetaRelationship(value) {
@@ -1358,6 +1409,7 @@
     });
     bindEvents();
     setupBetaCardDismiss();
+    setupBetaMeetingKeyboard();
     setupCameraDrag();
     if (localStorage.getItem('bnDialogueTipSeen') !== 'true') {
       const tip = document.getElementById('bnDialogueTip');

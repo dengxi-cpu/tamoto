@@ -164,29 +164,35 @@
             <span>我</span>
           </div>
         </div>
-        <div class="bn-call-top"><span><i></i><span id="bnCallName"></span> · 陪伴中</span></div>
-        <div class="bn-call-task" id="bnCallTask">📖 专注中</div>
-        <div class="bn-body-double-card" id="bnBodyDoubleCard" hidden><header><span id="bnBodyDoubleName">TA</span><small>也在专注</small></header><div id="bnBodyDoubleList"></div></div>
-        <button class="bn-bgm-pill" id="bnRainBtn" type="button" data-bn-action="toggle-rain" aria-pressed="true">🌧️ 雨声</button>
-        <div class="bn-caption" id="bnCaption"></div>
-        <div class="bn-call-bottom">
-          <div class="bn-call-time" id="bnTimer">25:00</div><div class="bn-call-sub">剩余专注时间</div>
-          <div class="bn-controls">
-            <button class="bn-control" id="bnCameraBtn" type="button" data-bn-action="toggle-camera" aria-pressed="false" aria-label="开启视频" title="开启视频">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-            </button>
-            <button class="bn-control" id="bnVoiceInputBtn" type="button" aria-label="按住说话" title="按住说话">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3zM5 10v2a7 7 0 0014 0v-2M12 19v3M8 22h8"/></svg>
-            </button>
-            <button class="bn-control" id="bnFocusChatBtn" type="button" data-bn-action="toggle-focus-chat" aria-expanded="false" aria-label="文字聊天" title="文字聊天">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4z"/></svg>
-            </button>
-            <button class="bn-control is-primary" id="bnPause" type="button" aria-label="短按暂停，长按结束" title="短按暂停 · 长按结束">⏸</button>
+        <div class="bn-focus-overlay">
+          <div class="bn-focus-top-row">
+            <div class="bn-focus-companion-block">
+              <div class="bn-call-top"><span><i></i><span id="bnCallName"></span> · 专注陪伴中</span><small>和你一起，慢慢把它完成</small></div>
+              <div class="bn-call-task" id="bnCallTask">📖 专注中</div>
+              <div class="bn-body-double-card" id="bnBodyDoubleCard" hidden><header><span id="bnBodyDoubleName">TA</span><small>也在专注</small></header><div id="bnBodyDoubleList"></div></div>
+            </div>
+            <div class="bn-focus-top-right"><button class="bn-bgm-pill" id="bnRainBtn" type="button" data-bn-action="toggle-rain" aria-pressed="true">🌧️ 雨声</button></div>
           </div>
-          <form class="bn-focus-chat-form" id="bnFocusChatForm" hidden>
-            <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="跟 TA 说点什么…">
-            <button type="submit" aria-label="发送">↑</button>
-          </form>
+          <div class="bn-caption" id="bnCaption"></div>
+          <div class="bn-call-bottom">
+            <div class="bn-call-time" id="bnTimer">25:00</div><div class="bn-call-sub">专注中<span>·</span>和 TA 一起</div>
+            <div class="bn-controls">
+              <button class="bn-control" id="bnVoiceInputBtn" type="button" aria-label="按住说话" title="按住说话">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3zM5 10v2a7 7 0 0014 0v-2M12 19v3M8 22h8"/></svg>
+              </button>
+              <button class="bn-control is-primary" id="bnPause" type="button" aria-label="短按暂停，长按结束" title="短按暂停 · 长按结束">⏸</button>
+              <button class="bn-control" id="bnCameraBtn" type="button" data-bn-action="toggle-camera" aria-pressed="false" aria-label="开启视频" title="开启视频">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              </button>
+              <button class="bn-control bn-chat-control" id="bnFocusChatBtn" type="button" data-bn-action="toggle-focus-chat" aria-expanded="false" aria-label="文字聊天" title="文字聊天">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4z"/></svg>
+              </button>
+            </div>
+            <form class="bn-focus-chat-form" id="bnFocusChatForm" hidden>
+              <input id="bnFocusChatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="和 TA 说点什么…">
+              <button type="submit" aria-label="发送">↑</button>
+            </form>
+          </div>
         </div>
         <div class="bn-end-confirm" id="bnEndConfirm" hidden>
           <div class="bn-end-confirm-card" role="dialog" aria-modal="true" aria-labelledby="bnEndConfirmTitle">

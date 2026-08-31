@@ -11,7 +11,7 @@
   <div class="top"><div><h1>伴柠用户行为工作台</h1><p class="muted">看清用户能不能坚持，以及 AI 陪伴是在帮助还是打扰。</p></div><div class="actions"><select id="days"><option value="1">今天</option><option value="7" selected>近 7 天</option><option value="30">近 30 天</option><option value="90">近 90 天</option></select><input id="key" type="password" placeholder="工作台密码（如有）"><button id="refresh">刷新数据</button></div></div>
   <div id="status" class="status">正在读取数据…</div>
   <section class="grid">
-    <div class="metric">进入专注页人数<b id="visitors">—</b><small>按设备计算</small></div>
+    <div class="metric">独立用户数<b id="visitors">—</b><small>每位用户拥有匿名 ID</small></div>
     <div class="metric">开始专注次数<b id="starts">—</b><small id="startRate">点击开始后的成功情况</small></div>
     <div class="metric">专注完成率<b id="completion">—</b><small id="sessionCount">有结果的专注</small></div>
     <div class="metric">平均有效专注<b id="avgFocus">—</b><small>扣除暂停时间</small></div>
@@ -69,7 +69,7 @@ function render(){
   const uiRows=['classic','beta'].map(ui=>{const list=ends.filter(e=>e.ui===ui);return{label:ui==='beta'?'Beta 页':'经典页',value:list.filter(e=>e.props?.completed).length/(list.length||1)*100,display:`${pct(list.filter(e=>e.props?.completed).length,list.length)} · ${list.length}次`}});
   $('uiCompare').innerHTML=barHtml(uiRows);
   const recent=ends.slice().sort((a,b)=>new Date(b.client_ts)-new Date(a.client_ts)).slice(0,30);
-  $('recent').innerHTML=recent.length?`<table><thead><tr><th>时间</th><th>页面</th><th>结果</th><th>有效专注</th><th>暂停</th><th>AI 说话</th><th>用户互动</th><th>摄像头</th></tr></thead><tbody>${recent.map(e=>`<tr><td>${new Date(e.client_ts).toLocaleString()}</td><td><span class="pill">${e.ui==='beta'?'Beta':'经典'}</span></td><td>${e.props?.completed?'✅ 完成':'⏹ 中途结束'}</td><td>${minutes(e.props?.total_elapsed)}</td><td>${Number(e.props?.pause_count)||0} 次</td><td>${Number(e.props?.ai_speech_count)||0} 次</td><td>${Number(e.props?.user_interaction_count)||0} 次</td><td>${e.props?.camera_used?'使用过':'未使用'}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">还没有专注记录</div>';
+  $('recent').innerHTML=recent.length?`<table><thead><tr><th>时间</th><th>用户 ID</th><th>页面</th><th>结果</th><th>有效专注</th><th>暂停</th><th>AI 说话</th><th>用户互动</th><th>摄像头</th></tr></thead><tbody>${recent.map(e=>`<tr><td>${new Date(e.client_ts).toLocaleString()}</td><td><span class="pill" title="${esc(e.device_id||'未知')}">${esc((e.device_id||'未知').slice(0,8))}</span></td><td><span class="pill">${e.ui==='beta'?'Beta':'经典'}</span></td><td>${e.props?.completed?'✅ 完成':'⏹ 中途结束'}</td><td>${minutes(e.props?.total_elapsed)}</td><td>${Number(e.props?.pause_count)||0} 次</td><td>${Number(e.props?.ai_speech_count)||0} 次</td><td>${Number(e.props?.user_interaction_count)||0} 次</td><td>${e.props?.camera_used?'使用过':'未使用'}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">还没有专注记录</div>';
 }
 async function load(){
   $('status').textContent='正在读取数据…';const key=$('key').value.trim();if(key)localStorage.setItem('tamotoDashboardKey',key);

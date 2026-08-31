@@ -121,7 +121,7 @@
                   <select id="bnBetaRelationship" hidden><option>恋人</option><option>朋友</option><option>暧昧</option><option>搭子</option><option value="自定义">自定义</option></select>
                 </div>
                 <label class="bn-beta-field bn-beta-custom-relation" id="bnBetaCustomRelationWrap" hidden><span>自定义关系</span><input id="bnBetaCustomRelationship" maxlength="20" placeholder="写下你们的关系"></label>
-                <label class="bn-beta-field bn-beta-persona-field"><span>TA 的人设</span><textarea id="bnBetaPersona" maxlength="3000" rows="3" placeholder="写下 TA 的性格、说话习惯和陪伴方式。"></textarea><button type="button" data-bn-action="beta-improve-persona">✦ AI 完善</button></label>
+                <label class="bn-beta-field bn-beta-persona-field"><span>TA 的人设</span><textarea id="bnBetaPersona" maxlength="3000" rows="3" placeholder="写下 TA 的性格、说话习惯和陪伴方式。"></textarea></label>
               </div>
               <div class="bn-beta-tab-panel" data-bn-beta-panel="voice" role="tabpanel" aria-hidden="true">
                 <header class="bn-voice-current"><span>TA 的声音</span><div><strong id="bnBetaVoiceName">温柔低沉</strong><small id="bnBetaVoiceMeta">自然 · 温柔 · 陪伴感</small></div><button type="button" data-bn-action="beta-preview-voice">${voiceIcons.play}<span>试听</span></button></header>
@@ -138,7 +138,7 @@
                   <button class="bn-voice-use" type="button" data-bn-action="beta-use-preset-voice">使用这个声音</button>
                 </section>
                 <section class="bn-voice-mode-panel" data-bn-voice-panel="design" hidden>
-                  <label class="bn-voice-description"><span>你希望 TA 的声音是什么样的？</span><textarea id="bnVoiceDescription" rows="3" maxlength="500" placeholder="例如：20 岁左右的男生，声音偏低，有一点气声，清冷克制，但跟我说话时很温柔。"></textarea><button class="bn-voice-ai-improve" type="button" data-bn-action="beta-improve-voice-description">${voiceIcons.sparkles}<span>AI 润色</span></button></label>
+                  <label class="bn-voice-description"><span>你希望 TA 的声音是什么样的？</span><textarea id="bnVoiceDescription" rows="3" maxlength="500" placeholder="例如：20 岁左右的男生，声音偏低，有一点气声，清冷克制，但跟我说话时很温柔。"></textarea></label>
                   <div class="bn-voice-sliders">
                     <label><span><b>声线</b><small>清亮　低沉</small></span><input id="bnVoiceTimbre" type="range" min="0" max="100" value="70"></label>
                     <label><span><b>气质</b><small>清冷　温柔</small></span><input id="bnVoiceTemperament" type="range" min="0" max="100" value="62"></label>
@@ -596,43 +596,6 @@
     document.getElementById('bnBetaCtaName').textContent = name;
   }
 
-  async function improveBetaPersona() {
-    const textarea = document.getElementById('bnBetaPersona');
-    if (!textarea) return;
-    const button = document.querySelector('[data-bn-action="beta-improve-persona"]');
-    const name = document.getElementById('bnBetaName')?.value.trim() || 'TA';
-    const userTitle = document.getElementById('bnBetaUserTitle')?.value.trim() || '你';
-    const selectedRelationship = document.getElementById('bnBetaRelationship')?.value || '伙伴';
-    const relationship = selectedRelationship === '自定义'
-      ? (document.getElementById('bnBetaCustomRelationship')?.value.trim() || '伙伴')
-      : selectedRelationship;
-    const originalLabel = button?.textContent;
-    if (button) {
-      button.disabled = true;
-      button.textContent = '✦ 正在完善…';
-    }
-    try {
-      const response = await fetch('/api/persona-improve', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({ name, userTitle, relationship, persona:textarea.value.trim() })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || 'AI 完善失败');
-      textarea.value = payload.persona;
-      textarea.dispatchEvent(new Event('input', { bubbles:true }));
-      textarea.focus({ preventScroll:true });
-      toast('AI 已完善 TA 的人设');
-    } catch (error) {
-      toast(error.message || 'AI 完善失败，请重试');
-    } finally {
-      if (button) {
-        button.disabled = false;
-        button.textContent = originalLabel || '✦ AI 完善';
-      }
-    }
-  }
-
   function previewSelectedBetaVoice() {
     const voice = state.betaVoice || selectedPresetVoice();
     if (!voice?.id) return toast('请先选择一个声音');
@@ -694,41 +657,6 @@
     return `${description || '年轻男性陪伴者的声音。'}${timbreText}；${temperamentText}；${expressionText}。必须是中国大陆母语级普通话，标准普通话发音和中文语调，绝对不带外国口音。像近距离的日常对话，不要播音腔、舞台腔或译制腔。`;
   }
 
-  async function processVoiceDescription(action, description) {
-    const response = await fetch('/api/voice-description', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ action, description })
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || 'AI 处理失败');
-    return payload.description;
-  }
-
-  async function improveBetaVoiceDescription() {
-    const textarea = document.getElementById('bnVoiceDescription');
-    const button = document.querySelector('[data-bn-action="beta-improve-voice-description"]');
-    if (!textarea?.value.trim()) {
-      textarea?.focus({ preventScroll:true });
-      return toast('先写下你对 TA 声音的想法');
-    }
-    button.disabled = true;
-    button.classList.add('is-loading');
-    button.querySelector('span').textContent = '润色中…';
-    try {
-      textarea.value = await processVoiceDescription('improve', textarea.value.trim());
-      textarea.dispatchEvent(new Event('input', { bubbles:true }));
-      textarea.focus({ preventScroll:true });
-      toast('已润色为更具体的中文声音设定');
-    } catch (error) {
-      toast(error.message || 'AI 润色失败');
-    } finally {
-      button.disabled = false;
-      button.classList.remove('is-loading');
-      button.querySelector('span').textContent = 'AI 润色';
-    }
-  }
-
   function stopBetaVoicePreview() {
     if (!state.betaVoiceAudio) return;
     state.betaVoiceAudio.pause();
@@ -762,7 +690,10 @@
     button.disabled = true;
     status.textContent = '正在理解中文设定…';
     try {
-      const translatedDescription = await processVoiceDescription('translate', voiceBriefFromInputs());
+      const translateResponse = await fetch('/api/elevenlabs-voices', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ action:'translate', description:voiceBriefFromInputs() }) });
+      const translatePayload = await translateResponse.json().catch(() => ({}));
+      if (!translateResponse.ok) throw new Error(translatePayload.error || 'AI 翻译失败');
+      const translatedDescription = translatePayload.description;
       state.betaVoiceTranslatedDescription = translatedDescription;
       status.textContent = '已转换为中文母语音色描述，正在生成…';
       const response = await fetch('/api/elevenlabs-voices', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ action:'design', voiceDescription:translatedDescription }) });
@@ -1705,8 +1636,6 @@
       if (type === 'beta-apply-crop') applyBetaCrop();
       if (type === 'beta-start-together') startBetaFocus();
       if (type === 'roll-body-double') rollBodyDouble();
-      if (type === 'beta-improve-persona') improveBetaPersona();
-      if (type === 'beta-improve-voice-description') improveBetaVoiceDescription();
       if (type === 'beta-preview-voice') previewSelectedBetaVoice();
       if (type === 'beta-use-preset-voice') {
         state.betaVoice = selectedPresetVoice();

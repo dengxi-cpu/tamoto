@@ -9,6 +9,44 @@ function clean(value, max = 1000) {
   return String(value || '').trim().slice(0, max);
 }
 
+const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+
+// 把中文声音设定翻译成 ElevenLabs Voice Design 需要的英文描述
+async function translateVoiceBrief(description) {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) {
+    const error = new Error('DeepSeek 尚未配置');
+    error.status = 503;
+    throw error;
+  }
+  const response = await fetch(DEEPSEEK_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey.trim()}` },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      temperature: 0.35,
+      max_tokens: 360,
+      stream: false,
+      messages: [
+        {
+          role: 'system',
+          content: 'Translate the Chinese voice-design brief into a precise English prompt for ElevenLabs Voice Design. Preserve every requested trait. Explicitly state: native Mandarin Chinese speaker from mainland China, standard Putonghua pronunciation, authentic mainland Chinese cadence and prosody, and absolutely no foreign accent. Do not add an English-speaking, American, British, narrator, broadcaster, theatrical, or dubbed quality. Output only one English paragraph, 70–140 words, with no heading, quotes, list, or explanation.'
+        },
+        { role: 'user', content: description }
+      ]
+    })
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    console.error('Voice brief translate failed:', response.status, detail.slice(0, 500));
+    const error = new Error(response.status === 429 ? '请求太多，稍后再试' : 'AI 暂时无法翻译声音描述');
+    error.status = response.status === 429 ? 429 : 502;
+    throw error;
+  }
+  const payload = await response.json();
+  return clean(payload?.choices?.[0]?.message?.content, 1600).replace(/^['“”"]+|['“”"]+$/g, '');
+}
+
 async function elevenFetch(path, options = {}) {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) {
@@ -42,6 +80,14 @@ async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { success: false, error: 'Method not allowed' });
   const action = clean(req.body?.action, 30);
   try {
+    if (action === 'translate') {
+      const description = clean(req.body?.description, 800);
+      if (!description) return json(res, 400, { success: false, error: '先写下你希望 TA 的声音' });
+      const translated = await translateVoiceBrief(description);
+      if (!translated) return json(res, 502, { success: false, error: 'AI 没有返回有效翻译' });
+      return json(res, 200, { success: true, description: translated });
+    }
+
     if (action === 'design') {
       const voiceDescription = clean(req.body?.voiceDescription);
       if (voiceDescription.length < 20) return json(res, 400, { success: false, error: '请再具体描述一点 TA 的声音' });

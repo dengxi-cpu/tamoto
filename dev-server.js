@@ -41,8 +41,6 @@ const apiModules = {
   ttsStream: require('./api/tts-stream.js'),
   companionLogs: require('./api/companion-logs.js'),
   elevenlabsVoices: require('./api/elevenlabs-voices.js'),
-  voiceDescription: require('./api/voice-description.js'),
-  personaImprove: require('./api/persona-improve.js'),
   events: require('./server/events.js'),
 };
 
@@ -72,8 +70,6 @@ app.get('/api/vision-health', proxyApi(apiModules.visionHealth.handler));
 app.post('/api/tts-stream', proxyApi(apiModules.ttsStream.handler));
 app.all('/api/companion-logs', proxyApi(apiModules.companionLogs.handler));
 app.post('/api/elevenlabs-voices', proxyApi(apiModules.elevenlabsVoices.handler));
-app.post('/api/voice-description', proxyApi(apiModules.voiceDescription.handler));
-app.post('/api/persona-improve', proxyApi(apiModules.personaImprove.handler));
 app.all('/api/events', proxyApi(apiModules.events.handler));
 
 app.listen(PORT, () => {

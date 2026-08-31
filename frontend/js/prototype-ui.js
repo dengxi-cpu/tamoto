@@ -404,6 +404,7 @@
     const modal = document.getElementById('bnEndConfirm');
     if (!modal) return;
     modal.hidden = !show;
+    if (show) window.track?.('beta_action', { meeting_step: 'end_confirm_shown' });
   }
 
   function setBetaTab(tabName) {
@@ -969,6 +970,7 @@
   }
 
   async function showBetaMeeting() {
+    window.track?.('beta_action', { meeting_step: 'meeting_view' });
     const oc = currentOC();
     switchTab('beta-meeting');
     document.getElementById('bnBetaMeetingBackground').src = oc.avatar || fallbackAvatar;
@@ -1008,6 +1010,7 @@
     const startButton = document.getElementById('bnBetaStartTogether');
     const task = input.value.trim();
     if (!task) return;
+    window.track?.('beta_action', { meeting_step: 'meeting_submit' });
     state.betaMeetingTask = task;
     form.hidden = true;
     caption.textContent = 'TA 正在想…';
@@ -1073,6 +1076,7 @@
   }
 
   function rollBodyDouble() {
+    window.track?.('beta_action', { body_double_action: 'roll' });
     const choices = ['看书', '整理读书笔记', '处理工作邮件', '写今天的日记', '学习一门新课程', '整理桌面资料'];
     const input = document.getElementById('bnBetaBodyDoubleInput');
     if (input) input.value = choices[Math.floor(Math.random() * choices.length)];
@@ -1174,6 +1178,7 @@
   function cycleBgm() {
     state.bgmMode = state.bgmMode === 'rain' ? 'piano' : state.bgmMode === 'piano' ? 'muted' : 'rain';
     localStorage.setItem('bnBgmMode', state.bgmMode);
+    window.track?.('beta_action', { bgm_mode: state.bgmMode });
     window.focusCompanion?.unlockAudio().catch(() => {});
     startBgm();
     updateRainButton();

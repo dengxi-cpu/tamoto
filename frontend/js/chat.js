@@ -666,6 +666,7 @@ async function sendChatMessageToOC() {
         }
         return;
     }
+    window.track?.interaction('chat_message', { message_length: message.length });
 
     // 清空输入框
     input.value = '';
@@ -686,6 +687,7 @@ async function sendChatMessageToOC() {
     // ✅ 检查是否是杂念（仅在专注状态）
     if (currentPromptState === 'start' && isDistraction(message)) {
         distractionList.push(message);
+        window.track?.increment('distraction_count');
         console.log('📝 记录杂念:', message);
     }
 

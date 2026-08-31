@@ -1003,6 +1003,7 @@ function loadDetailedStats() {
          focusStartTime = null;
      }
      clearTimerState();
+     window.track?.sessionEnd('completed', true, { gift_received: true });
      if (window.focusCompanion) {
          window.focusCompanion.stopSession();
      }
@@ -1334,6 +1335,7 @@ function loadDetailedStats() {
  // OC交互系统
  function handleOCClick() {
      if (!canInteract || isIgnoring) return;
+     window.track?.interaction('oc_click');
      
      clickCount++;
      
@@ -3707,12 +3709,14 @@ function selectTask(name, status, color) {
  }
 
  function startStopTimer() {
+     window.track?.('focus_start_attempt', { planned_minutes: selectedMinutes });
      // 尝试启动背景音乐（解决浏览器自动播放限制）
 if (currentMusicMode > 0 && !currentBackgroundMusic && isStatusSelected) {
  const musicType = currentMusicMode === 1 ? 'music' : 'rain';
  playBackgroundMusic(musicType);
 }
      if (!isStatusSelected) {
+         window.track?.('focus_start_blocked', { block_reason: 'status_not_selected' });
          const startBtnHint = document.getElementById('startBtnHint');
          startBtnHint.classList.remove('hidden');
          
@@ -3730,6 +3734,10 @@ if (currentMusicMode > 0 && !currentBackgroundMusic && isStatusSelected) {
          isPaused = false;
          focusStartTime = Date.now();
          focusStartOCIndex = currentOCIndex;
+         window.track?.sessionStart({
+             planned_minutes: currentMode === 'pomodoro' ? selectedMinutes : 0,
+             task_kind: currentTask?.name ? 'selected' : 'empty'
+         });
          timerReferenceAt = currentMode === 'pomodoro'
              ? Date.now() + currentTime * 1000
              : Date.now() - currentTime * 1000;
@@ -3803,6 +3811,7 @@ if (isTimerRunning) {
  timerInterval = null;
  isTimerRunning = false;
  isPaused = true;
+ window.track?.sessionPause(true);
  timerReferenceAt = null;
  stopHeartbeatAnimation();
  stopEncourageLoop();
@@ -3832,6 +3841,7 @@ if (isTimerRunning) {
 } else if (isPaused) {
  isTimerRunning = true;
  isPaused = false;
+ window.track?.sessionPause(false);
  focusStartTime = Date.now();
  timerReferenceAt = currentMode === 'pomodoro'
      ? Date.now() + currentTime * 1000
@@ -3862,6 +3872,7 @@ if (isTimerRunning) {
 }
 
 function stopTimer() {
+window.track?.sessionEnd('user_abandoned', false);
 if (timerInterval) {
  clearInterval(timerInterval);
  timerInterval = null;

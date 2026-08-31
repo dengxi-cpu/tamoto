@@ -7,6 +7,7 @@
     const DEVICE_ID_KEY = 'tamotoPushDeviceId';
     const DEVICE_SECRET_KEY = 'tamotoPushDeviceSecret';
     const FOCUS_AWAY_KEY = 'tamotoActiveFocusAwayKey';
+    const TRACK_AWAY_AT_KEY = 'tamotoTrackAwayAt';
 
     function isStandalone() {
         return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -89,6 +90,8 @@
         if (!focusIsRunning() || localStorage.getItem(FOCUS_AWAY_KEY)) return;
         const awayKey = crypto.randomUUID();
         localStorage.setItem(FOCUS_AWAY_KEY, awayKey);
+        localStorage.setItem(TRACK_AWAY_AT_KEY, String(Date.now()));
+        window.track?.('focus_away');
         const payload = JSON.stringify({ ...getDeviceCredentials(), awayKey });
         const url = '/api/reminders?action=focus-away';
         const sent = navigator.sendBeacon?.(url, new Blob([payload], { type: 'application/json' }));
@@ -105,6 +108,9 @@
     async function registerFocusReturn() {
         const awayKey = localStorage.getItem(FOCUS_AWAY_KEY);
         if (!awayKey) return;
+        const trackAwayAt = Number(localStorage.getItem(TRACK_AWAY_AT_KEY)) || Date.now();
+        window.track?.('focus_return', { away_seconds: Math.max(0, Math.round((Date.now() - trackAwayAt) / 1000)) });
+        localStorage.removeItem(TRACK_AWAY_AT_KEY);
         try {
             const response = await fetch('/api/reminders?action=focus-return', {
                 method: 'POST',

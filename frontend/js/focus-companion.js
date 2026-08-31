@@ -28,6 +28,7 @@
         latestObservation: null,
         preparedOpening: null,
         preparingOpening: null,
+        activeTrackSpeechId: null,
         dialogueController: null,
         dialogueHistory: [],
         pipelineController: null,
@@ -152,6 +153,7 @@
             if (video?.srcObject === streamToStop) video.srcObject = null;
         }, 260);
         stopVisionLoop();
+        if (streamToStop) window.track?.cameraToggle(false, 'allow');
         cancelReaction('视频已关闭');
     }
 
@@ -184,6 +186,7 @@
 
             const { preview, video } = elements();
             state.stream = stream;
+            window.track?.cameraToggle(true, 'allow');
             if (video) {
                 video.srcObject = stream;
                 await video.play().catch(() => {});
@@ -200,6 +203,7 @@
             const denied = error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError');
             notify(denied ? '未获得摄像头权限' : '摄像头开启失败，请检查设备');
             console.warn('Camera start failed:', error);
+            window.track?.cameraToggle(false, denied ? 'deny' : 'error');
             stopCamera(denied ? 'camera-denied' : 'camera-off');
         } finally {
             state.requestInFlight = false;
@@ -371,9 +375,13 @@
         if (state.audioContext.state === 'suspended') await state.audioContext.resume();
     }
 
-    function stopPlayback() {
+    function stopPlayback(reason = 'playback_stopped') {
         const playback = state.playback;
         if (!playback) return;
+        if (state.activeTrackSpeechId) {
+            window.track?.speechEnded(state.activeTrackSpeechId, 'cancelled', { cancelled_by: reason });
+            state.activeTrackSpeechId = null;
+        }
         state.playback = null;
         playback.controller.abort();
         playback.sources.forEach(source => {
@@ -384,16 +392,20 @@
         playback.resolveFinished?.(false);
     }
 
-    function cancelSpeechSequence() {
+    function cancelSpeechSequence(reason = 'cancelled') {
+        if (state.activeTrackSpeechId) {
+            window.track?.speechEnded(state.activeTrackSpeechId, 'cancelled', { cancelled_by: reason });
+            state.activeTrackSpeechId = null;
+        }
         state.speechSequenceId += 1;
         state.activeSpeechSequence = null;
-        stopPlayback();
+        stopPlayback(reason);
     }
 
-    function cancelReaction() {
+    function cancelReaction(reason = 'cancelled') {
         state.pipelineController?.abort();
         state.pipelineController = null;
-        cancelSpeechSequence();
+        cancelSpeechSequence(reason);
     }
 
     function schedulePcmChunk(bytes, playback) {
@@ -552,6 +564,7 @@
         elements().voiceButton?.classList.add('is-speaking');
         beginSpeechMessages();
         let totalBytes = 0;
+        let trackedSpeechId = null;
         try {
             if (result.epoch !== state.epoch || state.voiceHeld || state.paused) return 0;
             const fullText = items.join('');
@@ -573,13 +586,26 @@
                 }
             };
             try {
-                totalBytes = await playStreamingTts(fullText, result, priority, speechType, scheduleCaptions);
+                totalBytes = await playStreamingTts(fullText, result, priority, speechType, () => {
+                    scheduleCaptions();
+                    if (!trackedSpeechId) {
+                        trackedSpeechId = window.track?.speechStarted({
+                            source: speechType === 'visual' ? 'vision' : 'ambient', speech_type: speechType,
+                            text_len: fullText.length, speech_id: `${result.epoch}-${result.turnId}-${speechType}`
+                        });
+                        state.activeTrackSpeechId = trackedSpeechId;
+                    }
+                });
             } catch (error) {
                 items.forEach((_, index) => showItem(index));
                 throw error;
             }
             if (!totalBytes) items.forEach((_, index) => showItem(index));
         } finally {
+            if (trackedSpeechId && state.activeTrackSpeechId === trackedSpeechId) {
+                window.track?.speechEnded(trackedSpeechId, totalBytes ? 'completed' : 'failed', { tts_bytes: totalBytes });
+                state.activeTrackSpeechId = null;
+            }
             if (state.activeSpeechSequence?.id === sequenceId) state.activeSpeechSequence = null;
             elements().voiceButton?.classList.remove('is-speaking');
         }
@@ -623,6 +649,12 @@
             const result = payload?.data || payload;
             if (requestEpoch !== state.epoch || state.paused || !state.sessionActive) return;
             if (!result?.decision) throw new Error('AI 没有返回发言决策');
+            window.track?.('ai_decision', {
+                engine: 'vision', decision: result.decision.shouldSpeak ? 'speak' : 'silent',
+                should_speak: Boolean(result.decision.shouldSpeak), reason_code: result.decision.reason || 'unspecified',
+                state: result.decision.state || result.state || 'unknown',
+                vision_ms: result.visionMs, reaction_ms: result.reactionMs, total_ms: result.totalMs
+            });
             state.policyState = result.decision.policyState || state.policyState;
             state.latestObservation = {
                 capturedAt: Date.now(),
@@ -663,6 +695,7 @@
             }
         } catch (error) {
             if (error.name !== 'AbortError') {
+                window.track?.('client_error', { error_area: 'vision', error_code: error.name || 'Error' });
                 console.warn('Companion pipeline failed:', error);
                 saveLog({
                     id: logId,
@@ -804,6 +837,11 @@
             resolveFinished
         };
         state.playback = playback;
+        const trackedSpeechId = window.track?.speechStarted({
+            source: 'opening', speech_type: 'opening', text_len: prepared.messages.join('').length,
+            speech_id: `${state.epoch}-prepared-opening`
+        });
+        state.activeTrackSpeechId = trackedSpeechId;
         const encodedDuration = prepared.format === 'mp3' ? await scheduleEncodedAudio(prepared.bytes, playback) : 0;
         if (prepared.format !== 'mp3') schedulePcmChunk(prepared.bytes, playback);
         const totalCharacters = Math.max(1, prepared.messages.reduce((sum, item) => sum + Array.from(item).length, 0));
@@ -819,6 +857,10 @@
         playback.streamEnded = true;
         finishPlaybackIfDone(playback);
         if (!await finished || sequenceId !== state.speechSequenceId) return false;
+        if (trackedSpeechId && state.activeTrackSpeechId === trackedSpeechId) {
+            window.track?.speechEnded(trackedSpeechId, 'completed', { tts_bytes: prepared.bytes.length });
+            state.activeTrackSpeechId = null;
+        }
         if (state.activeSpeechSequence?.id === sequenceId) state.activeSpeechSequence = null;
         const now = Date.now();
         state.openingAmbientDone = true;
@@ -929,7 +971,9 @@
         if (!state.sessionActive || state.paused || state.voiceHeld || state.visionInFlight || state.playback) return;
         const productiveStates = ['STUDYING', 'READING', 'WRITING', 'COMPUTER_WORK'];
         const ambientSafe = !state.stream || !policy.currentState || productiveStates.includes(policy.currentState);
-        if (elapsedSeconds < AMBIENT_POLICY.firstOpportunitySeconds || !ambientSafe || policy.phoneStartedAt) return;
+        if (elapsedSeconds < AMBIENT_POLICY.firstOpportunitySeconds || !ambientSafe || policy.phoneStartedAt) {
+            window.track?.('ai_decision', { engine: 'ambient', decision: 'skip', reason_code: 'early_or_unsafe' }); return;
+        }
         if (state.lastEventOrDialogueAt && now - state.lastEventOrDialogueAt < AMBIENT_POLICY.eventCooldownMs) return;
         const studyPhase = elapsedSeconds >= 5 * 60;
         const ambientCooldownMs = studyPhase ? AMBIENT_POLICY.studyAmbientCooldownMs : AMBIENT_POLICY.ambientCooldownMs;
@@ -941,7 +985,7 @@
 
         const focusSeconds = policy.focusStreakStartedAt ? Math.floor((now - policy.focusStreakStartedAt) / 1000) : 0;
         const speakChance = studyPhase ? AMBIENT_POLICY.studyChance : AMBIENT_POLICY.baseChance;
-        if (Math.random() > speakChance) return;
+        if (Math.random() > speakChance) { window.track?.('ai_decision', { engine: 'ambient', decision: 'skip', reason_code: 'random_roll' }); return; }
         let type = 'presence';
         let priority = 5;
         let activity = '';
@@ -962,6 +1006,7 @@
         }
 
         const { task, persona } = getCompanionContext();
+        window.track?.('ai_decision', { engine: 'ambient', decision: 'speak', reason_code: type, should_speak: true });
         const requestEpoch = state.epoch;
         const turnId = ++state.turnId;
         try {
@@ -986,6 +1031,7 @@
     async function startVoiceInput() {
         if (!state.sessionActive || state.audioStream || state.voiceInFlight || !navigator.mediaDevices?.getUserMedia) return;
         state.voiceHeld = true;
+        window.track?.interaction('voice_input_started');
         state.voiceCancelled = false;
         state.dialogueController?.abort();
         state.dialogueController = null;
@@ -1092,14 +1138,17 @@
             if (!response.ok) throw new Error(payload.error || `Speech HTTP ${response.status}`);
             const text = payload?.data?.text?.trim();
             if (text) {
+                window.track?.interaction('voice_input_result', { result: 'success', message_length: text.length });
                 notify('语音识别完成');
                 window.dispatchEvent(new CustomEvent('focus-voice-result', { detail: { text } }));
                 await respondToVoice(text);
             } else {
+                window.track?.interaction('voice_input_result', { result: 'no_speech' });
                 setCaption('刚才没有听清，再说一次？');
                 notify('没有识别到文字');
             }
         } catch (error) {
+            window.track?.interaction('voice_input_result', { result: 'error' });
             console.warn('Voice transcription failed:', error);
             setCaption('刚才没听清，再试一次？');
             notify(error.message || '语音识别失败');

@@ -612,6 +612,7 @@ async function handleReminderConversation(message) {
     if (!isClarification && !looksLikeReminderRequest(message)) return false;
 
     showTypingIndicator();
+    const chatRequestStartedAt = performance.now();
     try {
         const parsed = await window.parseReminderText(message, isClarification ? {
             previousText: pendingReminder.originalText,
@@ -724,6 +725,7 @@ async function sendChatMessageToOC() {
         isWaitingForReply = false;
 
         if (result.success) {
+            window.track?.('api_result', { error_area: 'chat', result: 'success', latency_ms: Math.round(performance.now() - chatRequestStartedAt), reply_length: result.data?.reply?.length || 0 });
             // 显示 OC 回复
             addOCMessage(result.data.reply);
 
@@ -738,11 +740,13 @@ async function sendChatMessageToOC() {
                 }
             }
         } else {
+            window.track?.('api_result', { error_area: 'chat', result: 'failed', latency_ms: Math.round(performance.now() - chatRequestStartedAt) });
             // 显示错误
             addOCMessage('抱歉，我现在有点困惑...' + (result.error ? `(${result.error})` : ''));
         }
 
     } catch (error) {
+        window.track?.('client_error', { error_area: 'chat', error_code: error.name || 'Error' });
         console.error('发送消息失败:', error);
         hideTypingIndicator();
         isWaitingForReply = false;

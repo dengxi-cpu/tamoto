@@ -1,7 +1,9 @@
 const { isReady, supabaseFetch } = require('../api/_supabase.js');
 
-const EVENT_NAMES = new Set(['focus_page_view','focus_start_attempt','focus_start_blocked','focus_session_start','focus_pause','focus_resume','focus_session_end','focus_away','focus_return','ai_decision','ai_speech_started','ai_speech_ended','user_interaction','camera_toggle','client_error','network_status','beta_action']);
+const EVENT_NAMES = new Set(['focus_page_view','focus_start_attempt','focus_start_blocked','focus_session_start','focus_pause','focus_resume','focus_session_end','focus_away','focus_return','ai_decision','ai_speech_started','ai_speech_ended','user_interaction','camera_toggle','client_error','api_result','network_status','beta_action']);
 const MAX_BATCH = 50;
+const DASHBOARD_PAGE_SIZE = 1000;
+const DASHBOARD_MAX_ROWS = 10000;
 
 function text(value, max = 120) { return typeof value === 'string' ? value.slice(0, max) : null; }
 function number(value) { const n = Number(value); return Number.isFinite(n) ? n : null; }
@@ -47,9 +49,15 @@ async function handler(req, res) {
       if (expected && supplied !== expected) return res.status(401).json({ success: false, error: '工作台访问密码不正确' });
       const days = Math.min(90, Math.max(1, Number(req.query?.days) || 7));
       const since = new Date(Date.now() - days * 86400000).toISOString();
-      const response = await supabaseFetch(`events?select=event,event_id,client_ts,received_at,focus_session_id,device_id,ui,mode,elapsed,policy_version,props&client_ts=gte.${encodeURIComponent(since)}&order=client_ts.desc&limit=5000`);
-      if (!response.ok) throw new Error(`读取事件失败: ${response.status} ${await response.text()}`);
-      return res.status(200).json({ success: true, data: await response.json(), days });
+      const data = [];
+      for (let offset = 0; offset < DASHBOARD_MAX_ROWS; offset += DASHBOARD_PAGE_SIZE) {
+        const response = await supabaseFetch(`events?select=event,event_id,client_ts,received_at,focus_session_id,device_id,ui,mode,elapsed,policy_version,sequence_no,props&client_ts=gte.${encodeURIComponent(since)}&order=client_ts.desc&limit=${DASHBOARD_PAGE_SIZE}&offset=${offset}`);
+        if (!response.ok) throw new Error(`读取事件失败: ${response.status} ${await response.text()}`);
+        const page = await response.json();
+        data.push(...page);
+        if (page.length < DASHBOARD_PAGE_SIZE) break;
+      }
+      return res.status(200).json({ success: true, data, days, truncated: data.length >= DASHBOARD_MAX_ROWS, generated_at: new Date().toISOString() });
     }
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (error) {

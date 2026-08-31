@@ -585,6 +585,7 @@
                     passedCharacters += Array.from(items[index]).length;
                 }
             };
+            const ttsRequestStartedAt = performance.now();
             try {
                 totalBytes = await playStreamingTts(fullText, result, priority, speechType, () => {
                     scheduleCaptions();
@@ -596,7 +597,9 @@
                         state.activeTrackSpeechId = trackedSpeechId;
                     }
                 });
+                window.track?.('api_result', { error_area: 'tts', result: totalBytes ? 'success' : 'suppressed', latency_ms: Math.round(performance.now() - ttsRequestStartedAt) });
             } catch (error) {
+                window.track?.('client_error', { error_area: 'tts', error_code: error.name || 'Error' });
                 items.forEach((_, index) => showItem(index));
                 throw error;
             }

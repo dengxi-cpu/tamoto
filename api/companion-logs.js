@@ -1,7 +1,7 @@
 const { isReady, supabaseFetch } = require('./_supabase.js');
 
 const RETENTION_HOURS = 24;
-const MAX_ROWS = 100;
+const MAX_ROWS = 500;
 
 function eventKey(epoch, turnId, source = 'pomodoro') {
   return `${source}:${Number(epoch) || 1}:${Number(turnId) || 1}`;
@@ -73,8 +73,12 @@ async function handler(req, res) {
       return res.status(200).json({ success: true, data: await response.json() });
     }
     if (req.method === 'DELETE') {
-      const response = await supabaseFetch('companion_logs?created_at=not.is.null', { method: 'DELETE' });
-      if (!response.ok) throw new Error(`清空日志失败: ${response.status} ${await response.text()}`);
+      const requestedEventKey = String(req.query?.eventKey || '').trim();
+      const target = requestedEventKey
+        ? `companion_logs?event_key=eq.${encodeURIComponent(requestedEventKey)}`
+        : 'companion_logs?created_at=not.is.null';
+      const response = await supabaseFetch(target, { method: 'DELETE' });
+      if (!response.ok) throw new Error(`删除日志失败: ${response.status} ${await response.text()}`);
       return res.status(200).json({ success: true });
     }
     return res.status(405).json({ success: false, error: 'Method not allowed' });

@@ -53,6 +53,7 @@
     { "source": "/api/vision", "destination": "/api/legacy?endpoint=vision" },
     { "source": "/api/events", "destination": "/api/legacy?endpoint=events" },
     { "source": "/beta/api/events", "destination": "/api/legacy?endpoint=events" },
+    { "source": "/beta/api/companion-logs", "destination": "/api/companion-logs" },
     { "source": "/beta/", "destination": "/api/vision-health?serve=beta" },
     { "source": "/beta/:path*", "destination": "/:path*" }
   ]

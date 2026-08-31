@@ -8,6 +8,9 @@
       "maxDuration": 30
     }
   },
+  "redirects": [
+    { "source": "/beta", "destination": "/beta/", "permanent": false }
+  ],
   "headers": [
     {
       "source": "/sw.js",
@@ -35,6 +38,13 @@
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
+    },
+    {
+      "source": "/beta/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Service-Worker-Allowed", "value": "/beta/" }
+      ]
     }
   ],
   "rewrites": [
@@ -42,6 +52,8 @@
     { "source": "/api/sync", "destination": "/api/legacy?endpoint=sync" },
     { "source": "/api/vision", "destination": "/api/legacy?endpoint=vision" },
     { "source": "/api/events", "destination": "/api/legacy?endpoint=events" },
-    { "source": "/beta", "destination": "/api/vision-health?serve=beta" }
+    { "source": "/beta/api/events", "destination": "/api/legacy?endpoint=events" },
+    { "source": "/beta/", "destination": "/api/vision-health?serve=beta" },
+    { "source": "/beta/:path*", "destination": "/:path*" }
   ]
 }

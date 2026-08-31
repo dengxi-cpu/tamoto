@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const isBetaMode = location.pathname === '/beta' || new URLSearchParams(location.search).get('mode') === 'beta';
+  const isBetaMode = window.APP_BASE === '/beta' || new URLSearchParams(location.search).get('mode') === 'beta';
 
   const state = {
     tab: 'home',
@@ -52,7 +52,12 @@
   ];
 
   const fallbackAvatar = 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=300&h=300&fit=crop&crop=face';
-  const betaDefaultBackground = '/frontend/images/beta-default-bg.png';
+  const betaDefaultBackground = (window.APP_BASE || '') + '/frontend/images/beta-default-bg.png';
+
+  function betaBackgroundFor(oc = currentOC()) {
+    const hasSavedBetaRole = localStorage.getItem('bnBetaRoleConfigured') === 'true';
+    return hasSavedBetaRole && oc && oc.avatar ? oc.avatar : betaDefaultBackground;
+  }
 
   function currentOC() {
     if (typeof ocData !== 'undefined' && Array.isArray(ocData) && ocData.length) {
@@ -250,7 +255,10 @@
               </button>
               <div class="bn-dialogue-tip" id="bnDialogueTip" hidden>长按说话 · 轻触打字</div>
               <div class="bn-voice-status" id="bnVoiceStatus" hidden>松开发送</div>
-              <button class="bn-control is-primary" id="bnPause" type="button" aria-label="短按暂停，长按结束" title="短按暂停 · 长按结束"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></button>
+              <div class="bn-pause-control">
+                <button class="bn-control is-primary" id="bnPause" type="button" aria-label="短按暂停，长按结束" title="短按暂停 · 长按结束"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></button>
+                <small class="bn-pause-hint">长按可结束专注</small>
+              </div>
               <button class="bn-control" id="bnCameraBtn" type="button" data-bn-action="toggle-camera" aria-pressed="false" aria-label="开启视频" title="开启视频">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
               </button>
@@ -387,7 +395,7 @@
   function syncBetaFocusBackground(avatar) {
     if (!isBetaMode) return;
     const target = document.getElementById('bnStageImage');
-    const source = avatar || currentOC().avatar || state.betaBackground || fallbackAvatar;
+    const source = avatar || betaBackgroundFor();
     if (target && target.getAttribute('src') !== source) target.src = source;
   }
 
@@ -690,13 +698,13 @@
     button.disabled = true;
     status.textContent = '正在理解中文设定…';
     try {
-      const translateResponse = await fetch('/api/elevenlabs-voices', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ action:'translate', description:voiceBriefFromInputs() }) });
+      const translateResponse = await fetch((window.APP_BASE || '') + '/api/elevenlabs-voices', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ action:'translate', description:voiceBriefFromInputs() }) });
       const translatePayload = await translateResponse.json().catch(() => ({}));
       if (!translateResponse.ok) throw new Error(translatePayload.error || 'AI 翻译失败');
       const translatedDescription = translatePayload.description;
       state.betaVoiceTranslatedDescription = translatedDescription;
       status.textContent = '已转换为中文母语音色描述，正在生成…';
-      const response = await fetch('/api/elevenlabs-voices', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ action:'design', voiceDescription:translatedDescription }) });
+      const response = await fetch((window.APP_BASE || '') + '/api/elevenlabs-voices', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ action:'design', voiceDescription:translatedDescription }) });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || '声音生成失败');
       state.betaVoicePreviews = payload.previews || [];
@@ -717,7 +725,7 @@
     const status = document.getElementById('bnVoiceDesignStatus');
     status.textContent = '正在保存为 TA 的声音…';
     try {
-      const response = await fetch('/api/elevenlabs-voices', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ action:'create', generatedVoiceId:preview.id, voiceDescription:description, voiceName:`${document.getElementById('bnBetaName').value.trim() || 'TA'} 的声音` }) });
+      const response = await fetch((window.APP_BASE || '') + '/api/elevenlabs-voices', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ action:'create', generatedVoiceId:preview.id, voiceDescription:description, voiceName:`${document.getElementById('bnBetaName').value.trim() || 'TA'} 的声音` }) });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || '声音保存失败');
       state.betaVoice = { provider:'elevenlabs', id:payload.voice.id, name:payload.voice.name, meta:'专属定制声音', source:'custom', description, parameters:{ timbre:Number(document.getElementById('bnVoiceTimbre').value), temperament:Number(document.getElementById('bnVoiceTemperament').value), expression:Number(document.getElementById('bnVoiceExpression').value) } };
@@ -733,7 +741,7 @@
   function populateBetaRoleForm() {
     if (!isBetaMode) return;
     const oc = currentOC();
-    state.betaBackground = oc.avatar || fallbackAvatar;
+    state.betaBackground = betaBackgroundFor(oc);
     document.getElementById('bnBetaBackgroundPreview').src = state.betaBackground;
     document.getElementById('bnBetaName').value = oc.name || '';
     document.getElementById('bnBetaUserTitle').value = oc.userTitle || '大小姐';
@@ -966,7 +974,7 @@
     window.track?.('beta_action', { meeting_step: 'meeting_view' });
     const oc = currentOC();
     switchTab('beta-meeting');
-    document.getElementById('bnBetaMeetingBackground').src = oc.avatar || fallbackAvatar;
+    document.getElementById('bnBetaMeetingBackground').src = betaBackgroundFor(oc);
     document.getElementById('bnBetaMeetingName').textContent = oc.name || 'TA';
     const caption = document.getElementById('bnBetaMeetingCaption');
     const form = document.getElementById('bnBetaMeetingForm');
@@ -1011,7 +1019,7 @@
     let messages = ['好，我陪你开始。'];
     try {
       const oc = currentOC();
-      const response = await fetch('/api/companion-observe', {
+      const response = await fetch((window.APP_BASE || '') + '/api/companion-observe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode: 'session_opening', task, persona: betaPersona(oc), roleContext: betaRoleContext(oc), epoch: turn.epoch, turnId: turn.turnId })
@@ -1045,7 +1053,7 @@
     startButton.textContent = 'TA 正在安排自己的计划…';
     try {
       const oc = currentOC();
-      const response = await fetch('/api/companion-observe', {
+      const response = await fetch((window.APP_BASE || '') + '/api/companion-observe', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode: 'body_double_plan', activity, durationMinutes: 25, persona: betaPersona(oc), roleContext: betaRoleContext(oc) })
       });
@@ -1108,7 +1116,7 @@
 
   function ensureRainAudio() {
     if (state.rainAudio) return state.rainAudio;
-    const audio = new Audio('/frontend/audio/ambient/rain-cc0.mp3');
+    const audio = new Audio((window.APP_BASE || '') + '/frontend/audio/ambient/rain-cc0.mp3');
     audio.id = 'bnRainPlayer';
     audio.loop = true;
     audio.preload = 'auto';
@@ -1119,7 +1127,7 @@
 
   function ensurePianoAudio() {
     if (state.pianoAudio) return state.pianoAudio;
-    const audio = new Audio('/frontend/audio/ambient/cafe-calm-piano-cc-by.mp3');
+    const audio = new Audio((window.APP_BASE || '') + '/frontend/audio/ambient/cafe-calm-piano-cc-by.mp3');
     audio.id = 'bnPianoPlayer';
     audio.loop = true;
     audio.preload = 'auto';
@@ -1509,7 +1517,7 @@
     const oc = currentOC();
     const name = oc.name || '你的 TA';
     const title = oc.userTitle || '你';
-    const avatar = oc.avatar || fallbackAvatar;
+    const avatar = isBetaMode ? betaBackgroundFor(oc) : (oc.avatar || fallbackAvatar);
     syncBetaFocusBackground(avatar);
     document.getElementById('bnDate').textContent = formatDate();
     document.getElementById('bnHomeAvatar').src = avatar;
@@ -1543,7 +1551,7 @@
       return;
     }
     try {
-      const response = await fetch('/%E4%BC%B4%E6%9F%A0%E7%95%AA%E8%8C%84%E9%92%9F_%E4%BA%A7%E5%93%81%E5%8E%9F%E5%9E%8B.html');
+      const response = await fetch((window.APP_BASE || '') + '/%E4%BC%B4%E6%9F%A0%E7%95%AA%E8%8C%84%E9%92%9F_%E4%BA%A7%E5%93%81%E5%8E%9F%E5%9E%8B.html');
       if (!response.ok) throw new Error('prototype not found');
       const html = await response.text();
       const parsed = new DOMParser().parseFromString(html, 'text/html');

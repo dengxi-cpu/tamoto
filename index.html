@@ -9,21 +9,23 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="伴柠番茄钟">
     <meta name="format-detection" content="telephone=no">
-    <link id="appManifest" rel="manifest" href="/manifest.webmanifest">
+    <link id="appManifest" rel="manifest" href="./manifest.webmanifest">
     <script>
       (() => {
+        // 部署路径前缀：beta 部署在 /beta 下，所有资源/API 请求都要带上前缀
+        const isBetaPath = location.pathname === '/beta' || location.pathname.startsWith('/beta/');
+        window.APP_BASE = isBetaPath ? '/beta' : '';
         const params = new URLSearchParams(location.search);
-        if (params.get('mode') === 'beta' && location.pathname !== '/beta') {
+        if (params.get('mode') === 'beta' && !isBetaPath) {
           params.delete('mode');
           const query = params.toString();
           location.replace(`/beta${query ? `?${query}` : ''}`);
           return;
         }
-        const isBeta = location.pathname === '/beta';
         const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-        if (isBeta) {
+        if (isBetaPath) {
           localStorage.setItem('tamotoPwaMode', 'beta');
-          document.getElementById('appManifest').href = '/manifest-beta.webmanifest';
+          document.getElementById('appManifest').href = './manifest-beta.webmanifest';
           return;
         }
         if (isStandalone && localStorage.getItem('tamotoPwaMode') === 'beta') {
@@ -32,9 +34,9 @@
         }
       })();
     </script>
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
-    <link rel="stylesheet" href="/frontend/css/pwa.css">
-    <link rel="stylesheet" href="/frontend/css/prototype-ui.css?v=39">
+    <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png">
+    <link rel="stylesheet" href="./frontend/css/pwa.css">
+    <link rel="stylesheet" href="./frontend/css/prototype-ui.css?v=40">
     <title>伴柠番茄钟</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
@@ -3771,7 +3773,7 @@
     <script src="frontend/js/main.js"></script>
     <script src="frontend/js/chat.js?v=15"></script>
     <script src="frontend/js/pwa.js?v=15"></script>
-    <script src="frontend/js/prototype-ui.js?v=54"></script>
+    <script src="frontend/js/prototype-ui.js?v=56"></script>
 
 <!-- 在 </body> 标签前 -->
 

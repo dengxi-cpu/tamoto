@@ -1003,9 +1003,6 @@ function loadDetailedStats() {
          focusStartTime = null;
      }
      clearTimerState();
-     if (window.focusCompanion) {
-         window.focusCompanion.stopSession();
-     }
      showPomodoroComplete();
      enableModeSwitch();
      resetToSingleButton();
@@ -1064,11 +1061,6 @@ function loadDetailedStats() {
      }
      document.getElementById('singleButtonLayout').classList.add('hidden');
      document.getElementById('threeButtonLayout').classList.remove('hidden');
-
-     // 视频默认关闭，只在用户点击左侧视频按钮后请求权限。
-     if (window.focusCompanion) {
-         window.focusCompanion.startSession();
-     }
      document.getElementById('pomodoroBtn').style.pointerEvents = isTimerRunning ? 'none' : 'auto';
      document.getElementById('timerBtn').style.pointerEvents = isTimerRunning ? 'none' : 'auto';
      document.getElementById('pomodoroBtn').style.opacity = isTimerRunning ? '0.6' : '1';
@@ -2980,9 +2972,6 @@ function updateOCDataMessage() {
 }
 
  function goBackToHome() {
-     if (window.focusCompanion) {
-         window.focusCompanion.stopSession();
-     }
      showPage('homePage');
      if (timerInterval) {
          clearInterval(timerInterval);
@@ -3029,9 +3018,6 @@ function updateOCDataMessage() {
   * 从专注页跳转到当前OC的设置页
   */
  function goToOCSetting() {
-     if (window.focusCompanion) {
-         window.focusCompanion.stopCamera();
-     }
      // 设置标记：从专注页进入
      localStorage.setItem('fromFocusPage', 'true');
 
@@ -3781,11 +3767,6 @@ if (currentMusicMode > 0 && !currentBackgroundMusic && isStatusSelected) {
          document.getElementById('singleButtonLayout').classList.add('hidden');
          document.getElementById('threeButtonLayout').classList.remove('hidden');
 
-         // 进入专注会话，视频仍保持默认关闭。
-         if (window.focusCompanion) {
-             window.focusCompanion.startSession();
-         }
-
          document.getElementById('pomodoroBtn').style.pointerEvents = 'none';
          document.getElementById('timerBtn').style.pointerEvents = 'none';
          document.getElementById('pomodoroBtn').style.opacity = '0.6';
@@ -3879,13 +3860,9 @@ updateDataCenterIfActive();
      focusStartTime = null;
  }
 }
- isTimerRunning = false;
- isPaused = false;
- clearTimerState();
-
- if (window.focusCompanion) {
-     window.focusCompanion.stopSession();
- }
+isTimerRunning = false;
+isPaused = false;
+clearTimerState();
 
 stopHeartbeatAnimation();
 stopEncourageLoop();
@@ -4199,6 +4176,34 @@ modal.classList.add('show');
 
 
 
+ // 飘落效果
+ function createFallingElements() {
+     const elements = ['🌸'];
+     
+     function createSingleElement() {
+         const element = document.createElement('div');
+         element.className = 'falling-petals';
+         element.textContent = elements[Math.floor(Math.random() * elements.length)];
+         element.style.left = Math.random() * window.innerWidth + 'px';
+         element.style.animationDuration = (Math.random() * 3 + 4) + 's';
+         element.style.animationDelay = Math.random() * 2 + 's';
+         
+         document.body.appendChild(element);
+         
+         setTimeout(() => {
+             if (element.parentNode) {
+                 element.remove();
+             }
+         }, 9000);
+     }
+     
+     for (let i = 0; i < 3; i++) {
+         setTimeout(createSingleElement, i * 1000);
+     }
+     
+     setInterval(createSingleElement, 2000);
+ }
+
  // 初始化和事件监听
  async function loadStoredData() {
      const storedOCData = localStorage.getItem('ocData');
@@ -4429,7 +4434,17 @@ function syncNow() {
      initAudio();
      initAIEncouragement(); 
      
+     const musicBtn = document.getElementById('musicBtn');
+     if (musicBtn) {
+         musicBtn.innerHTML = `
+             <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                 <text x="12" y="16" text-anchor="middle" font-size="16">🔇</text>
+             </svg>
+         `;
+     }
+     
      initEventListeners();
+     createFallingElements();
      setTimeout(initPageAnimation, 100);
      renderTasks();
 
@@ -6401,6 +6416,493 @@ function toggleAISection(sectionId) {
         icon.classList.toggle('collapsed', !isVisible);
     }
 }
+ // API配置相关函数
+function toggleAPIConfig() {
+    const panel = document.getElementById('apiConfigPanel');
+    const toggleText = document.getElementById('apiConfigToggleText');
+    
+    if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        toggleText.textContent = '收起设置 ▲';
+        
+        // 加载已保存的配置
+        loadSavedAPIConfig();
+    } else {
+        panel.classList.add('hidden');
+        toggleText.textContent = '展开设置 ▼';
+    }
+}
+// API配置显示/隐藏功能
+function toggleAPIConfig() {
+    const panel = document.getElementById('apiConfigPanel');
+    const toggleText = document.getElementById('apiConfigToggleText');
+    
+    if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        toggleText.textContent = '收起设置 ▲';
+        
+        // 加载已保存的配置
+        loadSavedAPIConfig();
+    } else {
+        panel.classList.add('hidden');
+        toggleText.textContent = '展开设置 ▼';
+    }
+}
+
+// API密钥可见性切换
+function toggleAPIKeyVisibility() {
+    const input = document.getElementById('apiKeyInput');
+    const icon = document.getElementById('apiKeyVisibilityIcon');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.innerHTML = `
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+        `;
+    } else {
+        input.type = 'password';
+        icon.innerHTML = `
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+        `;
+    }
+}
+
+// AI服务切换处理
+function onAIServiceChange() {
+    const service = document.getElementById('aiServiceSelect').value;
+    const urlInput = document.getElementById('apiUrlInput');
+    const modelInput = document.getElementById('modelInput');
+    
+    // 预设的API URL
+    const presetUrls = {
+        'openai': 'https://api.openai.com/v1/chat/completions',
+        'gemini': 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+        'deepseek': 'https://api.deepseek.com/v1/chat/completions',
+        'doubao': 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+        'custom': ''
+    };
+    
+    // 预设的模型
+    const presetModels = {
+        'openai': 'gpt-3.5-turbo',
+        'gemini': 'gemini-pro',
+        'deepseek': 'deepseek-chat',
+        'doubao': 'ep-20241129163851-8qmzh',
+        'custom': ''
+    };
+    
+    if (service === 'custom') {
+        urlInput.value = '';
+        urlInput.placeholder = '请输入完整的API URL';
+        modelInput.value = '';
+    } else {
+        urlInput.value = presetUrls[service] || '';
+        modelInput.value = presetModels[service] || '';
+    }
+}
+
+
+function toggleAPIKeyVisibility() {
+    const input = document.getElementById('apiKeyInput');
+    const icon = document.getElementById('apiKeyVisibilityIcon');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.innerHTML = `
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+        `;
+    } else {
+        input.type = 'password';
+        icon.innerHTML = `
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+        `;
+    }
+}
+
+function loadSavedAPIConfig() {
+    const savedService = localStorage.getItem('aiService') || 'openai';
+    const savedKey = localStorage.getItem('apiKey') || '';
+    
+    document.getElementById('aiServiceSelect').value = savedService;
+    document.getElementById('apiKeyInput').value = savedKey;
+}
+
+function saveAPIConfig() {
+    const service = document.getElementById('aiServiceSelect').value;
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    
+    if (!apiKey) {
+        alert('请输入API密钥');
+        return;
+    }
+    
+    // 保存到localStorage和内存
+    saveAPIConfig(apiKey, service);
+    
+    // 显示成功提示
+    const btn = event.currentTarget;
+    const originalText = btn.textContent;
+    btn.textContent = '✓ 配置已保存';
+    btn.classList.add('bg-green-500');
+    
+    setTimeout(() => {
+        btn.textContent = originalText;
+        btn.classList.remove('bg-green-500');
+    }, 2000);
+    
+    // 自动收起配置面板
+    setTimeout(() => {
+        document.getElementById('apiConfigPanel').classList.add('hidden');
+        document.getElementById('apiConfigToggleText').textContent = '展开设置 ▼';
+    }, 2000);
+}
+
+// API配置保存函数
+function saveAPIConfiguration() {
+    const service = document.getElementById('aiServiceSelect').value;
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    
+    if (!apiKey) {
+        alert('请输入API密钥');
+        return;
+    }
+    
+    // 保存到localStorage和内存
+    saveAPIConfig(apiKey, service);
+    
+    // 显示成功提示
+    const btn = event.currentTarget;
+    const originalText = btn.textContent;
+    btn.textContent = '✔ 配置已保存';
+    btn.classList.add('bg-green-500');
+    
+    setTimeout(() => {
+        btn.textContent = originalText;
+        btn.classList.remove('bg-green-500');
+    }, 2000);
+    
+    // 自动收起配置面板
+    setTimeout(() => {
+        document.getElementById('apiConfigPanel').classList.add('hidden');
+        document.getElementById('apiConfigToggleText').textContent = '展开设置 ▼';
+    }, 2000);
+}
+
+// API服务切换处理
+function onAIServiceChange() {
+    const service = document.getElementById('aiServiceSelect').value;
+    const urlContainer = document.getElementById('apiUrlContainer');
+    const urlInput = document.getElementById('apiUrlInput');
+    const urlHint = document.getElementById('apiUrlHint');
+    const modelContainer = document.getElementById('modelContainer');
+    const modelInput = document.getElementById('modelInput');
+    
+    // 预设的API URL
+    const presetUrls = {
+        'openai': 'https://api.openai.com/v1/chat/completions',
+        'gemini': 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+        'deepseek': 'https://api.deepseek.com/v1/chat/completions',
+        'doubao': 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+        'custom': ''
+    };
+    
+    // 预设的模型
+    const presetModels = {
+        'openai': 'gpt-3.5-turbo',
+        'gemini': 'gemini-pro',
+        'deepseek': 'deepseek-chat',
+        'doubao': 'ep-20241129163851-8qmzh',
+        'custom': ''
+    };
+    
+    if (service === 'custom') {
+        urlInput.value = '';
+        urlInput.placeholder = '请输入完整的API URL';
+        urlHint.textContent = '输入你的自定义API端点地址';
+        modelInput.value = '';
+    } else {
+        urlInput.value = presetUrls[service] || '';
+        urlHint.textContent = `使用${service}的默认API地址`;
+        modelInput.value = presetModels[service] || '';
+    }
+}
+
+
+// 加载保存的API配置（覆盖原有函数）
+function loadSavedAPIConfig() {
+    // ✅ 默认选择 DeepSeek
+    const savedService = localStorage.getItem('aiService') || 'deepseek';
+    const savedKey = localStorage.getItem('apiKey') || '';
+    const savedUrl = localStorage.getItem('apiUrl') || 'https://api.deepseek.com/v1/chat/completions';
+    const savedModel = localStorage.getItem('apiModel') || 'deepseek-chat';
+
+    document.getElementById('aiServiceSelect').value = savedService;
+    document.getElementById('apiKeyInput').value = savedKey;
+    document.getElementById('apiUrlInput').value = savedUrl;
+    document.getElementById('modelInput').value = savedModel;
+
+    // 触发服务切换以更新UI
+    onAIServiceChange();
+
+    // ✅ 加载并显示所有保存的配置
+    renderSavedConfigs();
+}
+
+// 保存API配置（覆盖原有函数）
+function saveAPIConfiguration() {
+    const service = document.getElementById('aiServiceSelect').value;
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    const apiUrl = document.getElementById('apiUrlInput').value.trim();
+    const model = document.getElementById('modelInput').value.trim();
+
+    if (!apiKey) {
+        alert('请输入API密钥');
+        return;
+    }
+
+    if (!apiUrl) {
+        alert('请输入API URL');
+        return;
+    }
+
+    if (!model) {
+        alert('请输入模型名称');
+        return;
+    }
+
+    // ✅ 检查是否与现有配置相同
+    const configs = getSavedConfigs();
+    let configNum = configs.length + 1;
+
+    // 检查是否已经存在相同的配置
+    for (let i = 0; i < configs.length; i++) {
+        const config = configs[i];
+        if (config.service === service &&
+            config.apiKey === apiKey &&
+            config.apiUrl === apiUrl &&
+            config.model === model) {
+            // 相同配置，不重复保存
+            alert('⚠️ 此配置已存在，无需重复保存');
+            return;
+        }
+    }
+
+    // ✅ 保存新配置到 localStorage
+    const newConfig = {
+        service,
+        apiKey,
+        apiUrl,
+        model,
+        timestamp: Date.now()
+    };
+
+    configs.push(newConfig);
+    localStorage.setItem('apiConfigs', JSON.stringify(configs));
+
+    // ✅ 同时更新当前使用的配置
+    localStorage.setItem('apiKey', apiKey);
+    localStorage.setItem('aiService', service);
+    localStorage.setItem('apiUrl', apiUrl);
+    localStorage.setItem('apiModel', model);
+
+    // 更新内存中的配置
+    window.apiConfig = {
+        apiKey: apiKey,
+        aiService: service,
+        apiUrl: apiUrl,
+        apiModel: model
+    };
+
+    // 显示成功提示
+    const btn = document.querySelector('[onclick="saveAPIConfiguration()"]');
+    const originalText = btn.textContent;
+    btn.textContent = `✔ 已保存为配置${configNum}`;
+
+    // ✅ 重新渲染配置列表
+    renderSavedConfigs();
+
+    setTimeout(() => {
+        btn.textContent = originalText;
+        btn.classList.remove('bg-green-500');
+    }, 2000);
+
+    // 自动收起配置面板
+    setTimeout(() => {
+        document.getElementById('apiConfigPanel').classList.add('hidden');
+        document.getElementById('apiConfigToggleText').textContent = '展开设置 ▼';
+    }, 2000);
+}
+
+/**
+ * 获取所有保存的配置
+ * @returns {Array} 配置数组
+ */
+function getSavedConfigs() {
+    const configsJson = localStorage.getItem('apiConfigs');
+    return configsJson ? JSON.parse(configsJson) : [];
+}
+
+/**
+ * 渲染已保存的配置按钮
+ */
+function renderSavedConfigs() {
+    const configs = getSavedConfigs();
+    const container = document.getElementById('savedConfigsContainer');
+    const list = document.getElementById('savedConfigsList');
+
+    // 如果没有配置，隐藏容器
+    if (configs.length === 0) {
+        container.classList.add('hidden');
+        return;
+    }
+
+    // 显示容器
+    container.classList.remove('hidden');
+
+    // 清空现有按钮
+    list.innerHTML = '';
+
+    // 为每个配置创建按钮
+    configs.forEach((config, index) => {
+        const configNum = index + 1;
+        const serviceNames = {
+            'openai': 'OpenAI',
+            'gemini': 'Gemini',
+            'deepseek': 'DeepSeek',
+            'doubao': '豆包',
+            'custom': '自定义'
+        };
+
+        const serviceName = serviceNames[config.service] || config.service;
+        const buttonText = `配置${configNum} (${serviceName})`;
+
+        // 创建按钮容器（用于相对定位删除按钮）
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'relative inline-block';
+
+        // 创建配置按钮
+        const button = document.createElement('button');
+        button.className = 'px-3 py-1.5 rounded-lg bg-white/90 backdrop-blur-sm border-2 border-slate-200 text-slate-600 text-xs font-medium hover:bg-white hover:border-purple-300 transition-all shadow-sm whitespace-nowrap';
+        button.textContent = buttonText;
+        button.onclick = () => applyConfiguration(index);
+
+        // 创建删除按钮
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center hover:bg-red-600 transition-colors';
+        deleteBtn.innerHTML = '×';
+        deleteBtn.title = '删除此配置';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation(); // 防止触发应用配置
+            deleteConfiguration(index);
+        };
+
+        // 组装
+        buttonContainer.appendChild(button);
+        buttonContainer.appendChild(deleteBtn);
+        list.appendChild(buttonContainer);
+    });
+}
+
+/**
+ * 应用指定的配置
+ * @param {number} index - 配置索引
+ */
+function applyConfiguration(index) {
+    const configs = getSavedConfigs();
+
+    if (index < 0 || index >= configs.length) {
+        alert('配置不存在');
+        return;
+    }
+
+    const config = configs[index];
+
+    // 应用到当前UI
+    document.getElementById('aiServiceSelect').value = config.service;
+    document.getElementById('apiKeyInput').value = config.apiKey;
+    document.getElementById('apiUrlInput').value = config.apiUrl;
+    document.getElementById('modelInput').value = config.model;
+
+    // 更新全局配置
+    window.apiConfig = {
+        apiKey: config.apiKey,
+        aiService: config.service,
+        apiUrl: config.apiUrl,
+        apiModel: config.model
+    };
+
+    // 同时更新当前使用的配置
+    localStorage.setItem('apiKey', config.apiKey);
+    localStorage.setItem('aiService', config.service);
+    localStorage.setItem('apiUrl', config.apiUrl);
+    localStorage.setItem('apiModel', config.model);
+
+    // 触发服务切换以更新UI
+    onAIServiceChange();
+
+    // 显示提示（使用Toast更好，这里用简化版）
+    const serviceNames = {
+        'openai': 'OpenAI',
+        'gemini': 'Gemini',
+        'deepseek': 'DeepSeek',
+        'doubao': '豆包',
+        'custom': '自定义'
+    };
+    const serviceName = serviceNames[config.service] || config.service;
+    const configNum = index + 1;
+
+    // 简单的视觉反馈 - 通过事件对象获取按钮
+    // 注意：由于按钮是通过onclick触发的，我们需要从window.event获取
+    const clickedBtn = window.event?.currentTarget;
+    if (clickedBtn) {
+        const originalBg = clickedBtn.style.backgroundColor;
+        clickedBtn.style.backgroundColor = '#dcfce7'; // 浅绿色
+        clickedBtn.textContent = `✓ 已应用`;
+
+        setTimeout(() => {
+            clickedBtn.style.backgroundColor = originalBg;
+            clickedBtn.textContent = `配置${configNum} (${serviceName})`;
+        }, 1000);
+    }
+}
+
+/**
+ * 删除指定的配置
+ * @param {number} index - 配置索引
+ */
+function deleteConfiguration(index) {
+    const configs = getSavedConfigs();
+
+    if (index < 0 || index >= configs.length) {
+        alert('配置不存在');
+        return;
+    }
+
+    if (!confirm(`确定要删除配置${index + 1}吗？`)) {
+        return;
+    }
+
+    // 删除配置
+    configs.splice(index, 1);
+    localStorage.setItem('apiConfigs', JSON.stringify(configs));
+
+    // 重新渲染
+    renderSavedConfigs();
+
+    // 如果删除的是当前使用的配置，清空UI
+    if (configs.length === 0) {
+        document.getElementById('apiKeyInput').value = '';
+        document.getElementById('apiUrlInput').value = 'https://api.deepseek.com/v1/chat/completions';
+        document.getElementById('modelInput').value = 'deepseek-chat';
+        document.getElementById('aiServiceSelect').value = 'deepseek';
+        onAIServiceChange();
+    }
+}
+
+
+
  window.addEventListener('load', function() {
      initPageAnimation();
  });

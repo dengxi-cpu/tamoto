@@ -23,14 +23,6 @@ let currentChatContext = {
 // 是否正在等待回复
 let isWaitingForReply = false;
 
-// 正在澄清或等待用户确认的单次提醒。
-let pendingReminder = null;
-try {
-    pendingReminder = JSON.parse(sessionStorage.getItem('pendingOneOffReminder') || 'null');
-} catch {
-    pendingReminder = null;
-}
-
 // ============================================
 // 新增：状态机相关变量
 // ============================================
@@ -463,25 +455,6 @@ function addOCMessage(content) {
     saveToChatHistory('assistant', content);
 }
 
-window.receiveOCMessages = function receiveOCMessages(messages) {
-    if (!Array.isArray(messages) || !messages.length) return [];
-    let syncedIds = [];
-    try { syncedIds = JSON.parse(localStorage.getItem('tamotoSyncedOCMessageIds') || '[]'); }
-    catch { syncedIds = []; }
-    const known = new Set(syncedIds);
-    const received = [];
-
-    messages.forEach(message => {
-        if (!message?.id || known.has(message.id)) return;
-        addOCMessage(String(message.content || ''));
-        known.add(message.id);
-        received.push(message.id);
-    });
-
-    localStorage.setItem('tamotoSyncedOCMessageIds', JSON.stringify([...known].slice(-500)));
-    return received;
-};
-
 /**
  * 显示正在输入指示器
  */
@@ -566,82 +539,6 @@ function handleSuggestedAction(action) {
 // 消息发送和接收
 // ============================================
 
-function savePendingReminder(value) {
-    pendingReminder = value;
-    if (value) sessionStorage.setItem('pendingOneOffReminder', JSON.stringify(value));
-    else sessionStorage.removeItem('pendingOneOffReminder');
-}
-
-function looksLikeReminderRequest(message) {
-    return /(提醒我|叫我|喊我|到点.*我|别忘了|记得.*提醒|过会儿|半小时后|\d+\s*(分钟|小时)后)/.test(message);
-}
-
-function formatReminderDate(isoString) {
-    return new Intl.DateTimeFormat('zh-CN', {
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
-        month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
-    }).format(new Date(isoString));
-}
-
-async function handleReminderConversation(message) {
-    const normalized = message.replace(/[，。！!？?\s]/g, '');
-    if (pendingReminder?.status === 'ready' && /^(确认提醒|确认|好的|好|可以|没问题)$/.test(normalized)) {
-        showTypingIndicator();
-        try {
-            await window.createOneOffReminder({
-                title: pendingReminder.title,
-                scheduledAt: pendingReminder.scheduledAt
-            });
-            hideTypingIndicator();
-            addOCMessage(`好，已经记下了。${formatReminderDate(pendingReminder.scheduledAt)}提醒你：${pendingReminder.title}。`);
-            savePendingReminder(null);
-        } catch (error) {
-            hideTypingIndicator();
-            addOCMessage(`这条提醒还没保存成功：${error.message}`);
-        }
-        return true;
-    }
-
-    if (pendingReminder && /^(取消提醒|取消|算了|不用了)$/.test(normalized)) {
-        savePendingReminder(null);
-        addOCMessage('好，这条提醒不创建。');
-        return true;
-    }
-
-    const isClarification = pendingReminder?.status === 'needs_clarification';
-    if (!isClarification && !looksLikeReminderRequest(message)) return false;
-
-    showTypingIndicator();
-    try {
-        const parsed = await window.parseReminderText(message, isClarification ? {
-            previousText: pendingReminder.originalText,
-            clarification: message
-        } : {});
-        hideTypingIndicator();
-
-        if (parsed.status === 'needs_clarification') {
-            savePendingReminder({
-                status: 'needs_clarification',
-                originalText: isClarification ? pendingReminder.originalText : message,
-                title: parsed.title || ''
-            });
-            addOCMessage(parsed.clarification);
-            return true;
-        }
-        if (parsed.status === 'ready') {
-            savePendingReminder({ ...parsed, originalText: isClarification ? pendingReminder.originalText : message });
-            addOCMessage(`我理解的是：${formatReminderDate(parsed.scheduledAt)}提醒你“${parsed.title}”。回复“确认提醒”我就保存，回复“取消”就不创建。`);
-            return true;
-        }
-        savePendingReminder(null);
-        return false;
-    } catch (error) {
-        hideTypingIndicator();
-        addOCMessage(`我还没听明白提醒时间：${error.message}`);
-        return true;
-    }
-}
-
 /**
  * 发送聊天消息（供 HTML 调用）
  */
@@ -672,12 +569,6 @@ async function sendChatMessageToOC() {
 
     // 添加用户消息到 UI
     addUserMessage(message);
-
-    // 提醒指令使用独立的严格解析链路；普通聊天继续走原来的 OC 对话。
-    isWaitingForReply = true;
-    const reminderHandled = await handleReminderConversation(message);
-    isWaitingForReply = false;
-    if (reminderHandled) return;
 
     // 更新当前状态
     updateCurrentState();

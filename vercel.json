@@ -8,6 +8,9 @@
       "maxDuration": 10
     }
   },
+  "redirects": [
+    { "source": "/beta", "destination": "/beta/", "permanent": false }
+  ],
   "headers": [
     {
       "source": "/sw.js",
@@ -24,5 +27,8 @@
       ]
     }
   ],
-  "rewrites": []
+  "rewrites": [
+    { "source": "/beta/", "destination": "https://tamoto-main.vercel.app/beta/" },
+    { "source": "/beta/:path*", "destination": "https://tamoto-main.vercel.app/beta/:path*" }
+  ]
 }

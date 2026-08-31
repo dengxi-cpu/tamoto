@@ -33,7 +33,14 @@
     betaVoice: null,
     betaVoicePreviews: [],
     betaVoiceCandidateId: '',
+    betaVoiceTranslatedDescription: '',
     betaVoiceAudio: null
+  };
+
+  const voiceIcons = {
+    play: '<svg class="bn-voice-icon is-filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.75 6.45v11.1c0 .86.95 1.38 1.68.92l8.55-5.55a1.09 1.09 0 0 0 0-1.84l-8.55-5.55a1.09 1.09 0 0 0-1.68.92Z"/></svg>',
+    sparkles: '<svg class="bn-voice-icon is-filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.75c.45 3.62 2.63 5.8 6.25 6.25-3.62.45-5.8 2.63-6.25 6.25C11.55 11.63 9.37 9.45 5.75 9 9.37 8.55 11.55 6.37 12 2.75Z"/><path d="M18.35 14.75c.22 1.8 1.3 2.88 3.1 3.1-1.8.23-2.88 1.31-3.1 3.1-.23-1.79-1.31-2.87-3.1-3.1 1.79-.22 2.87-1.3 3.1-3.1Z"/><path d="M4.65 14.1c.16 1.25.9 2 2.15 2.15-1.25.16-2 .9-2.15 2.15-.16-1.25-.9-2-2.15-2.15 1.25-.16 2-.9 2.15-2.15Z"/></svg>',
+    refresh: '<svg class="bn-voice-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.3 8.25A8 8 0 1 0 20 15"/><path d="M19.25 3.75v4.5h-4.5"/></svg>'
   };
 
   const captions = [
@@ -116,29 +123,29 @@
                 <label class="bn-beta-field bn-beta-persona-field"><span>TA 的人设</span><textarea id="bnBetaPersona" maxlength="3000" rows="3" placeholder="写下 TA 的性格、说话习惯和陪伴方式。"></textarea><button type="button" data-bn-action="beta-improve-persona">✦ AI 完善</button></label>
               </div>
               <div class="bn-beta-tab-panel" data-bn-beta-panel="voice" role="tabpanel" aria-hidden="true">
-                <header class="bn-voice-current"><span>TA 的声音</span><div><strong id="bnBetaVoiceName">清冷少年</strong><small id="bnBetaVoiceMeta">年轻 · 清冷 · 偏低沉</small></div><button type="button" data-bn-action="beta-preview-voice">▶ 试听</button></header>
-                <div class="bn-voice-mode" role="tablist" aria-label="声音创建方式"><button class="is-active" type="button" data-bn-voice-mode="library">音色库</button><button type="button" data-bn-voice-mode="design">自己捏一个 ✦</button></div>
+                <header class="bn-voice-current"><span>TA 的声音</span><div><strong id="bnBetaVoiceName">温柔低沉</strong><small id="bnBetaVoiceMeta">自然 · 温柔 · 陪伴感</small></div><button type="button" data-bn-action="beta-preview-voice">${voiceIcons.play}<span>试听</span></button></header>
+                <div class="bn-voice-mode" role="tablist" aria-label="声音创建方式"><button class="is-active" type="button" data-bn-voice-mode="library">音色库</button><button type="button" data-bn-voice-mode="design">自己捏一个 ${voiceIcons.sparkles}</button></div>
                 <section class="bn-voice-mode-panel is-active" data-bn-voice-panel="library">
                   <p class="bn-voice-section-title">选择一个声音</p>
-                  <div class="bn-beta-voice-library" role="listbox" aria-label="ElevenLabs 预设音色">
-                    <button class="bn-beta-voice is-active" type="button" data-bn-beta-voice="pNInz6obpgDQGcFmaJgB" data-voice-name="清冷少年" data-voice-meta="清冷 · 年轻 · 克制"><b>清冷少年</b><small>清冷 · 年轻 · 克制</small><i>▶</i></button>
-                    <button class="bn-beta-voice" type="button" data-bn-beta-voice="ErXwobaYiN019PkySvjV" data-voice-name="温柔青年" data-voice-meta="温柔 · 亲密 · 自然"><b>温柔青年</b><small>温柔 · 亲密 · 自然</small><i>▶</i></button>
-                    <button class="bn-beta-voice" type="button" data-bn-beta-voice="TxGEqnHWrfWFTfGW9XjX" data-voice-name="慵懒低音" data-voice-meta="低沉 · 松弛 · 安静"><b>慵懒低音</b><small>低沉 · 松弛 · 安静</small><i>▶</i></button>
-                    <button class="bn-beta-voice" type="button" data-bn-beta-voice="2EiwWnXFnvU5JabPnv8n" data-voice-name="阳光少年" data-voice-meta="明亮 · 自然 · 有活力"><b>阳光少年</b><small>明亮 · 自然 · 有活力</small><i>▶</i></button>
-                    <button class="bn-beta-voice" type="button" data-bn-beta-voice="onwK4e9ZLuTAKqWW03F9" data-voice-name="沉稳成熟" data-voice-meta="沉稳 · 成熟 · 可靠"><b>沉稳成熟</b><small>沉稳 · 成熟 · 可靠</small><i>▶</i></button>
+                  <div class="bn-beta-voice-library" role="listbox" aria-label="豆包精选音色">
+                    <button class="bn-beta-voice is-active" type="button" data-bn-beta-voice="zh_male_ruyayichen_saturn_bigtts" data-voice-provider="volcengine" data-voice-name="温柔低沉" data-voice-meta="自然 · 温柔 · 陪伴感"><b>温柔低沉</b><small>自然 · 温柔 · 陪伴感</small><i>${voiceIcons.play}</i></button>
+                    <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_m191_uranus_bigtts" data-voice-provider="volcengine" data-voice-name="清冷沉稳" data-voice-meta="克制 · 沉稳 · 有分寸"><b>清冷沉稳</b><small>克制 · 沉稳 · 有分寸</small><i>${voiceIcons.play}</i></button>
+                    <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_taocheng_uranus_bigtts" data-voice-provider="volcengine" data-voice-name="温暖治愈" data-voice-meta="温暖 · 轻松 · 治愈感"><b>温暖治愈</b><small>温暖 · 轻松 · 治愈感</small><i>${voiceIcons.play}</i></button>
+                    <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_liufei_uranus_bigtts" data-voice-provider="volcengine" data-voice-name="慵懒自然" data-voice-meta="松弛 · 亲近 · 日常感"><b>慵懒自然</b><small>松弛 · 亲近 · 日常感</small><i>${voiceIcons.play}</i></button>
+                    <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_fanjuanqingnian_uranus_bigtts" data-voice-provider="volcengine" data-voice-name="清爽青年" data-voice-meta="清爽 · 年轻 · 有活力"><b>清爽青年</b><small>清爽 · 年轻 · 有活力</small><i>${voiceIcons.play}</i></button>
                   </div>
                   <button class="bn-voice-use" type="button" data-bn-action="beta-use-preset-voice">使用这个声音</button>
                 </section>
                 <section class="bn-voice-mode-panel" data-bn-voice-panel="design" hidden>
-                  <label class="bn-voice-description"><span>你希望 TA 的声音是什么感觉？</span><textarea id="bnVoiceDescription" rows="2" maxlength="500" placeholder="例如：20 岁左右的男生，声音偏低，有一点气声，清冷克制，但跟我说话时很温柔。"></textarea></label>
+                  <label class="bn-voice-description"><span>你希望 TA 的声音是什么样的？</span><textarea id="bnVoiceDescription" rows="3" maxlength="500" placeholder="例如：20 岁左右的男生，声音偏低，有一点气声，清冷克制，但跟我说话时很温柔。"></textarea><button class="bn-voice-ai-improve" type="button" data-bn-action="beta-improve-voice-description">${voiceIcons.sparkles}<span>AI 润色</span></button></label>
                   <div class="bn-voice-sliders">
                     <label><span><b>声线</b><small>清亮　低沉</small></span><input id="bnVoiceTimbre" type="range" min="0" max="100" value="70"></label>
                     <label><span><b>气质</b><small>清冷　温柔</small></span><input id="bnVoiceTemperament" type="range" min="0" max="100" value="62"></label>
                     <label><span><b>表现</b><small>克制　丰富</small></span><input id="bnVoiceExpression" type="range" min="0" max="100" value="35"></label>
                   </div>
-                  <button class="bn-voice-generate" type="button" data-bn-action="beta-generate-voice">✦ 生成声音</button>
+                  <button class="bn-voice-generate" type="button" data-bn-action="beta-generate-voice">${voiceIcons.sparkles}<span>生成声音</span></button>
                   <p class="bn-voice-status-line" id="bnVoiceDesignStatus" aria-live="polite"></p>
-                  <div class="bn-voice-candidates" id="bnVoiceCandidates" hidden><p>选择最像 TA 的声音</p><div id="bnVoiceCandidateList"></div><button class="bn-voice-use" type="button" data-bn-action="beta-use-custom-voice">使用这个声音</button><button class="bn-voice-regenerate" type="button" data-bn-action="beta-generate-voice">↻ 再生成一组</button></div>
+                  <div class="bn-voice-candidates" id="bnVoiceCandidates" hidden><p>选择最像 TA 的声音</p><div id="bnVoiceCandidateList"></div><button class="bn-voice-use" type="button" data-bn-action="beta-use-custom-voice">使用这个声音</button><button class="bn-voice-regenerate" type="button" data-bn-action="beta-generate-voice">${voiceIcons.refresh}<span>再生成一组</span></button></div>
                 </section>
               </div>
             </div>
@@ -634,7 +641,14 @@
 
   function selectedPresetVoice() {
     const button = document.querySelector('[data-bn-beta-voice].is-active');
-    return button ? { provider:'elevenlabs', id:button.dataset.bnBetaVoice, name:button.dataset.voiceName, meta:button.dataset.voiceMeta, source:'preset' } : null;
+    return button ? {
+      provider: button.dataset.voiceProvider || 'volcengine',
+      id: '',
+      voiceType: button.dataset.bnBetaVoice,
+      name: button.dataset.voiceName,
+      meta: button.dataset.voiceMeta,
+      source: 'preset'
+    } : null;
   }
 
   function updateBetaVoiceCurrent(voice) {
@@ -668,15 +682,50 @@
     });
   }
 
-  function voicePromptFromInputs() {
+  function voiceBriefFromInputs() {
     const description = document.getElementById('bnVoiceDescription').value.trim();
     const timbre = Number(document.getElementById('bnVoiceTimbre').value);
     const temperament = Number(document.getElementById('bnVoiceTemperament').value);
     const expression = Number(document.getElementById('bnVoiceExpression').value);
-    const timbreText = timbre >= 67 ? 'deep, resonant and slightly breathy' : timbre <= 33 ? 'clear, bright and youthful' : 'balanced, smooth and gently low';
-    const temperamentText = temperament >= 67 ? 'warm, tender and intimate' : temperament <= 33 ? 'cool, composed and distant at first' : 'cool overall but quietly gentle';
-    const expressionText = expression >= 67 ? 'emotionally expressive with natural variation' : expression <= 33 ? 'restrained, subtle and calm' : 'natural conversational delivery with moderate expression';
-    return `${description || 'A young male companion voice.'} ${timbreText}. ${temperamentText}. ${expressionText}. Native Mandarin Chinese, natural close conversational delivery, never theatrical or announcer-like.`;
+    const timbreText = timbre >= 67 ? '声线低沉、有共鸣、带少量自然气声' : timbre <= 33 ? '声线清亮、年轻、通透' : '声线平衡、顺滑、略偏低';
+    const temperamentText = temperament >= 67 ? '气质温柔、亲密、有陪伴感' : temperament <= 33 ? '气质清冷、克制、有分寸' : '整体清冷但带着不刻意的温柔';
+    const expressionText = expression >= 67 ? '情绪表现丰富且有自然起伏' : expression <= 33 ? '表达克制、细微、平静' : '使用自然对话感和适中的情绪变化';
+    return `${description || '年轻男性陪伴者的声音。'}${timbreText}；${temperamentText}；${expressionText}。必须是中国大陆母语级普通话，标准普通话发音和中文语调，绝对不带外国口音。像近距离的日常对话，不要播音腔、舞台腔或译制腔。`;
+  }
+
+  async function processVoiceDescription(action, description) {
+    const response = await fetch('/api/voice-description', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ action, description })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'AI 处理失败');
+    return payload.description;
+  }
+
+  async function improveBetaVoiceDescription() {
+    const textarea = document.getElementById('bnVoiceDescription');
+    const button = document.querySelector('[data-bn-action="beta-improve-voice-description"]');
+    if (!textarea?.value.trim()) {
+      textarea?.focus({ preventScroll:true });
+      return toast('先写下你对 TA 声音的想法');
+    }
+    button.disabled = true;
+    button.classList.add('is-loading');
+    button.querySelector('span').textContent = '润色中…';
+    try {
+      textarea.value = await processVoiceDescription('improve', textarea.value.trim());
+      textarea.dispatchEvent(new Event('input', { bubbles:true }));
+      textarea.focus({ preventScroll:true });
+      toast('已润色为更具体的中文声音设定');
+    } catch (error) {
+      toast(error.message || 'AI 润色失败');
+    } finally {
+      button.disabled = false;
+      button.classList.remove('is-loading');
+      button.querySelector('span').textContent = 'AI 润色';
+    }
   }
 
   function stopBetaVoicePreview() {
@@ -700,7 +749,7 @@
 
   function renderBetaVoiceCandidates() {
     const list = document.getElementById('bnVoiceCandidateList');
-    list.innerHTML = state.betaVoicePreviews.map((item, index) => `<button class="bn-voice-candidate${index === 0 ? ' is-selected' : ''}" type="button" data-voice-candidate="${escapeText(item.id)}"><i>▶</i><span>${escapeText(item.name)}</span><em>选择</em></button>`).join('');
+    list.innerHTML = state.betaVoicePreviews.map((item, index) => `<button class="bn-voice-candidate${index === 0 ? ' is-selected' : ''}" type="button" data-voice-candidate="${escapeText(item.id)}"><i>${voiceIcons.play}</i><span>${escapeText(item.name)}</span><em>选择</em></button>`).join('');
     state.betaVoiceCandidateId = state.betaVoicePreviews[0]?.id || '';
     document.getElementById('bnVoiceCandidates').hidden = !state.betaVoicePreviews.length;
   }
@@ -710,9 +759,12 @@
     const button = document.querySelector('[data-bn-action="beta-generate-voice"]');
     stopBetaVoicePreview();
     button.disabled = true;
-    status.textContent = '正在为 TA 生成声音…';
+    status.textContent = '正在理解中文设定…';
     try {
-      const response = await fetch('/api/elevenlabs-voices', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ action:'design', voiceDescription:voicePromptFromInputs() }) });
+      const translatedDescription = await processVoiceDescription('translate', voiceBriefFromInputs());
+      state.betaVoiceTranslatedDescription = translatedDescription;
+      status.textContent = '已转换为中文母语音色描述，正在生成…';
+      const response = await fetch('/api/elevenlabs-voices', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ action:'design', voiceDescription:translatedDescription }) });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || '声音生成失败');
       state.betaVoicePreviews = payload.previews || [];
@@ -728,7 +780,8 @@
   async function useCustomBetaVoice() {
     const preview = state.betaVoicePreviews.find(item => item.id === state.betaVoiceCandidateId);
     if (!preview) return toast('请先选择一个声音候选');
-    const description = voicePromptFromInputs();
+    const description = state.betaVoiceTranslatedDescription;
+    if (!description) return toast('请先生成一组声音');
     const status = document.getElementById('bnVoiceDesignStatus');
     status.textContent = '正在保存为 TA 的声音…';
     try {
@@ -768,14 +821,22 @@
       description: oc.voiceDescription || '',
       parameters: oc.voiceParameters || null
     };
+    const customElevenLabsVoice = oc.voiceProvider === 'elevenlabs' && oc.voiceSource === 'custom' && oc.voiceId;
+    let matchedPreset = false;
     document.querySelectorAll('[data-bn-beta-voice]').forEach(button => {
-      const active = button.dataset.bnBetaVoice === oc.voiceId;
+      const active = !customElevenLabsVoice && button.dataset.bnBetaVoice === (oc.voiceType || 'zh_male_ruyayichen_saturn_bigtts');
+      matchedPreset ||= active;
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', String(active));
       const label = button.querySelector('em');
       if (label) label.textContent = active ? '已选择' : '选择';
       if (active) state.betaVoice = selectedPresetVoice();
     });
+    if (!customElevenLabsVoice && !matchedPreset) {
+      const firstPreset = document.querySelector('[data-bn-beta-voice]');
+      firstPreset?.classList.add('is-active');
+      state.betaVoice = selectedPresetVoice();
+    }
     updateBetaVoiceCurrent(state.betaVoice);
     updateBetaIdentity();
     setBetaTab('partner');
@@ -928,11 +989,11 @@
       characterDescription: document.getElementById('bnBetaPersona').value.trim(),
       voiceType: state.betaVoice?.voiceType || existing.voiceType || 'zh_male_ruyayichen_saturn_bigtts',
       voiceProvider: state.betaVoice?.provider || existing.voiceProvider || 'volcengine',
-      voiceId: state.betaVoice?.id || existing.voiceId || '',
+      voiceId: state.betaVoice ? (state.betaVoice.id || '') : (existing.voiceId || ''),
       voiceName: state.betaVoice?.name || existing.voiceName || '当前声音',
       voiceSource: state.betaVoice?.source || existing.voiceSource || 'legacy',
-      voiceDescription: state.betaVoice?.description || state.betaVoice?.meta || existing.voiceDescription || '',
-      voiceParameters: state.betaVoice?.parameters || existing.voiceParameters || null,
+      voiceDescription: state.betaVoice ? (state.betaVoice.description || state.betaVoice.meta || '') : (existing.voiceDescription || ''),
+      voiceParameters: state.betaVoice ? (state.betaVoice.parameters || null) : (existing.voiceParameters || null),
       selected: true
     };
     ocData[currentOCIndex] = next;
@@ -1609,7 +1670,7 @@
         });
         const selected = selectedPresetVoice();
         updateBetaVoiceCurrent(selected);
-        window.focusCompanion?.previewVoice({ voiceProvider:'elevenlabs', voiceId:selected.id });
+        window.focusCompanion?.previewVoice({ voiceProvider:selected.provider, voiceType:selected.voiceType });
         toast(`正在试听${betaVoice.querySelector('b')?.textContent || '男声'}`);
         return;
       }
@@ -1644,6 +1705,7 @@
       if (type === 'beta-start-together') startBetaFocus();
       if (type === 'roll-body-double') rollBodyDouble();
       if (type === 'beta-improve-persona') improveBetaPersona();
+      if (type === 'beta-improve-voice-description') improveBetaVoiceDescription();
       if (type === 'beta-preview-voice') previewSelectedBetaVoice();
       if (type === 'beta-use-preset-voice') {
         state.betaVoice = selectedPresetVoice();
@@ -1671,6 +1733,12 @@
       setBetaRelationship(event.target.value);
     });
     document.getElementById('bnBetaName').addEventListener('input', updateBetaIdentity);
+    document.getElementById('bnVoiceDescription').addEventListener('input', () => {
+      state.betaVoiceTranslatedDescription = '';
+    });
+    ['bnVoiceTimbre','bnVoiceTemperament','bnVoiceExpression'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => { state.betaVoiceTranslatedDescription = ''; });
+    });
     const voiceButton = document.getElementById('bnVoiceInputBtn');
     if (voiceButton && window.focusCompanion) {
       let dialogueGesture = null;

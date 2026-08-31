@@ -75,6 +75,7 @@ async function handler(req, res) {
         body: JSON.stringify({
           text,
           model_id: 'eleven_multilingual_v2',
+          language_code: 'zh',
           voice_settings: { stability: 0.58, similarity_boost: 0.78, style: 0.18, use_speaker_boost: true }
         })
       });

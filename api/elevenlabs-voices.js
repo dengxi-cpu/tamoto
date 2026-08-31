@@ -52,7 +52,8 @@ async function handler(req, res) {
           text: PREVIEW_TEXT,
           model_id: 'eleven_multilingual_ttv_v2',
           auto_generate_text: false,
-          guidance_scale: 5
+          guidance_scale: 4,
+          quality: 0.9
         })
       });
       const payload = await response.json();
@@ -75,7 +76,7 @@ async function handler(req, res) {
           voice_name: voiceName,
           voice_description: voiceDescription,
           generated_voice_id: generatedVoiceId,
-          labels: { language: 'zh', use_case: 'conversational' }
+          labels: { language: 'zh', locale: 'zh-CN', accent: 'standard_putonghua', use_case: 'conversational' }
         })
       });
       const voice = await response.json();

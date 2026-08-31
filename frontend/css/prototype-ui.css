@@ -968,7 +968,7 @@ body.bn-beta-mode .bn-app:not(.is-running) { padding-bottom:0; background:#15161
 .bn-beta-role-presence {
   position:absolute;
   z-index:2;
-  top:max(62px,calc(env(safe-area-inset-top) + 48px));
+  top:max(22px,calc(env(safe-area-inset-top) + 12px));
   left:20px;
   display:flex;
   flex-direction:column;
@@ -1160,7 +1160,7 @@ body.bn-beta-crop-open { overflow:hidden; }
 .bn-beta-primary strong { font-size:14px; font-weight:720; }.bn-beta-primary small { margin-top:2px; color:rgba(255,255,255,.62); font-size:9px; font-weight:450; }
 
 @media (max-height:700px) {
-  .bn-beta-role-presence { top:max(54px,calc(env(safe-area-inset-top) + 40px)); }
+  .bn-beta-role-presence { top:max(22px,calc(env(safe-area-inset-top) + 12px)); }
   .bn-beta-role-bubble { top:21dvh; padding:9px 12px; font-size:10.5px; }
   .bn-beta-setup .bn-beta-form { left:10px; right:10px; gap:6px; }
   .bn-beta-tabs { height:34px; }

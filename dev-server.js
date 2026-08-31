@@ -31,8 +31,8 @@ app.get(['/beta', '/beta/'], (_req, res) => {
 
 const apiModules = {
   chat: require('./api/chat.js'),
-  auth: require('./api/auth.js'),
-  sync: require('./api/sync.js'),
+  auth: require('./server/auth.js'),
+  sync: require('./server/sync.js'),
   push: require('./api/push.js'),
   reminders: require('./api/reminders.js'),
   speech: require('./api/speech.js'),
@@ -42,7 +42,7 @@ const apiModules = {
   companionLogs: require('./api/companion-logs.js'),
   elevenlabsVoices: require('./api/elevenlabs-voices.js'),
   personaImprove: require('./api/persona-improve.js'),
-  events: require('./api/events.js'),
+  events: require('./server/events.js'),
 };
 
 // 通用代理：把 Express req/res 包装成 Vercel 风格的 handler(req, res)

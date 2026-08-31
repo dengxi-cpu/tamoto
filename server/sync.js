@@ -1,6 +1,6 @@
 // api/sync.js
 // 推/拉同步 API（使用 Supabase REST API）
-const { supabaseFetch, isReady } = require('./_supabase.js');
+const { supabaseFetch, isReady } = require('../api/_supabase.js');
 
 async function handler(req, res) {
   if (!isReady) {

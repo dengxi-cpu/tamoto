@@ -1,4 +1,4 @@
-const { isReady, supabaseFetch } = require('./_supabase.js');
+const { isReady, supabaseFetch } = require('../api/_supabase.js');
 
 const EVENT_NAMES = new Set(['focus_page_view','focus_start_attempt','focus_start_blocked','focus_session_start','focus_pause','focus_resume','focus_session_end','focus_away','focus_return','ai_decision','ai_speech_started','ai_speech_ended','user_interaction','camera_toggle','client_error','network_status','beta_action']);
 const MAX_BATCH = 50;

@@ -1,6 +1,6 @@
 // api/auth.js
 // 设备注册 + 同步码配对 API（使用 Supabase REST API）
-const { supabaseFetch, isReady } = require('./_supabase.js');
+const { supabaseFetch, isReady } = require('../api/_supabase.js');
 
 async function handler(req, res) {
   if (req.method !== 'POST') {

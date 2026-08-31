@@ -8,7 +8,7 @@
  *
  * 发新版代码时：把下面 CACHE_VERSION 的 v1 改成 v2，确保旧缓存被清除。
  */
-const CACHE_VERSION = 'tamoto-v93';
+const CACHE_VERSION = 'tamoto-v94';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `runtime-${CACHE_VERSION}`;
 
@@ -31,6 +31,7 @@ const PRECACHE_ASSETS = [
   '/frontend/css/chat.css',
   '/frontend/css/pwa.css',
   '/frontend/css/prototype-ui.css',
+  '/frontend/images/beta-default-bg.png',
   '/frontend/audio/ambient/rain-cc0.mp3',
   '/frontend/audio/ambient/cafe-calm-piano-cc-by.mp3',
   '/伴柠番茄钟_产品原型.html',

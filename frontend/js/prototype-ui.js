@@ -52,12 +52,13 @@
   ];
 
   const fallbackAvatar = 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=300&h=300&fit=crop&crop=face';
+  const betaDefaultBackground = '/frontend/images/beta-default-bg.png';
 
   function currentOC() {
     if (typeof ocData !== 'undefined' && Array.isArray(ocData) && ocData.length) {
       return ocData[currentOCIndex] || ocData[0];
     }
-    return { name: '你的 TA', userTitle: '你', avatar: fallbackAvatar, relationship: '学习搭子' };
+    return { name: '你的 TA', userTitle: '你', avatar: betaDefaultBackground, relationship: '学习搭子' };
   }
 
   function escapeText(value) {

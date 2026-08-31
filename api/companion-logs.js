@@ -74,9 +74,19 @@ async function handler(req, res) {
     }
     if (req.method === 'DELETE') {
       const requestedEventKey = String(req.query?.eventKey || '').trim();
+      const requestedTask = String(req.query?.task || '').trim();
+      const missingTask = req.query?.missingTask === 'true';
+      const deleteAll = req.query?.all === 'true';
       const target = requestedEventKey
         ? `companion_logs?event_key=eq.${encodeURIComponent(requestedEventKey)}`
-        : 'companion_logs?created_at=not.is.null';
+        : missingTask
+          ? 'companion_logs?task=is.null'
+          : requestedTask
+            ? `companion_logs?task=eq.${encodeURIComponent(requestedTask)}`
+            : deleteAll
+              ? 'companion_logs?created_at=not.is.null'
+              : null;
+      if (!target) return res.status(400).json({ success: false, error: '缺少删除目标' });
       const response = await supabaseFetch(target, { method: 'DELETE' });
       if (!response.ok) throw new Error(`删除日志失败: ${response.status} ${await response.text()}`);
       return res.status(200).json({ success: true });

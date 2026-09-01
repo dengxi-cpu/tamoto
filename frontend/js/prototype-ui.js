@@ -34,7 +34,13 @@
     betaVoicePreviews: [],
     betaVoiceCandidateId: '',
     betaVoiceTranslatedDescription: '',
-    betaVoiceAudio: null
+    betaVoiceAudio: null,
+    companionMode: ['quiet', 'occasional', 'strict'].includes(localStorage.getItem('bnCompanionMode'))
+      ? localStorage.getItem('bnCompanionMode') : 'quiet',
+    encouragementMinutes: Math.max(3, Math.min(30, Number(localStorage.getItem('bnEncouragementMinutes')) || 10)),
+    characterVoiceEnabled: localStorage.getItem('bnCharacterVoiceEnabled') == null
+      ? (localStorage.getItem('bnCompanionMode') || 'quiet') !== 'quiet'
+      : localStorage.getItem('bnCharacterVoiceEnabled') === 'true'
   };
 
   const voiceIcons = {
@@ -169,6 +175,15 @@
         <div class="bn-beta-meeting-name"><i></i><span id="bnBetaMeetingName"></span> · 在这里</div>
         <div class="bn-beta-meeting-panel">
           <div class="bn-beta-meeting-caption" id="bnBetaMeetingCaption"></div>
+          <section class="bn-companion-mode-picker" aria-labelledby="bnCompanionModeTitle">
+            <header><strong id="bnCompanionModeTitle">选择陪伴方式</strong><small>这次专注里，TA 要怎么陪你？</small></header>
+            <div class="bn-companion-mode-options" role="radiogroup">
+              <button type="button" data-bn-companion-mode="quiet" role="radio"><b>🌙 安静陪伴</b><span>不主动出声，点语音条再听</span></button>
+              <button type="button" data-bn-companion-mode="occasional" role="radio"><b>🌿 偶尔鼓励</b><span>关键时刻和固定间隔陪你</span></button>
+              <button type="button" data-bn-companion-mode="strict" role="radio"><b>👁️ 严格督促</b><span>需要摄像头，分心时严厉提醒</span></button>
+            </div>
+            <label class="bn-encouragement-interval" id="bnEncouragementInterval"><span>每隔</span><select id="bnEncouragementMinutes" aria-label="鼓励间隔"><option value="5">5 分钟</option><option value="10">10 分钟</option><option value="15">15 分钟</option><option value="20">20 分钟</option><option value="30">30 分钟</option></select><span>说点鼓励的话</span></label>
+          </section>
           <form class="bn-beta-task-form" id="bnBetaMeetingForm" hidden>
             <input id="bnBetaMeetingTask" maxlength="60" autocomplete="off" placeholder="这次想完成什么？" required>
             <button type="submit" aria-label="发送任务"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4 18-7z"/></svg></button>
@@ -244,7 +259,10 @@
               <div class="bn-call-task" id="bnCallTask">📖 专注中</div>
               <div class="bn-body-double-card" id="bnBodyDoubleCard" hidden><header><span id="bnBodyDoubleName">TA</span><small>也在专注</small></header><div id="bnBodyDoubleList"></div></div>
             </div>
-            <div class="bn-focus-top-right"><button class="bn-bgm-pill" id="bnRainBtn" type="button" data-bn-action="toggle-rain" aria-pressed="true"></button></div>
+            <div class="bn-focus-top-right">
+              <button class="bn-bgm-pill" id="bnRainBtn" type="button" data-bn-action="toggle-rain" aria-pressed="true"></button>
+              <button class="bn-character-voice-toggle" id="bnCharacterVoiceToggle" type="button" data-bn-action="toggle-character-voice" aria-pressed="false"><span class="bn-character-voice-icon" aria-hidden="true">🔇</span><span>TA 语音</span></button>
+            </div>
           </div>
           <div class="bn-dialogue-row"><div class="bn-caption" id="bnCaption"></div></div>
           <div class="bn-call-bottom">
@@ -384,8 +402,9 @@
     }
   }
 
-  function stopFocusSession() {
+  async function stopFocusSession() {
     showEndConfirm(false);
+    await window.focusCompanion?.announceSessionEvent('completion');
     stopBgm(true);
     if (typeof stopTimer === 'function') stopTimer();
     stopCaptions();
@@ -987,6 +1006,7 @@
     input.value = '';
     state.betaMeetingTask = '';
     state.bodyDoubleTodos = [];
+    renderCompanionMode();
     const question = `${oc.userTitle || '大小姐'}，今天想做什么？`;
     caption.textContent = '';
     try {
@@ -1049,6 +1069,16 @@
     const startButton = document.getElementById('bnBetaStartTogether');
     const activity = activityInput?.value.trim() || '看书';
     state.bodyDoubleActivity = activity;
+    if (state.companionMode === 'strict' && !navigator.mediaDevices?.getUserMedia) {
+      toast('严格督促需要可用的摄像头');
+      return;
+    }
+    if (state.companionMode === 'strict' && !await window.focusCompanion?.requestStrictCameraPermission()) return;
+    window.focusCompanion?.configureMode({
+      mode: state.companionMode,
+      encouragementMinutes: state.encouragementMinutes,
+      autoPlayVoice: state.characterVoiceEnabled
+    });
     startButton.disabled = true;
     startButton.textContent = 'TA 正在安排自己的计划…';
     try {
@@ -1523,6 +1553,7 @@
     document.getElementById('bnHomeAvatar').src = avatar;
     document.getElementById('bnGreeting').textContent = `早安，${title}！`;
     updateRainButton();
+    updateCharacterVoiceButton();
     document.getElementById('bnGreetingSub').textContent = `${name}已经在这里，等你一起专注。`;
     const completed = typeof tasks !== 'undefined' ? tasks.filter(item => item.status === 'completed').length : 0;
     document.getElementById('bnStoryText').innerHTML = `今天你们一起完成了 <b>${completed}</b> 件事，${escapeText(name)}还悄悄准备了一份礼物。`;
@@ -1572,11 +1603,51 @@
     state.toastTimer = setTimeout(() => el.classList.remove('is-show'), 2200);
   }
 
+  function renderCompanionMode() {
+    document.querySelectorAll('[data-bn-companion-mode]').forEach(button => {
+      const active = button.dataset.bnCompanionMode === state.companionMode;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-checked', String(active));
+    });
+    const interval = document.getElementById('bnEncouragementInterval');
+    if (interval) interval.hidden = state.companionMode !== 'occasional';
+    const select = document.getElementById('bnEncouragementMinutes');
+    if (select) select.value = String(state.encouragementMinutes);
+  }
+
+  function selectCompanionMode(mode) {
+    if (!['quiet','occasional','strict'].includes(mode)) return;
+    state.companionMode = mode;
+    state.characterVoiceEnabled = mode !== 'quiet';
+    localStorage.setItem('bnCompanionMode', mode);
+    localStorage.setItem('bnCharacterVoiceEnabled', String(state.characterVoiceEnabled));
+    renderCompanionMode();
+    updateCharacterVoiceButton();
+  }
+
+  function updateCharacterVoiceButton() {
+    const button = document.getElementById('bnCharacterVoiceToggle');
+    if (!button) return;
+    button.classList.toggle('is-active', state.characterVoiceEnabled);
+    button.setAttribute('aria-pressed', String(state.characterVoiceEnabled));
+    button.querySelector('.bn-character-voice-icon').textContent = state.characterVoiceEnabled ? '🔊' : '🔇';
+    button.title = state.characterVoiceEnabled ? '关闭 TA 主动语音' : '开启 TA 主动语音';
+  }
+
+  function toggleCharacterVoice() {
+    state.characterVoiceEnabled = !state.characterVoiceEnabled;
+    localStorage.setItem('bnCharacterVoiceEnabled', String(state.characterVoiceEnabled));
+    window.focusCompanion?.setVoiceAutoEnabled(state.characterVoiceEnabled);
+    updateCharacterVoiceButton();
+    toast(state.characterVoiceEnabled ? 'TA 会主动说话了' : 'TA 已安静，仍可点语音条收听');
+  }
+
   function bindEvents() {
-    window.addEventListener('tamoto:focus-complete', () => {
+    window.addEventListener('tamoto:focus-complete', async () => {
       if (!isBetaMode) return;
       stopBgm(true);
       stopCaptions();
+      await window.focusCompanion?.announceSessionEvent('completion');
       returnFromFocusSession();
     });
     document.getElementById('bnApp').addEventListener('click', event => {
@@ -1588,6 +1659,8 @@
       if (betaRelation) return setBetaRelationship(betaRelation.dataset.bnBetaRelation);
       const voiceMode = event.target.closest('[data-bn-voice-mode]');
       if (voiceMode) return setBetaVoiceMode(voiceMode.dataset.bnVoiceMode);
+      const companionMode = event.target.closest('[data-bn-companion-mode]');
+      if (companionMode) return selectCompanionMode(companionMode.dataset.bnCompanionMode);
       const voiceCandidate = event.target.closest('[data-voice-candidate]');
       if (voiceCandidate) {
         document.querySelectorAll('[data-voice-candidate]').forEach(button => button.classList.toggle('is-selected', button === voiceCandidate));
@@ -1631,6 +1704,7 @@
       if (type === 'toggle-camera' && window.focusCompanion) window.focusCompanion.toggleCamera();
       if (type === 'next-caption') nextCaption();
       if (type === 'toggle-rain') cycleBgm();
+      if (type === 'toggle-character-voice') toggleCharacterVoice();
       if (type === 'toggle-focus-chat') toggleFocusChat();
       if (type === 'close-chat-sheet') toggleFocusChat(false);
       if (type === 'cancel-end-focus') showEndConfirm(false);
@@ -1666,6 +1740,14 @@
     document.getElementById('bnTaskInput').addEventListener('change', syncTaskInput);
     document.getElementById('bnBetaRoleForm').addEventListener('submit', saveBetaRole);
     document.getElementById('bnBetaMeetingForm').addEventListener('submit', submitBetaMeetingTask);
+    document.getElementById('bnEncouragementMinutes').addEventListener('change', event => {
+      state.encouragementMinutes = Math.max(3, Math.min(30, Number(event.target.value) || 10));
+      localStorage.setItem('bnEncouragementMinutes', String(state.encouragementMinutes));
+    });
+    document.getElementById('bnStageImage').addEventListener('click', event => {
+      if (event.target.closest?.('.bn-camera-preview')) return;
+      window.focusCompanion?.reactToStageTap();
+    });
     document.getElementById('bnBetaBackgroundInput').addEventListener('change', event => handleBetaBackground(event.target.files?.[0]));
     document.getElementById('bnBetaRelationship').addEventListener('change', event => {
       setBetaRelationship(event.target.value);

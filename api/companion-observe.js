@@ -68,7 +68,7 @@ async function handler(req, res) {
 
   if (req.body?.mode === 'ambient') {
     try {
-      const type = ['opening', 'opening_event', 'presence', 'praise', 'activity', 'encourage'].includes(req.body?.type) ? req.body.type : 'presence';
+      const type = ['opening', 'opening_event', 'presence', 'praise', 'activity', 'encourage', 'pause', 'resume', 'completion'].includes(req.body?.type) ? req.body.type : 'presence';
       const messages = await generateAmbient({
         type,
         task: String(req.body?.task || '保持专注').slice(0, 200),

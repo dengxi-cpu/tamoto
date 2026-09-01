@@ -44,7 +44,12 @@
         voiceInFlight: false,
         voiceCancelled: false,
         speechRecognition: null,
-        previousAudioSessionType: null
+        previousAudioSessionType: null,
+        companionMode: 'quiet',
+        encouragementMinutes: 10,
+        voiceAutoEnabled: false,
+        stageTapCount: 0,
+        stageTapTimer: null
     };
 
     const VISION_INTERVAL_MS = 20000;
@@ -219,6 +224,33 @@
         await startCamera();
     }
 
+    function configureMode(options = {}) {
+        const mode = ['quiet','occasional','strict'].includes(options.mode) ? options.mode : 'quiet';
+        state.companionMode = mode;
+        state.encouragementMinutes = Math.max(3, Math.min(30, Number(options.encouragementMinutes) || 10));
+        state.voiceAutoEnabled = options.autoPlayVoice == null ? mode !== 'quiet' : Boolean(options.autoPlayVoice);
+    }
+
+    function setVoiceAutoEnabled(enabled) {
+        state.voiceAutoEnabled = Boolean(enabled);
+        if (!state.voiceAutoEnabled) stopPlayback('character_voice_muted');
+    }
+
+    async function requestStrictCameraPermission() {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            notify('当前设备不支持严格督促所需的摄像头');
+            return false;
+        }
+        try {
+            const probe = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user' }, audio:false });
+            probe.getTracks().forEach(track => track.stop());
+            return true;
+        } catch (error) {
+            notify('开启严格督促前，需要允许摄像头权限');
+            return false;
+        }
+    }
+
     function startSession() {
         ensureAudio().catch(error => console.warn('Audio unlock failed:', error));
         cancelReaction('新专注会话');
@@ -243,9 +275,10 @@
         state.paused = false;
         state.visionUnavailable = false;
         stopCamera();
-        scheduleOpeningSequence();
+        if (state.companionMode !== 'quiet') scheduleOpeningSequence();
         scheduleAmbientCheck();
-        playPreparedOpening().catch(error => console.warn('Prepared opening playback failed:', error));
+        if (state.companionMode !== 'quiet') playPreparedOpening().catch(error => console.warn('Prepared opening playback failed:', error));
+        if (state.companionMode === 'strict') startCamera();
     }
 
     function stopSession() {
@@ -315,15 +348,32 @@
         }
         const bubble = document.createElement('div');
         bubble.className = `bn-speech-message is-${role}${pending ? ' is-pending' : ''}`;
-        bubble.textContent = text;
+        if (role === 'assistant' && !pending) {
+            const copy = document.createElement('span');
+            copy.className = 'bn-speech-copy';
+            copy.textContent = text;
+            const replay = document.createElement('button');
+            replay.className = 'bn-speech-replay';
+            replay.type = 'button';
+            replay.textContent = '▶';
+            replay.setAttribute('aria-label', `播放语音：${text}`);
+            replay.addEventListener('click', event => {
+                event.stopPropagation();
+                replaySpeechMessage(text, replay);
+            });
+            bubble.append(copy, replay);
+        } else {
+            bubble.textContent = text;
+        }
         caption.appendChild(bubble);
         const visibleBubbles = [...caption.querySelectorAll('.bn-speech-message:not(.is-leaving)')];
         while (visibleBubbles.length > 2) dismissConversationMessage(visibleBubbles.shift());
-        messageTimers.set(bubble, window.setTimeout(() => dismissConversationMessage(bubble), 8000));
+        messageTimers.set(bubble, window.setTimeout(() => dismissConversationMessage(bubble), 18000));
+        return bubble;
     }
 
     function appendSpeechMessage(text) {
-        appendConversationMessage(text, 'assistant');
+        return appendConversationMessage(text, 'assistant');
     }
 
     function captureFrame() {
@@ -347,7 +397,7 @@
         const oc = typeof ocData !== 'undefined' && Array.isArray(ocData)
             ? (ocData[typeof currentOCIndex === 'number' ? currentOCIndex : 0] || ocData[0])
             : null;
-        const betaMode = location.pathname === '/beta' || new URLSearchParams(location.search).get('mode') === 'beta';
+        const betaMode = window.APP_BASE === '/beta' || new URLSearchParams(location.search).get('mode') === 'beta';
         const userTitle = betaMode ? (oc?.userTitle || '大小姐') : '大小姐';
         const roleContext = {
             name: oc?.name || 'TA',
@@ -358,9 +408,10 @@
             voiceProvider: oc?.voiceProvider || 'volcengine',
             voiceId: oc?.voiceId || ''
         };
-        const persona = oc
+        let persona = oc
             ? `与用户的关系是${roleContext.relationship}。完整人设：${roleContext.persona}。需要称呼时只叫用户“${roleContext.userTitle}”，不要使用其他姓名，也不要每句话都称呼。反应自然、简短。`
             : '毒舌但关心用户的陪伴者，需要称呼时只叫用户“大小姐”，不要每句话都称呼，反应自然、简短。';
+        if (state.companionMode === 'strict') persona += '当用户明显分心时，语气要严肃、直接、有压迫感，但不侮辱、不贬低用户。';
         return { task, persona, roleContext };
     }
 
@@ -488,7 +539,7 @@
             resolveFinished
         };
         state.playback = playback;
-        const response = await fetch('/api/tts-stream', {
+        const response = await fetch((window.APP_BASE || '') + '/api/tts-stream', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             signal: controller.signal,
@@ -547,6 +598,47 @@
         return completed ? audioBytes : 0;
     }
 
+    async function generateSilentTts(text, result, speechType = 'visual') {
+        const voice = getCompanionContext().roleContext;
+        const response = await fetch((window.APP_BASE || '') + '/api/tts-stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text, epoch: result.epoch, turnId: result.turnId, speechType,
+                voiceType: result.voiceType || voice.voiceType,
+                voiceProvider: result.voiceProvider || voice.voiceProvider,
+                voiceId: result.voiceId || voice.voiceId
+            })
+        });
+        if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.error || `TTS HTTP ${response.status}`);
+        }
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        return bytes.length;
+    }
+
+    async function replaySpeechMessage(text, button) {
+        if (!text || button?.classList.contains('is-loading')) return;
+        document.querySelectorAll('.bn-speech-replay.is-playing,.bn-speech-replay.is-loading').forEach(item => item.classList.remove('is-playing','is-loading'));
+        button?.classList.add('is-loading');
+        try {
+            const result = { epoch: state.epoch, turnId: ++state.turnId };
+            const bytes = await playStreamingTts(text, result, 0, 'replay', () => {
+                button?.classList.remove('is-loading');
+                button?.classList.add('is-playing');
+                if (button) button.textContent = '■';
+            });
+            if (!bytes) throw new Error('语音暂时无法播放');
+        } catch (error) {
+            console.warn('Speech replay failed:', error);
+            notify(error.message || '语音播放失败');
+        } finally {
+            button?.classList.remove('is-loading','is-playing');
+            if (button) button.textContent = '▶';
+        }
+    }
+
     function waitBetweenMessages(sequenceId) {
         const delay = 300 + Math.floor(Math.random() * 501);
         return new Promise(resolve => window.setTimeout(() => {
@@ -566,13 +658,14 @@
         let totalBytes = 0;
         let trackedSpeechId = null;
         try {
-            if (result.epoch !== state.epoch || state.voiceHeld || state.paused) return 0;
+            const sessionEvent = ['pause','resume','completion'].includes(speechType);
+            if (result.epoch !== state.epoch || state.voiceHeld || (state.paused && !sessionEvent)) return 0;
             const fullText = items.join('');
             const shown = new Set();
             const showItem = index => {
                 if (shown.has(index) || sequenceId !== state.speechSequenceId) return;
                 shown.add(index);
-                onMessage(items[index], index);
+                return onMessage(items[index], index);
             };
             const scheduleCaptions = () => {
                 showItem(0);
@@ -587,16 +680,21 @@
             };
             const ttsRequestStartedAt = performance.now();
             try {
-                totalBytes = await playStreamingTts(fullText, result, priority, speechType, () => {
-                    scheduleCaptions();
-                    if (!trackedSpeechId) {
-                        trackedSpeechId = window.track?.speechStarted({
-                            source: speechType === 'visual' ? 'vision' : 'ambient', speech_type: speechType,
-                            text_len: fullText.length, speech_id: `${result.epoch}-${result.turnId}-${speechType}`
-                        });
-                        state.activeTrackSpeechId = trackedSpeechId;
-                    }
-                });
+                if (!state.voiceAutoEnabled && speechType !== 'replay' && speechType !== 'voice_preview') {
+                    items.forEach((_, index) => showItem(index));
+                    totalBytes = await generateSilentTts(fullText, result, speechType);
+                } else {
+                    totalBytes = await playStreamingTts(fullText, result, priority, speechType, () => {
+                        scheduleCaptions();
+                        if (!trackedSpeechId) {
+                            trackedSpeechId = window.track?.speechStarted({
+                                source: speechType === 'visual' ? 'vision' : 'ambient', speech_type: speechType,
+                                text_len: fullText.length, speech_id: `${result.epoch}-${result.turnId}-${speechType}`
+                            });
+                            state.activeTrackSpeechId = trackedSpeechId;
+                        }
+                    });
+                }
                 window.track?.('api_result', { error_area: 'tts', result: totalBytes ? 'success' : 'suppressed', latency_ms: Math.round(performance.now() - ttsRequestStartedAt) });
             } catch (error) {
                 window.track?.('client_error', { error_area: 'tts', error_code: error.name || 'Error' });
@@ -631,7 +729,7 @@
             const sessionStartedAt = new Date(state.sessionStartedAt || Date.now()).toISOString();
             const elapsedSeconds = Math.max(0, Math.floor((Date.now() - (state.sessionStartedAt || Date.now())) / 1000));
             const recentObservations = state.recentObservations.slice(-1);
-            const response = await fetch('/api/companion-observe', {
+            const response = await fetch((window.APP_BASE || '') + '/api/companion-observe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 signal: controller.signal,
@@ -745,9 +843,11 @@
             cancelReaction('专注已暂停');
             stopAmbientLoop();
             stopOpeningSequence();
+            if (state.companionMode !== 'quiet') announceSessionEvent('pause');
         } else if (state.sessionActive) {
             if (state.stream) startVisionLoop();
             scheduleAmbientCheck();
+            if (state.companionMode !== 'quiet') announceSessionEvent('resume');
             if (openingElapsedMs() < 120000 && (!state.openingAmbientDone || !state.openingEventDone)) {
                 addOpeningTimer(state.openingAmbientDone ? runOpeningEvent : runOpeningAmbient, 1000);
             }
@@ -785,7 +885,7 @@
             const { task, persona, roleContext } = getCompanionContext();
             const preloadEpoch = Date.now();
             const preloadTurnId = 900000;
-            const lineResponse = await fetch('/api/companion-observe', {
+            const lineResponse = await fetch((window.APP_BASE || '') + '/api/companion-observe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ mode: 'ambient', type: 'opening', task, persona, roleContext, elapsedSeconds: 0, epoch: preloadEpoch, turnId: preloadTurnId })
@@ -794,7 +894,7 @@
             if (!lineResponse.ok) throw new Error(linePayload.error || '开场台词预生成失败');
             const messages = normalizeMessages(linePayload.data?.messages, linePayload.data?.reaction);
             if (!messages.length) throw new Error('开场台词为空');
-            const audioResponse = await fetch('/api/tts-stream', {
+            const audioResponse = await fetch((window.APP_BASE || '') + '/api/tts-stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text: messages.join(''), epoch: preloadEpoch, turnId: preloadTurnId, speechType: 'opening', voiceType: roleContext.voiceType, voiceProvider: roleContext.voiceProvider, voiceId: roleContext.voiceId })
@@ -878,7 +978,7 @@
     async function requestAmbientLine(type, extra = {}) {
         const { task, persona, roleContext } = getCompanionContext();
         const elapsedSeconds = Math.max(0, Math.floor(openingElapsedMs() / 1000));
-        const response = await fetch('/api/companion-observe', {
+        const response = await fetch((window.APP_BASE || '') + '/api/companion-observe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mode: 'ambient', type, task, persona, roleContext, elapsedSeconds, ...extra })
@@ -957,13 +1057,69 @@
     function scheduleAmbientCheck() {
         stopAmbientLoop();
         if (!state.sessionActive || state.paused) return;
+        if (state.companionMode !== 'occasional') return;
+        const delay = state.encouragementMinutes * 60 * 1000;
+        state.ambientTimer = window.setTimeout(async () => {
+            await speakScheduledEncouragement();
+            scheduleAmbientCheck();
+        }, delay);
+    }
+
+    async function speakScheduledEncouragement() {
+        if (!state.sessionActive || state.paused || state.voiceHeld || state.playback) return;
+        const requestEpoch = state.epoch;
+        const turnId = ++state.turnId;
+        try {
+            const messages = await requestAmbientLine('encourage', { epoch:requestEpoch, turnId });
+            if (!messages.length || requestEpoch !== state.epoch || state.paused) return;
+            await playMessageSequence(messages, { epoch:requestEpoch, turnId }, 4, 'encourage');
+        } catch (error) {
+            console.warn('Scheduled encouragement failed:', error);
+        }
+    }
+
+    async function announceSessionEvent(type) {
+        if (state.companionMode === 'quiet') return 0;
+        const requestEpoch = state.epoch;
+        const turnId = ++state.turnId;
+        try {
+            const messages = await requestAmbientLine(type, { epoch:requestEpoch, turnId });
+            if (!messages.length) return 0;
+            return await playMessageSequence(messages, { epoch:requestEpoch, turnId }, 1, type);
+        } catch (error) {
+            console.warn(`Session ${type} announcement failed:`, error);
+            return 0;
+        }
+    }
+
+    async function reactToStageTap() {
+        if (!state.sessionActive || state.paused) return;
+        state.stageTapCount += 1;
+        if (state.stageTapTimer) window.clearTimeout(state.stageTapTimer);
+        state.stageTapTimer = window.setTimeout(() => { state.stageTapCount = 0; }, 3000);
+        const level = state.stageTapCount >= 5 ? 'angry' : state.stageTapCount >= 3 ? 'annoyed' : 'normal';
+        const prompt = level === 'angry'
+            ? '我又连续点了你很多次。请严厉但不侮辱地反应，提醒我回到专注。'
+            : level === 'annoyed'
+                ? '我连续点了你几次。请略带无奈地反应，提醒我别玩了。'
+                : '我轻轻点了一下你。请按你的人设给一句自然的反应。';
+        if (level === 'angry') {
+            const stage = document.querySelector('.bn-stage-img');
+            stage?.animate?.([{ transform:'translateX(0)' },{ transform:'translateX(-5px)' },{ transform:'translateX(5px)' },{ transform:'translateX(0)' }], { duration:320 });
+        }
+        await respondToVoice(prompt, { hideUserMessage:true, speechType:'stage_tap' });
+    }
+
+    function scheduleLegacyAmbientCheck() {
+        stopAmbientLoop();
+        if (!state.sessionActive || state.paused) return;
         const studyPhase = openingElapsedMs() >= 5 * 60 * 1000;
         const delay = studyPhase
             ? AMBIENT_POLICY.studyCheckMinMs + Math.floor(Math.random() * AMBIENT_POLICY.studyCheckJitterMs)
             : AMBIENT_POLICY.checkMinMs + Math.floor(Math.random() * AMBIENT_POLICY.checkJitterMs);
         state.ambientTimer = window.setTimeout(async () => {
             await considerAmbientSpeech();
-            scheduleAmbientCheck();
+            scheduleLegacyAmbientCheck();
         }, delay);
     }
 
@@ -1132,7 +1288,7 @@
         setCaption('正在听你说……');
         try {
             const audio = await blobToDataUrl(blob);
-            const response = await fetch('/api/speech', {
+            const response = await fetch((window.APP_BASE || '') + '/api/speech', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ audio })
@@ -1162,7 +1318,7 @@
         }
     }
 
-    async function respondToVoice(text) {
+    async function respondToVoice(text, options = {}) {
         if (!text) return;
         const { caption } = elements();
         if (caption && caption.id !== 'ocMessageText' && !caption.querySelector('.bn-speech-message')) caption.replaceChildren();
@@ -1175,11 +1331,13 @@
         const scene = state.latestObservation && Date.now() - state.latestObservation.capturedAt <= 120000
             ? state.latestObservation.scene : '';
         const history = state.dialogueHistory.slice(-6);
-        state.dialogueHistory.push({ role: 'user', content: text });
-        appendConversationMessage(text, 'user');
+        if (!options.hideUserMessage) {
+            state.dialogueHistory.push({ role: 'user', content: text });
+            appendConversationMessage(text, 'user');
+        }
         appendConversationMessage('正在想……', 'assistant', true);
         try {
-            const response = await fetch('/api/companion-observe', {
+            const response = await fetch((window.APP_BASE || '') + '/api/companion-observe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 signal: controller.signal,
@@ -1194,7 +1352,7 @@
             state.dialogueHistory.push({ role: 'assistant', content: reaction });
             state.dialogueHistory = state.dialogueHistory.slice(-6);
             window.dispatchEvent(new CustomEvent('focus-dialogue-spoken', { detail: { text, reaction, messages } }));
-            const bytes = await playMessageSequence(messages, { epoch: requestEpoch, turnId }, 1, 'dialogue');
+            const bytes = await playMessageSequence(messages, { epoch: requestEpoch, turnId }, 1, options.speechType || 'dialogue');
             if (bytes) {
                 state.lastEventOrDialogueAt = Date.now();
                 state.policyState.lastAnySpokenAt = state.lastEventOrDialogueAt;
@@ -1249,6 +1407,11 @@
         stopVoiceInput,
         sendDialogue: text => respondToVoice(String(text || '').trim()),
         setPaused,
+        configureMode,
+        setVoiceAutoEnabled,
+        requestStrictCameraPermission,
+        announceSessionEvent,
+        reactToStageTap,
         prepareOpening,
         unlockAudio: ensureAudio,
         createSpeechTurn: () => ({ epoch: state.epoch, turnId: ++state.turnId }),
@@ -1263,6 +1426,6 @@
     };
 
     window.toggleFocusCamera = toggleCamera;
-    if (location.pathname !== '/beta' && new URLSearchParams(location.search).get('mode') !== 'beta') window.setTimeout(prepareOpening, 0);
+    if (window.APP_BASE !== '/beta' && new URLSearchParams(location.search).get('mode') !== 'beta') window.setTimeout(prepareOpening, 0);
     window.addEventListener('pagehide', stopSession);
 })();

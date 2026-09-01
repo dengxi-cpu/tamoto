@@ -261,7 +261,7 @@
             </div>
             <div class="bn-focus-top-right">
               <button class="bn-bgm-pill" id="bnRainBtn" type="button" data-bn-action="toggle-rain" aria-pressed="true"></button>
-              <button class="bn-character-voice-toggle" id="bnCharacterVoiceToggle" type="button" data-bn-action="toggle-character-voice" aria-pressed="false"><span class="bn-character-voice-icon" aria-hidden="true">🔇</span><span>TA 语音</span></button>
+              <button class="bn-character-voice-toggle" id="bnCharacterVoiceToggle" type="button" data-bn-action="toggle-character-voice" aria-pressed="false"><svg class="bn-character-voice-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5.5 6.7 9H3.5v6h3.2l4.3 3.5zM16 9l4.5 6M20.5 9 16 15"/></svg><span>TA 语音</span></button>
             </div>
           </div>
           <div class="bn-dialogue-row"><div class="bn-caption" id="bnCaption"></div></div>
@@ -1630,7 +1630,9 @@
     if (!button) return;
     button.classList.toggle('is-active', state.characterVoiceEnabled);
     button.setAttribute('aria-pressed', String(state.characterVoiceEnabled));
-    button.querySelector('.bn-character-voice-icon').textContent = state.characterVoiceEnabled ? '🔊' : '🔇';
+    button.querySelector('.bn-character-voice-icon').innerHTML = state.characterVoiceEnabled
+      ? '<path d="M11 5.5 6.7 9H3.5v6h3.2l4.3 3.5zM15.2 9.1a4.2 4.2 0 0 1 0 5.8M18 6.8a7.3 7.3 0 0 1 0 10.4"/>'
+      : '<path d="M11 5.5 6.7 9H3.5v6h3.2l4.3 3.5zM16 9l4.5 6M20.5 9 16 15"/>';
     button.title = state.characterVoiceEnabled ? '关闭 TA 主动语音' : '开启 TA 主动语音';
   }
 

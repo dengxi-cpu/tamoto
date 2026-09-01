@@ -355,7 +355,7 @@
             const replay = document.createElement('button');
             replay.className = 'bn-speech-replay';
             replay.type = 'button';
-            replay.textContent = '▶';
+            setReplayIcon(replay, false);
             replay.setAttribute('aria-label', `播放语音：${text}`);
             replay.addEventListener('click', event => {
                 event.stopPropagation();
@@ -374,6 +374,13 @@
 
     function appendSpeechMessage(text) {
         return appendConversationMessage(text, 'assistant');
+    }
+
+    function setReplayIcon(button, playing) {
+        if (!button) return;
+        button.innerHTML = playing
+            ? '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7.5" y="7.5" width="9" height="9" rx="2"/></svg>'
+            : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7.4v9.2c0 .8.9 1.3 1.6.85l7-4.6a1 1 0 0 0 0-1.7l-7-4.6A1 1 0 0 0 9 7.4Z"/></svg>';
     }
 
     function captureFrame() {
@@ -627,7 +634,7 @@
             const bytes = await playStreamingTts(text, result, 0, 'replay', () => {
                 button?.classList.remove('is-loading');
                 button?.classList.add('is-playing');
-                if (button) button.textContent = '■';
+                setReplayIcon(button, true);
             });
             if (!bytes) throw new Error('语音暂时无法播放');
         } catch (error) {
@@ -635,7 +642,7 @@
             notify(error.message || '语音播放失败');
         } finally {
             button?.classList.remove('is-loading','is-playing');
-            if (button) button.textContent = '▶';
+            setReplayIcon(button, false);
         }
     }
 

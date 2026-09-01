@@ -1518,10 +1518,10 @@ body.bn-beta-setup-keyboard { overflow:hidden; overscroll-behavior:none; }
 @media (prefers-reduced-motion: reduce) { .bn-screen.is-active { animation:none; } }
 
 /* Companion modes, voice replay strips and the focus voice switch. */
-.bn-character-voice-toggle { display:flex; min-width:88px; min-height:34px; align-items:center; justify-content:center; gap:6px; margin-top:7px; border:1px solid var(--bn-focus-line); border-radius:999px; color:rgba(255,255,255,.72); background:var(--bn-focus-glass); box-shadow:0 8px 24px rgba(0,0,0,.12); -webkit-backdrop-filter:blur(18px) saturate(140%); backdrop-filter:blur(18px) saturate(140%); font:650 11px/1 inherit; transition:transform 100ms ease-out,color 180ms ease,background 180ms ease; }
+.bn-character-voice-toggle { position:relative; display:flex; width:84px; max-width:84px; min-height:30px; align-items:center; justify-content:flex-start; gap:5px; margin-top:7px; overflow:hidden; border:.5px solid rgba(255,255,255,.14); border-radius:999px; padding:5px 9px; color:rgba(255,255,255,.88); background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.055) 56%,rgba(255,255,255,.085)); box-shadow:inset .8px .8px 0 rgba(255,255,255,.2),inset -.5px -.5px 0 rgba(0,0,0,.025),0 4px 13px rgba(0,0,0,.07); -webkit-backdrop-filter:blur(13px) saturate(138%) brightness(1.055); backdrop-filter:blur(13px) saturate(138%) brightness(1.055); font-size:9.5px; font-weight:450; line-height:normal; white-space:nowrap; transition:transform 100ms ease-out,color 180ms ease,background 180ms ease; }
 .bn-character-voice-toggle:active { transform:scale(.96); }
-.bn-character-voice-toggle.is-active { color:#fff; background:rgba(126,111,180,.42); }
-.bn-character-voice-icon { font-size:13px; }
+.bn-character-voice-toggle.is-active { color:#fff; background:linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,.06) 56%,rgba(255,255,255,.09)); }
+.bn-character-voice-icon { width:13px; height:13px; flex:0 0 13px; fill:none; stroke:#fff; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
 .bn-companion-mode-picker { display:grid; gap:9px; padding:12px; border:.5px solid rgba(255,255,255,.17); border-radius:20px; background:linear-gradient(145deg,rgba(34,30,42,.54),rgba(22,20,28,.34)); box-shadow:inset .7px .7px 0 rgba(255,255,255,.13),0 12px 34px rgba(0,0,0,.12); -webkit-backdrop-filter:blur(20px) saturate(135%); backdrop-filter:blur(20px) saturate(135%); }
 .bn-companion-mode-picker header { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
 .bn-companion-mode-picker header strong { font-size:13px; font-weight:700; }
@@ -1538,7 +1538,8 @@ body.bn-beta-setup-keyboard { overflow:hidden; overscroll-behavior:none; }
 .bn-encouragement-interval select { border:.5px solid rgba(255,255,255,.18); border-radius:999px; padding:5px 24px 5px 10px; color:#fff; background:rgba(255,255,255,.09); font:650 10px inherit; }
 .bn-speech-message { display:grid; grid-template-columns:minmax(0,1fr) 34px; align-items:center; gap:9px; pointer-events:auto; }
 .bn-speech-copy { min-width:0; }
-.bn-speech-replay { width:34px; height:34px; display:grid; place-items:center; border:0; border-radius:50%; color:#fff; background:rgba(255,255,255,.14); font-size:13px; transition:transform 100ms ease-out,background 180ms ease; }
+.bn-speech-replay { width:34px; height:34px; display:grid; place-items:center; border:.5px solid rgba(255,255,255,.16); border-radius:50%; color:#fff; background:rgba(255,255,255,.1); box-shadow:inset .5px .5px 0 rgba(255,255,255,.16); transition:transform 100ms ease-out,background 180ms ease; }
+.bn-speech-replay svg { width:15px; height:15px; display:block; fill:#fff; stroke:none; }
 .bn-speech-replay:active { transform:scale(.91); }
 .bn-speech-replay.is-playing { background:rgba(160,150,230,.52); }
 .bn-speech-replay.is-loading { animation:bn-voice-loading 900ms ease-in-out infinite alternate; }

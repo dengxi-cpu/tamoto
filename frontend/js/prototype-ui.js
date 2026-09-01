@@ -192,9 +192,9 @@
         </div>
         <button class="bn-primary" type="button" data-bn-go="focus">🍅&nbsp; 开始专注</button>
         <div class="bn-card bn-story"><div class="bn-story-icon">🎁</div><div><p id="bnStoryText"></p><button type="button" data-bn-action="gifts">看看 TA 准备了什么 →</button></div></div>
-        <div class="bn-section-head"><h2>今日完成</h2><span id="bnTaskCount">0 件</span></div>
+        <div class="bn-section-head bn-task-heading"><h2>今日完成</h2><span id="bnTaskCount">0 件</span></div>
         <div class="bn-card bn-task-list" id="bnTaskList"></div>
-        <div class="bn-section-head"><h2>收到的礼物</h2><button type="button" data-bn-action="gifts">查看全部</button></div>
+        <div class="bn-section-head bn-gift-heading"><h2>收到的礼物</h2><button type="button" data-bn-action="gifts">查看全部</button></div>
         <div class="bn-gifts" id="bnGiftList"></div>
       </section>
 

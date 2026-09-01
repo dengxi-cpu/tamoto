@@ -913,6 +913,7 @@ body.bn-composer-open .bn-focus-overlay { opacity:.88; transition:opacity 220ms 
 .bn-acc:last-child { border-bottom:0; }
 .bn-acc-head { width:100%; display:flex; align-items:center; gap:11px; border:0; padding:14px; color:var(--bn-ink); background:#fff; text-align:left; }
 .bn-acc-icon { width:34px; height:34px; display:grid; place-items:center; border-radius:11px; background:var(--bn-primary-pale); }
+.bn-acc-svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .bn-acc-copy { flex:1; }
 .bn-acc-copy b { display:block; font-size:13px; }
 .bn-acc-copy small { display:block; margin-top:2px; color:var(--bn-muted); font-size:10px; }
@@ -948,6 +949,27 @@ body.bn-beta-mode .bn-app:not(.is-running) { padding-bottom:0; background:#15161
   background:#15161b;
 }
 .bn-beta-setup.is-active { display:block; }
+.bn-beta-skip-role {
+  position:absolute;
+  z-index:4;
+  top:max(18px,calc(env(safe-area-inset-top) + 10px));
+  right:max(16px,env(safe-area-inset-right));
+  min-width:58px;
+  height:32px;
+  border:.5px solid rgba(255,255,255,.2);
+  border-radius:999px;
+  padding:0 15px;
+  color:rgba(255,255,255,.94);
+  background:rgba(24,25,31,.22);
+  box-shadow:inset .5px .5px 0 rgba(255,255,255,.18),0 5px 18px rgba(0,0,0,.12);
+  -webkit-backdrop-filter:blur(16px) saturate(135%);
+  backdrop-filter:blur(16px) saturate(135%);
+  font-size:13px;
+  font-weight:500;
+  letter-spacing:.01em;
+  transition:transform 100ms ease-out,background 160ms ease;
+}
+.bn-beta-skip-role:active { transform:scale(.96); background:rgba(24,25,31,.34); }
 .bn-beta-scene,.bn-beta-scene-shade { position:absolute; inset:0; width:100%; height:100%; }
 .bn-beta-scene { z-index:0; object-fit:cover; object-position:center 28%; }
 .bn-beta-scene-shade {

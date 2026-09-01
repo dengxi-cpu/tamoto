@@ -95,6 +95,7 @@
       <section class="bn-screen bn-beta-setup${isBetaMode ? ' is-active' : ''}" data-bn-screen="beta-setup">
         <img class="bn-beta-scene" id="bnBetaBackgroundPreview" alt="TA 的完整陪伴场景">
         <div class="bn-beta-scene-shade"></div>
+        <button class="bn-beta-skip-role" type="button" data-bn-action="beta-skip-role">跳过</button>
         <div class="bn-beta-role-presence">
           <strong id="bnBetaHeroName">TA</strong>
           <span>你的专注伙伴 · 已陪伴 20 天</span>
@@ -320,7 +321,7 @@
           <div class="bn-acc"><button class="bn-acc-head" type="button"><span class="bn-acc-icon">🎭</span><span class="bn-acc-copy"><b>性格与人设</b><small>语气风格、专属人设描述</small></span><span>⌄</span></button><div class="bn-acc-body">温柔守护、成熟包容，以及你为 TA 写下的完整人物设定。 <button class="bn-link-button" data-bn-action="edit-oc">编辑</button></div></div>
           <div class="bn-acc"><button class="bn-acc-head" type="button"><span class="bn-acc-icon">🎁</span><span class="bn-acc-copy"><b>礼物设置</b><small>完成任务时随机送出</small></span><span>⌄</span></button><div class="bn-acc-body">学习、工作、休息等不同状态可以拥有独立礼物。 <button class="bn-link-button" data-bn-action="edit-oc">管理</button></div></div>
           <div class="bn-acc"><button class="bn-acc-head" type="button"><span class="bn-acc-icon">⏰</span><span class="bn-acc-copy"><b>提醒管理</b><small>系统通知和定时提醒</small></span><span>⌄</span></button><div class="bn-acc-body">保留现有 Web Push、提醒时间和通知权限设置。 <button class="bn-link-button" data-bn-action="advanced">管理</button></div></div>
-          <div class="bn-acc"><button class="bn-acc-head" type="button"><span class="bn-acc-icon">🔊</span><span class="bn-acc-copy"><b>陪伴语音</b><small>AI 实时语音</small></span><span>⌄</span></button><div class="bn-acc-body">事件提醒、氛围陪伴和语音对话都会使用当前角色的实时 AI 语音。</div></div>
+          <div class="bn-acc"><button class="bn-acc-head" type="button"><span class="bn-acc-icon"><svg class="bn-acc-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5.5 6.7 9H3.5v6h3.2l4.3 3.5zM15.5 9.2a4 4 0 0 1 0 5.6M18.2 6.7a7.5 7.5 0 0 1 0 10.6"/></svg></span><span class="bn-acc-copy"><b>陪伴语音</b><small>AI 实时语音</small></span><span>⌄</span></button><div class="bn-acc-body">事件提醒、氛围陪伴和语音对话都会使用当前角色的实时 AI 语音。</div></div>
         </div>
         <button class="bn-advanced" type="button" data-bn-action="advanced">高级设置</button>
       </section>
@@ -345,6 +346,12 @@
     document.querySelectorAll('.bn-tab').forEach(el => el.classList.toggle('is-active', el.dataset.bnGo === (tab === 'running' ? 'focus' : tab)));
     document.getElementById('bnApp').classList.toggle('is-running', tab === 'running');
     refreshUI();
+  }
+
+  function skipBetaRoleSetup() {
+    window.track?.('beta_action', { setup_action: 'skip_to_focus' });
+    syncBetaFocusBackground(betaBackgroundFor());
+    switchTab('focus');
   }
 
   function setDuration(value, button) {
@@ -1709,6 +1716,7 @@
       if (type === 'toggle-character-voice') toggleCharacterVoice();
       if (type === 'toggle-focus-chat') toggleFocusChat();
       if (type === 'close-chat-sheet') toggleFocusChat(false);
+      if (type === 'beta-skip-role') skipBetaRoleSetup();
       if (type === 'cancel-end-focus') showEndConfirm(false);
       if (type === 'confirm-end-focus') stopFocusSession();
       if (type === 'beta-edit-role') {

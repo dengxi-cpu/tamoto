@@ -53,7 +53,8 @@
     };
 
     // Serialize observations so slow model calls never build a request queue.
-    const VISION_INTERVAL_MS = 5000;
+    // 严格监督需要落在短视频的 3 秒节拍内；请求仍然串行，不会堆积。
+    const VISION_INTERVAL_MS = 1000;
     const VISION_INITIAL_DELAY_MS = 1000;
     const TTS_BUFFER_MS = 180;
     // 测试期高频策略：前5分钟密集建立陪伴感，之后舒适陪伴。

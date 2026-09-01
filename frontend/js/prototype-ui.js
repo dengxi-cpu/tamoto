@@ -146,6 +146,7 @@
                     <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_taocheng_uranus_bigtts" data-voice-provider="volcengine" data-voice-name="温暖治愈" data-voice-meta="温暖 · 轻松 · 治愈感"><b>温暖治愈</b><small>温暖 · 轻松 · 治愈感</small><i>${voiceIcons.play}</i></button>
                     <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_liufei_uranus_bigtts" data-voice-provider="volcengine" data-voice-name="慵懒自然" data-voice-meta="松弛 · 亲近 · 日常感"><b>慵懒自然</b><small>松弛 · 亲近 · 日常感</small><i>${voiceIcons.play}</i></button>
                     <button class="bn-beta-voice" type="button" data-bn-beta-voice="zh_male_fanjuanqingnian_uranus_bigtts" data-voice-provider="volcengine" data-voice-name="清爽青年" data-voice-meta="清爽 · 年轻 · 有活力"><b>清爽青年</b><small>清爽 · 年轻 · 有活力</small><i>${voiceIcons.play}</i></button>
+                    <button class="bn-beta-voice" type="button" data-bn-beta-voice="3b4ekg3VkQNcDNdIvGEo" data-voice-provider="elevenlabs" data-voice-name="dady" data-voice-meta="ElevenLabs · 自定义音色"><b>dady</b><small>ElevenLabs · 自定义音色</small><i>${voiceIcons.play}</i></button>
                   </div>
                   <button class="bn-voice-use" type="button" data-bn-action="beta-use-preset-voice">使用这个声音</button>
                 </section>
@@ -643,14 +644,16 @@
 
   function selectedPresetVoice() {
     const button = document.querySelector('[data-bn-beta-voice].is-active');
-    return button ? {
-      provider: button.dataset.voiceProvider || 'volcengine',
-      id: '',
-      voiceType: button.dataset.bnBetaVoice,
+    if (!button) return null;
+    const provider = button.dataset.voiceProvider || 'volcengine';
+    return {
+      provider,
+      id: provider === 'elevenlabs' ? button.dataset.bnBetaVoice : '',
+      voiceType: provider === 'elevenlabs' ? '' : button.dataset.bnBetaVoice,
       name: button.dataset.voiceName,
       meta: button.dataset.voiceMeta,
       source: 'preset'
-    } : null;
+    };
   }
 
   function updateBetaVoiceCurrent(voice) {
@@ -1710,7 +1713,7 @@
         });
         const selected = selectedPresetVoice();
         updateBetaVoiceCurrent(selected);
-        window.focusCompanion?.previewVoice({ voiceProvider:selected.provider, voiceType:selected.voiceType });
+        window.focusCompanion?.previewVoice({ voiceProvider:selected.provider, voiceId:selected.id, voiceType:selected.voiceType });
         toast(`正在试听${betaVoice.querySelector('b')?.textContent || '男声'}`);
         return;
       }

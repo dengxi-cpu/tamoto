@@ -400,6 +400,10 @@
       const first = document.querySelector('.bn-status[data-bn-status="学习"]');
       setStatus(first);
     }
+    // The beta focus page owns its BGM players. Disable the legacy player once
+    // before the timer starts so the BGM pill never needs to touch AI speech.
+    if (typeof currentMusicMode !== 'undefined') currentMusicMode = 0;
+    if (typeof stopBackgroundMusic === 'function') stopBackgroundMusic();
     if (typeof startStopTimer === 'function') startStopTimer();
     if (isTimerRunning || isPaused) {
       switchTab('running');
@@ -1208,9 +1212,6 @@
       audio.pause();
       if (reset) audio.currentTime = 0;
     });
-    // The legacy focus player can be started by startStopTimer(). Keep both
-    // players in sync so the BGM control's muted state is genuinely silent.
-    if (typeof stopBackgroundMusic === 'function') stopBackgroundMusic();
   }
 
   function cycleBgm() {

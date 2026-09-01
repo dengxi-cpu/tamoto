@@ -34,6 +34,7 @@ async function handler(req, res) {
 
   const voiceProvider = String(req.body?.voiceProvider || '').trim().toLowerCase();
   const requestedVoiceId = String(req.body?.voiceId || '').trim();
+  const speechLanguage = String(req.body?.speechLanguage || '').toLowerCase() === 'en' ? 'en' : 'zh';
   const apiKey = process.env.TTS_API_KEY || process.env.SPEECH_API_KEY;
   const apiUrl = process.env.TTS_API_URL || DEFAULT_TTS_API_URL;
   const resourceId = process.env.TTS_RESOURCE_ID || DEFAULT_TTS_RESOURCE_ID;
@@ -76,7 +77,7 @@ async function handler(req, res) {
         body: JSON.stringify({
           text,
           model_id: process.env.ELEVENLABS_TTS_MODEL || DEFAULT_ELEVENLABS_MODEL,
-          language_code: 'zh',
+          language_code: speechLanguage,
           voice_settings: { stability: 0.58, similarity_boost: 0.78, style: 0.18, use_speaker_boost: true }
         })
       });

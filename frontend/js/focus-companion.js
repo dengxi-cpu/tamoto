@@ -416,7 +416,8 @@
             persona: oc?.characterDescription || '毒舌但关心用户',
             voiceType: oc?.voiceType || 'zh_male_ruyayichen_saturn_bigtts',
             voiceProvider: oc?.voiceProvider || 'volcengine',
-            voiceId: oc?.voiceId || ''
+            voiceId: oc?.voiceId || '',
+            speechLanguage: oc?.speechLanguage === 'en' ? 'en' : 'zh'
         };
         let persona = oc
             ? `与用户的关系是${roleContext.relationship}。完整人设：${roleContext.persona}。需要称呼时只叫用户“${roleContext.userTitle}”，不要使用其他姓名，也不要每句话都称呼。反应自然、简短。`
@@ -559,7 +560,8 @@
                     text, epoch: result.epoch, turnId: result.turnId, speechType,
                     voiceType: result.voiceType || voice.voiceType,
                     voiceProvider: result.voiceProvider || voice.voiceProvider,
-                    voiceId: result.voiceId || voice.voiceId
+                    voiceId: result.voiceId || voice.voiceId,
+                    speechLanguage: result.speechLanguage || voice.speechLanguage
                 };
             })())
         });
@@ -617,7 +619,8 @@
                 text, epoch: result.epoch, turnId: result.turnId, speechType,
                 voiceType: result.voiceType || voice.voiceType,
                 voiceProvider: result.voiceProvider || voice.voiceProvider,
-                voiceId: result.voiceId || voice.voiceId
+                voiceId: result.voiceId || voice.voiceId,
+                speechLanguage: result.speechLanguage || voice.speechLanguage
             })
         });
         if (!response.ok) {
@@ -1481,11 +1484,23 @@
         createSpeechTurn: () => ({ epoch: state.epoch, turnId: ++state.turnId }),
         speakMessages: (messages, turn, speechType = 'session_opening', onMessage) => playMessageSequence(messages, turn, 1, speechType, onMessage),
         markMeetingComplete: () => { state.preparedOpening = null; },
-        previewVoice: voice => playMessageSequence(['准备好了吗？今天也一起专注吧。我就在这里陪你。'], {
-            epoch: state.epoch,
-            turnId: ++state.turnId,
-            ...(typeof voice === 'string' ? { voiceType: voice } : voice)
-        }, 1, 'voice_preview'),
+        previewVoice: voice => {
+            const settings = typeof voice === 'string' ? { voiceType: voice } : (voice || {});
+            cancelSpeechSequence('new_voice_preview');
+            return playMessageSequence([
+                settings.speechLanguage === 'en'
+                    ? 'Ready? Let’s focus together. I’ll stay right here with you.'
+                    : '准备好了吗？今天也一起专注吧。我就在这里陪你。'
+            ], {
+                epoch: state.epoch,
+                turnId: ++state.turnId,
+                ...settings
+            }, 1, 'voice_preview').catch(error => {
+                console.warn('Voice preview failed:', error);
+                notify(error.message || '语音试听失败');
+                return 0;
+            });
+        },
         isCameraEnabled: () => Boolean(state.stream)
     };
 

@@ -243,7 +243,10 @@ function generateSystemPrompt() {
         return null;
     }
 
-    return replaceVariables(promptTemplate);
+    const language = currentChatContext.ocProfile?.speechLanguage === 'en' ? 'en' : 'zh';
+    return `${replaceVariables(promptTemplate)}\n\n${language === 'en'
+        ? 'LANGUAGE REQUIREMENT: Reply only in natural English. Do not use Chinese.'
+        : '语言硬性要求：只使用自然中文回复，不要夹杂英文句子。'}`;
 }
 
 /**
@@ -282,6 +285,7 @@ function updateChatContext() {
         userTitle: oc.userTitle || '大小姐',
         relationship: oc.relationship || '朋友',
         characterDescription: oc.characterDescription || '温柔体贴的陪伴者',
+        speechLanguage: oc.speechLanguage === 'en' ? 'en' : 'zh',
         encourageStyles: oc.encourageStyles || [],
         reminderStyles: oc.reminderStyles || []
     };

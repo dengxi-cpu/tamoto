@@ -134,6 +134,12 @@
                 </div>
                 <label class="bn-beta-field bn-beta-custom-relation" id="bnBetaCustomRelationWrap" hidden><span>自定义关系</span><input id="bnBetaCustomRelationship" maxlength="20" placeholder="写下你们的关系"></label>
                 <label class="bn-beta-field bn-beta-persona-field"><span>TA 的人设</span><textarea id="bnBetaPersona" maxlength="3000" rows="3" placeholder="写下 TA 的性格、说话习惯和陪伴方式。"></textarea></label>
+                <div class="bn-beta-relation-block"><span>TA 说什么语言</span>
+                  <div class="bn-beta-segments" role="radiogroup" aria-label="TA 的回应语言">
+                    <button type="button" data-bn-speech-language="zh" role="radio">中文</button><button type="button" data-bn-speech-language="en" role="radio">English</button>
+                  </div>
+                  <select id="bnBetaSpeechLanguage" hidden><option value="zh">中文</option><option value="en">English</option></select>
+                </div>
               </div>
               <div class="bn-beta-tab-panel" data-bn-beta-panel="voice" role="tabpanel" aria-hidden="true">
                 <header class="bn-voice-current"><span>TA 的声音</span><div><strong id="bnBetaVoiceName">温柔低沉</strong><small id="bnBetaVoiceMeta">自然 · 温柔 · 陪伴感</small></div><button type="button" data-bn-action="beta-preview-voice">${voiceIcons.play}<span>试听</span></button></header>
@@ -637,8 +643,9 @@
 
   function previewSelectedBetaVoice() {
     const voice = state.betaVoice || selectedPresetVoice();
-    if (!voice?.id) return toast('请先选择一个声音');
-    window.focusCompanion?.previewVoice({ voiceProvider: voice.provider, voiceId: voice.id, voiceType: voice.voiceType });
+    if (!voice || (voice.provider === 'elevenlabs' ? !voice.id : !voice.voiceType)) return toast('请先选择一个声音');
+    const speechLanguage = document.getElementById('bnBetaSpeechLanguage')?.value === 'en' ? 'en' : 'zh';
+    window.focusCompanion?.previewVoice({ voiceProvider: voice.provider, voiceId: voice.id, voiceType: voice.voiceType, speechLanguage });
     toast(`正在试听${voice.name || 'TA 的声音'}`);
   }
 
@@ -784,6 +791,7 @@
     setBetaRelationship(standard ? relation : '自定义');
     document.getElementById('bnBetaCustomRelationship').value = standard ? '' : relation;
     document.getElementById('bnBetaPersona').value = oc.characterDescription || '';
+    setBetaSpeechLanguage(oc.speechLanguage || 'zh');
     state.betaVoice = {
       provider: oc.voiceProvider || (oc.voiceId ? 'elevenlabs' : 'volcengine'),
       id: oc.voiceId || '',
@@ -960,6 +968,7 @@
       userTitle,
       relationship,
       characterDescription: document.getElementById('bnBetaPersona').value.trim(),
+      speechLanguage: document.getElementById('bnBetaSpeechLanguage').value === 'en' ? 'en' : 'zh',
       voiceType: state.betaVoice?.voiceType || existing.voiceType || 'zh_male_ruyayichen_saturn_bigtts',
       voiceProvider: state.betaVoice?.provider || existing.voiceProvider || 'volcengine',
       voiceId: state.betaVoice ? (state.betaVoice.id || '') : (existing.voiceId || ''),
@@ -990,7 +999,10 @@
   }
 
   function betaPersona(oc) {
-    return `与用户的关系是${oc.relationship || '学习搭子'}。完整人设：${oc.characterDescription || '温柔陪伴用户'}。需要称呼时只叫用户“${oc.userTitle || '大小姐'}”，不要每句话都称呼。`;
+    const languageRule = oc.speechLanguage === 'en'
+      ? 'All spoken responses must be in natural English only. Do not use Chinese.'
+      : '所有说出口的回复必须只使用自然中文，不要夹杂英文句子。';
+    return `与用户的关系是${oc.relationship || '学习搭子'}。完整人设：${oc.characterDescription || '温柔陪伴用户'}。需要称呼时只叫用户“${oc.userTitle || '大小姐'}”，不要每句话都称呼。${languageRule}`;
   }
 
   function betaRoleContext(oc) {
@@ -999,8 +1011,22 @@
       userTitle: oc.userTitle || '大小姐',
       relationship: oc.relationship || '学习搭子',
       persona: oc.characterDescription || '温柔陪伴用户',
-      voiceType: oc.voiceType || 'zh_male_ruyayichen_saturn_bigtts'
+      voiceType: oc.voiceType || 'zh_male_ruyayichen_saturn_bigtts',
+      voiceProvider: oc.voiceProvider || 'volcengine',
+      voiceId: oc.voiceId || '',
+      speechLanguage: oc.speechLanguage === 'en' ? 'en' : 'zh'
     };
+  }
+
+  function setBetaSpeechLanguage(value) {
+    const language = value === 'en' ? 'en' : 'zh';
+    const select = document.getElementById('bnBetaSpeechLanguage');
+    if (select) select.value = language;
+    document.querySelectorAll('[data-bn-speech-language]').forEach(button => {
+      const active = button.dataset.bnSpeechLanguage === language;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-checked', String(active));
+    });
   }
 
   async function showBetaMeeting() {
@@ -1702,6 +1728,8 @@
       if (duration) return setDuration(duration.dataset.bnMinutes, duration);
       const status = event.target.closest('[data-bn-status]');
       if (status) return setStatus(status);
+      const speechLanguage = event.target.closest('[data-bn-speech-language]');
+      if (speechLanguage) return setBetaSpeechLanguage(speechLanguage.dataset.bnSpeechLanguage);
       const betaVoice = event.target.closest('[data-bn-beta-voice]');
       if (betaVoice) {
         document.querySelectorAll('[data-bn-beta-voice]').forEach(button => {
@@ -1713,7 +1741,8 @@
         });
         const selected = selectedPresetVoice();
         updateBetaVoiceCurrent(selected);
-        window.focusCompanion?.previewVoice({ voiceProvider:selected.provider, voiceId:selected.id, voiceType:selected.voiceType });
+        const speechLanguage = document.getElementById('bnBetaSpeechLanguage')?.value === 'en' ? 'en' : 'zh';
+        window.focusCompanion?.previewVoice({ voiceProvider:selected.provider, voiceId:selected.id, voiceType:selected.voiceType, speechLanguage });
         toast(`正在试听${betaVoice.querySelector('b')?.textContent || '男声'}`);
         return;
       }

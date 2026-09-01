@@ -4,6 +4,7 @@ const { updateTtsLog } = require('./companion-logs');
 const DEFAULT_TTS_API_URL = 'https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse';
 const DEFAULT_TTS_RESOURCE_ID = 'seed-tts-2.0';
 const DEFAULT_SAMPLE_RATE = 24000;
+const DEFAULT_ELEVENLABS_MODEL = 'eleven_flash_v2_5';
 const BUILT_IN_VOICES = [
   'zh_male_ruyayichen_saturn_bigtts',
   'zh_male_m191_uranus_bigtts',
@@ -69,12 +70,12 @@ async function handler(req, res) {
       const elevenKey = process.env.ELEVENLABS_API_KEY;
       if (!elevenKey) return json(res, 503, { success: false, error: 'ElevenLabs 尚未配置' });
       if (!/^[A-Za-z0-9_-]{8,120}$/.test(requestedVoiceId)) return json(res, 400, { success: false, error: 'ElevenLabs voice_id 无效' });
-      const upstream = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(requestedVoiceId)}?output_format=mp3_44100_128`, {
+      const upstream = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(requestedVoiceId)}/stream?output_format=pcm_24000`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'xi-api-key': elevenKey.trim() },
         body: JSON.stringify({
           text,
-          model_id: 'eleven_multilingual_v2',
+          model_id: process.env.ELEVENLABS_TTS_MODEL || DEFAULT_ELEVENLABS_MODEL,
           language_code: 'zh',
           voice_settings: { stability: 0.58, similarity_boost: 0.78, style: 0.18, use_speaker_boost: true }
         })
@@ -85,15 +86,28 @@ async function handler(req, res) {
         await updateTtsLog({ epoch, turnId, source: logSource, status: 'failed', bytes: 0, error: `ElevenLabs ${upstream.status}` });
         return json(res, 502, { success: false, error: 'TA 的声音暂时无法播放' });
       }
-      const audio = Buffer.from(await upstream.arrayBuffer());
-      res.status(200);
-      res.setHeader('Content-Type', 'audio/mpeg');
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/octet-stream');
       res.setHeader('Cache-Control', 'no-store');
-      res.setHeader('X-Audio-Format', 'mp3');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.setHeader('X-Audio-Format', 'pcm_s16le');
+      res.setHeader('X-Audio-Sample-Rate', String(DEFAULT_SAMPLE_RATE));
       res.setHeader('X-Companion-Epoch', String(epoch));
       res.setHeader('X-Companion-Turn-Id', String(turnId));
-      await updateTtsLog({ epoch, turnId, source: logSource, status: 'completed', bytes: audio.length });
-      return res.end(audio);
+      res.flushHeaders?.();
+      const reader = upstream.body.getReader();
+      let audioBytes = 0;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (!value?.length) continue;
+        audioBytes += value.length;
+        if (!res.write(Buffer.from(value))) {
+          await new Promise(resolve => res.once('drain', resolve));
+        }
+      }
+      await updateTtsLog({ epoch, turnId, source: logSource, status: 'completed', bytes: audioBytes });
+      return res.end();
     }
 
     const upstream = await fetch(apiUrl, {
@@ -142,6 +156,7 @@ async function handler(req, res) {
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/octet-stream');
       res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('X-Accel-Buffering', 'no');
       res.setHeader('X-Audio-Format', 'pcm_s16le');
       res.setHeader('X-Audio-Sample-Rate', String(DEFAULT_SAMPLE_RATE));
       res.setHeader('X-Companion-Epoch', String(epoch));

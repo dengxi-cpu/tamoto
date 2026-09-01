@@ -52,7 +52,9 @@
         stageTapTimer: null
     };
 
-    const VISION_INTERVAL_MS = 20000;
+    // Serialize observations so slow model calls never build a request queue.
+    const VISION_INTERVAL_MS = 5000;
+    const VISION_INITIAL_DELAY_MS = 1000;
     const TTS_BUFFER_MS = 180;
     // 测试期高频策略：前5分钟密集建立陪伴感，之后舒适陪伴。
     const AMBIENT_POLICY = {
@@ -761,7 +763,14 @@
                 engine: 'vision', decision: result.decision.shouldSpeak ? 'speak' : 'silent',
                 should_speak: Boolean(result.decision.shouldSpeak), reason_code: result.decision.reason || 'unspecified',
                 state: result.decision.state || result.state || 'unknown',
-                vision_ms: result.visionMs, reaction_ms: result.reactionMs, total_ms: result.totalMs
+                raw_state: result.decision.rawState || 'unknown',
+                confidence: Number(result.decision.confidence) || 0,
+                state_changed: Boolean(result.decision.stateChanged),
+                event: result.decision.event || '',
+                speech_mode: result.decision.speechMode || 'generated',
+                vision_ms: result.timings?.visionMs,
+                reaction_ms: result.timings?.reactionMs,
+                total_ms: result.timings?.totalMs
             });
             state.policyState = result.decision.policyState || state.policyState;
             state.latestObservation = {
@@ -829,16 +838,19 @@
     function startVisionLoop() {
         stopVisionLoop();
         if (state.visionUnavailable) return;
-        state.visionTimer = window.setTimeout(() => {
-            analyzeCurrentFrame();
-            state.visionTimer = window.setInterval(analyzeCurrentFrame, VISION_INTERVAL_MS);
-        }, 5000);
+        const runNext = async () => {
+            state.visionTimer = null;
+            if (!state.sessionActive || state.paused || !state.stream || state.visionUnavailable) return;
+            await analyzeCurrentFrame();
+            if (!state.sessionActive || state.paused || !state.stream || state.visionUnavailable) return;
+            state.visionTimer = window.setTimeout(runNext, VISION_INTERVAL_MS);
+        };
+        state.visionTimer = window.setTimeout(runNext, VISION_INITIAL_DELAY_MS);
     }
 
     function stopVisionLoop() {
         if (state.visionTimer) {
             window.clearTimeout(state.visionTimer);
-            window.clearInterval(state.visionTimer);
             state.visionTimer = null;
         }
     }

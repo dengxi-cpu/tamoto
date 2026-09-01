@@ -1215,12 +1215,21 @@
   }
 
   function cycleBgm() {
+    const companionVoiceEnabled = state.characterVoiceEnabled;
     state.bgmMode = state.bgmMode === 'rain' ? 'piano' : state.bgmMode === 'piano' ? 'muted' : 'rain';
     localStorage.setItem('bnBgmMode', state.bgmMode);
     window.track?.('beta_action', { bgm_mode: state.bgmMode });
     window.focusCompanion?.unlockAudio().catch(() => {});
     startBgm();
     updateRainButton();
+    // BGM and companion speech are independent controls. Re-assert the speech
+    // preference after all click handlers finish in case a legacy listener on
+    // the page still reacts to an audio mute action.
+    queueMicrotask(() => {
+      state.characterVoiceEnabled = companionVoiceEnabled;
+      window.focusCompanion?.setVoiceAutoEnabled(companionVoiceEnabled);
+      updateCharacterVoiceButton();
+    });
   }
 
   function toggleFocusChat(forceOpen) {

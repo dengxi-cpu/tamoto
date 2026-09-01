@@ -952,19 +952,19 @@ body.bn-beta-mode .bn-app:not(.is-running) { padding-bottom:0; background:#15161
 .bn-beta-skip-role {
   position:absolute;
   z-index:4;
-  top:max(18px,calc(env(safe-area-inset-top) + 10px));
-  right:max(16px,env(safe-area-inset-right));
-  min-width:58px;
-  height:32px;
+  top:max(58px,calc(env(safe-area-inset-top) + 48px));
+  right:18px;
+  min-width:54px;
+  height:28px;
   border:.5px solid rgba(255,255,255,.2);
   border-radius:999px;
-  padding:0 15px;
+  padding:0 12px;
   color:rgba(255,255,255,.94);
   background:rgba(24,25,31,.22);
   box-shadow:inset .5px .5px 0 rgba(255,255,255,.18),0 5px 18px rgba(0,0,0,.12);
   -webkit-backdrop-filter:blur(16px) saturate(135%);
   backdrop-filter:blur(16px) saturate(135%);
-  font-size:13px;
+  font-size:11px;
   font-weight:500;
   letter-spacing:.01em;
   transition:transform 100ms ease-out,background 160ms ease;

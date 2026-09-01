@@ -8,40 +8,50 @@
  *
  * 发新版代码时：把下面 CACHE_VERSION 的 v1 改成 v2，确保旧缓存被清除。
  */
-const CACHE_VERSION = 'tamoto-v99';
+const CACHE_VERSION = 'tamoto-v100';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `runtime-${CACHE_VERSION}`;
 
-// 安装时预缓存的壳资源（离线兜底）
+// 当前 SW 所在部署前缀：/beta/sw.js → '/beta/'，根 /sw.js → '/'
+// 这样同一份 sw.js 在根部署与 /beta 部署下都能正确缓存各自作用域的资源
+const SW_BASE = self.location.pathname.replace(/\/sw\.js$/, '').replace(/\/+$/, '') + '/';
+
+function scopedPath(value, fallback) {
+  const candidate = value || fallback;
+  if (SW_BASE === '/' || typeof candidate !== 'string' || !candidate.startsWith('/')) return candidate;
+  if (candidate === SW_BASE.slice(0, -1) || candidate.startsWith(SW_BASE)) return candidate;
+  return SW_BASE.slice(0, -1) + candidate;
+}
+
+// 安装时预缓存的壳资源（离线兜底）。路径相对 SW_BASE 展开，CDN 保持原样。
 const PRECACHE_ASSETS = [
-  '/',
-  '/beta',
-  '/index.html',
-  '/companion-logs.html',
-  '/role-reaction-test.html',
-  '/manifest.webmanifest',
-  '/manifest-beta.webmanifest',
-  '/frontend/js/api.js',
-  '/frontend/js/db.js',
-  '/frontend/js/focus-companion.js',
-  '/frontend/js/main.js',
-  '/frontend/js/chat.js',
-  '/frontend/js/pwa.js',
-  '/frontend/js/prototype-ui.js',
-  '/frontend/css/chat.css',
-  '/frontend/css/pwa.css',
-  '/frontend/css/prototype-ui.css',
-  '/frontend/images/beta-default-bg.png',
-  '/frontend/audio/ambient/rain-cc0.mp3',
-  '/frontend/audio/ambient/cafe-calm-piano-cc-by.mp3',
-  '/伴柠番茄钟_产品原型.html',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/icon-maskable-512.png',
+  '',
+  'index.html',
+  'companion-logs.html',
+  'role-reaction-test.html',
+  'manifest.webmanifest',
+  'manifest-beta.webmanifest',
+  'frontend/js/api.js',
+  'frontend/js/db.js',
+  'frontend/js/focus-companion.js',
+  'frontend/js/main.js',
+  'frontend/js/chat.js',
+  'frontend/js/pwa.js',
+  'frontend/js/prototype-ui.js',
+  'frontend/css/chat.css',
+  'frontend/css/pwa.css',
+  'frontend/css/prototype-ui.css',
+  'frontend/images/beta-default-bg.png',
+  'frontend/audio/ambient/rain-cc0.mp3',
+  'frontend/audio/ambient/cafe-calm-piano-cc-by.mp3',
+  '伴柠番茄钟_产品原型.html',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
+  'icons/icon-maskable-512.png',
   'https://cdn.tailwindcss.com',
   'https://cdn.jsdelivr.net/npm/chart.js',
   'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2',
-];
+].map((url) => (url.startsWith('http') ? url : SW_BASE + url));
 
 // Supabase 域名，来自 api/_supabase.js 的 SUPABASE_URL
 const SUPABASE_HOST = 'supabase.co';
@@ -73,7 +83,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   // 自己的 API + Supabase 一律走网络
-  if (url.pathname.startsWith('/api/') || url.hostname.includes(SUPABASE_HOST)) return;
+  if (url.pathname.startsWith(SW_BASE + 'api/') || url.hostname.includes(SUPABASE_HOST)) return;
 
   // 页面导航：network-first，失败回退缓存
   if (request.mode === 'navigate') {
@@ -81,10 +91,10 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((res) => {
           const copy = res.clone();
-          caches.open(STATIC_CACHE).then((cache) => cache.put('/index.html', copy));
+          caches.open(STATIC_CACHE).then((cache) => cache.put(SW_BASE + 'index.html', copy));
           return res;
         })
-        .catch(() => caches.match('/index.html')),
+        .catch(() => caches.match(SW_BASE + 'index.html')),
     );
     return;
   }
@@ -120,12 +130,12 @@ self.addEventListener('push', (event) => {
   event.waitUntil(Promise.all([
     self.registration.showNotification(data.title || '伴柠番茄钟', {
       body: data.body || '【占位消息】该开始专注啦。',
-      icon: data.icon || '/icons/icon-192.png',
-      badge: data.badge || '/icons/icon-120.png',
+      icon: scopedPath(data.icon, SW_BASE + 'icons/icon-192.png'),
+      badge: scopedPath(data.badge, SW_BASE + 'icons/icon-120.png'),
       tag: data.tag || 'oc-study-reminder',
       renotify: true,
       data: {
-        url: data.url || '/?page=chat&source=notification',
+        url: scopedPath(data.url, SW_BASE + '?page=chat&source=notification'),
         messageId: data.messageId || null
       }
     }),
@@ -140,7 +150,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = new URL(event.notification.data?.url || '/', self.location.origin).href;
+  const targetUrl = new URL(event.notification.data?.url || SW_BASE, self.location.origin).href;
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
       for (const client of clients) {

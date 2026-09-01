@@ -3,16 +3,16 @@
   "short_name": "伴柠内测",
   "description": "伴柠感知陪伴内测版",
   "lang": "zh-CN",
-  "id": "/beta",
-  "start_url": "/beta?source=pwa",
-  "scope": "/",
+  "id": "/beta/",
+  "start_url": "/beta/?source=pwa",
+  "scope": "/beta/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#8b5cf6",
   "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/beta/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/beta/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/beta/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

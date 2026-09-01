@@ -93,7 +93,7 @@
         localStorage.setItem(TRACK_AWAY_AT_KEY, String(Date.now()));
         window.track?.('focus_away');
         const payload = JSON.stringify({ ...getDeviceCredentials(), awayKey });
-        const url = '/api/reminders?action=focus-away';
+        const url = (window.APP_BASE || '') + '/api/reminders?action=focus-away';
         const sent = navigator.sendBeacon?.(url, new Blob([payload], { type: 'application/json' }));
         if (!sent) {
             fetch(url, {
@@ -112,7 +112,7 @@
         window.track?.('focus_return', { away_seconds: Math.max(0, Math.round((Date.now() - trackAwayAt) / 1000)) });
         localStorage.removeItem(TRACK_AWAY_AT_KEY);
         try {
-            const response = await fetch('/api/reminders?action=focus-return', {
+            const response = await fetch((window.APP_BASE || '') + '/api/reminders?action=focus-return', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...getDeviceCredentials(), awayKey }),
@@ -134,7 +134,7 @@
     async function syncSubscription(subscription) {
         const credentials = getDeviceCredentials();
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
-        const response = await fetch('/api/reminders?action=subscribe', {
+        const response = await fetch((window.APP_BASE || '') + '/api/reminders?action=subscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -189,7 +189,7 @@
         if (timezoneElement) timezoneElement.textContent = `按本地时区发送：${timezone}`;
         const credentials = getDeviceCredentials();
         const query = new URLSearchParams(credentials);
-        const response = await fetch(`/api/reminders?action=rules&${query}`);
+        const response = await fetch((window.APP_BASE || '') + `/api/reminders?action=rules&${query}`);
         if (!response.ok) {
             reminderRules = [];
             renderReminderRules();
@@ -236,7 +236,7 @@
         try {
             const credentials = getDeviceCredentials();
             const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
-            const response = await fetch('/api/reminders?action=rules', {
+            const response = await fetch((window.APP_BASE || '') + '/api/reminders?action=rules', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...credentials, rules: reminderRules.map(rule => ({ ...rule, timezone })) })
             });
@@ -252,7 +252,7 @@
 
     window.parseReminderText = async function parseReminderText(text, context = {}) {
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
-        const response = await fetch('/api/reminder-parse', {
+        const response = await fetch((window.APP_BASE || '') + '/api/reminder-parse', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text, timezone, ...context })
@@ -264,7 +264,7 @@
 
     window.createOneOffReminder = async function createOneOffReminder(reminder) {
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
-        const response = await fetch('/api/reminders?action=one-off', {
+        const response = await fetch((window.APP_BASE || '') + '/api/reminders?action=one-off', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...getDeviceCredentials(), ...reminder, timezone })
@@ -280,7 +280,7 @@
         messageSyncPromise = (async () => {
             const credentials = getDeviceCredentials();
             const query = new URLSearchParams(credentials);
-            const response = await fetch(`/api/reminders?action=messages&${query}`);
+            const response = await fetch((window.APP_BASE || '') + `/api/reminders?action=messages&${query}`);
             const result = await response.json().catch(() => ({}));
             if (!response.ok || !result.success) throw new Error(result.error || 'OC 消息同步失败');
             const messages = result.messages || [];
@@ -289,7 +289,7 @@
                 : [];
             const unreadIds = messages.filter(item => !item.read_at).map(item => item.id);
             if (unreadIds.length && document.visibilityState === 'visible') {
-                await fetch('/api/reminders?action=messages-read', {
+                await fetch((window.APP_BASE || '') + '/api/reminders?action=messages-read', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ...credentials, messageIds: unreadIds })
@@ -321,7 +321,7 @@
     async function getOrCreatePushSubscription(registration) {
         let subscription = await registration.pushManager.getSubscription();
         if (subscription) return subscription;
-        const response = await fetch('/api/push');
+        const response = await fetch((window.APP_BASE || '') + '/api/push');
         const config = await response.json();
         if (!response.ok || !config.configured || !config.publicKey) {
             throw new Error('PUSH_NOT_CONFIGURED');
@@ -336,10 +336,10 @@
     async function showLocalPlaceholderNotification(registration) {
         await registration.showNotification('小艾', {
             body: '【占位消息】该开始今天的专注啦，我在番茄钟里等你。',
-            icon: '/icons/icon-192.png',
-            badge: '/icons/icon-120.png',
+            icon: (window.APP_BASE || '') + '/icons/icon-192.png',
+            badge: (window.APP_BASE || '') + '/icons/icon-120.png',
             tag: 'oc-study-reminder',
-            data: { url: '/?page=focus&source=notification' }
+            data: { url: (window.APP_BASE || '') + '/?page=focus&source=notification' }
         });
     }
 
@@ -382,7 +382,7 @@
                 try {
                     const controller = new AbortController();
                     const timeout = setTimeout(() => controller.abort(), 7000);
-                    const response = await fetch('/api/push', {
+                    const response = await fetch((window.APP_BASE || '') + '/api/push', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ subscription: subscription.toJSON() }),
@@ -474,7 +474,7 @@
 
         if (!('serviceWorker' in navigator)) return;
         try {
-            const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+            const registration = await navigator.serviceWorker.register((window.APP_BASE || '') + '/sw.js', { scope: (window.APP_BASE || '') + '/' });
             registration.addEventListener('updatefound', () => {
                 const worker = registration.installing;
                 if (!worker) return;

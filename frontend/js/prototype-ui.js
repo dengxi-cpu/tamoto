@@ -1641,7 +1641,11 @@
     button.querySelector('.bn-character-voice-icon').innerHTML = state.characterVoiceEnabled
       ? '<path d="M11 5.5 6.7 9H3.5v6h3.2l4.3 3.5zM15.2 9.1a4.2 4.2 0 0 1 0 5.8M18 6.8a7.3 7.3 0 0 1 0 10.4"/>'
       : '<path d="M11 5.5 6.7 9H3.5v6h3.2l4.3 3.5zM16 9l4.5 6M20.5 9 16 15"/>';
-    button.title = state.characterVoiceEnabled ? '关闭 TA 主动语音' : '开启 TA 主动语音';
+    button.title = state.characterVoiceEnabled
+      ? '关闭 TA 主动语音'
+      : state.companionMode === 'strict'
+        ? '开启 TA 主动语音（严格监管警报仍会播放）'
+        : '开启 TA 主动语音';
   }
 
   function toggleCharacterVoice() {
@@ -1649,7 +1653,11 @@
     localStorage.setItem('bnCharacterVoiceEnabled', String(state.characterVoiceEnabled));
     window.focusCompanion?.setVoiceAutoEnabled(state.characterVoiceEnabled);
     updateCharacterVoiceButton();
-    toast(state.characterVoiceEnabled ? 'TA 会主动说话了' : 'TA 已安静，仍可点语音条收听');
+    toast(state.characterVoiceEnabled
+      ? 'TA 会主动说话了'
+      : state.companionMode === 'strict'
+        ? '普通陪伴语音已关闭，监管警报仍会播放'
+        : 'TA 已安静，仍可点语音条收听');
   }
 
   function bindEvents() {

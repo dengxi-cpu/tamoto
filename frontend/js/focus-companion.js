@@ -655,6 +655,24 @@
         }, delay));
     }
 
+    function isCriticalVisualEvent(result, speechType) {
+        return speechType === 'visual'
+            && ['PHONE_ENTER', 'PHONE_REPEAT', 'ABSENT_ENTER'].includes(result?.decision?.event);
+    }
+
+    function releaseFailedVisualCooldown(decision) {
+        if (!decision?.event) return;
+        if (['PHONE_ENTER', 'PHONE_REPEAT'].includes(decision.event)) {
+            state.policyState.phoneEventSpokenAt = null;
+        } else if (decision.event === 'ABSENT_ENTER') {
+            state.policyState.absenceEventSpokenAt = null;
+        } else if (decision.event === 'ABSENT_RETURN') {
+            state.policyState.focusEncouragedAt = null;
+        }
+        state.policyState.lastAnySpokenAt = null;
+        state.policyState.lastVisualSpokenAt = null;
+    }
+
     async function playMessageSequence(messages, result, priority = 2, speechType = 'visual', onMessage = appendSpeechMessage) {
         const items = normalizeMessages(messages);
         if (!items.length) return 0;
@@ -668,6 +686,7 @@
         let trackedSpeechId = null;
         try {
             const sessionEvent = ['pause','resume','completion'].includes(speechType);
+            const criticalVisualEvent = isCriticalVisualEvent(result, speechType);
             if (result.epoch !== state.epoch || state.voiceHeld || (state.paused && !sessionEvent)) return 0;
             const fullText = items.join('');
             const shown = new Set();
@@ -687,11 +706,18 @@
                     passedCharacters += Array.from(items[index]).length;
                 }
             };
+            // Critical supervision feedback should be visible immediately instead
+            // of waiting for the first TTS audio chunk.
+            if (criticalVisualEvent) items.forEach((_, index) => showItem(index));
             const ttsRequestStartedAt = performance.now();
             try {
-                if (!state.voiceAutoEnabled && speechType !== 'replay' && speechType !== 'voice_preview') {
+                const shouldPlayAudio = state.voiceAutoEnabled
+                    || (state.companionMode === 'strict' && criticalVisualEvent)
+                    || speechType === 'replay'
+                    || speechType === 'voice_preview';
+                if (!shouldPlayAudio) {
                     items.forEach((_, index) => showItem(index));
-                    totalBytes = await generateSilentTts(fullText, result, speechType);
+                    totalBytes = 0;
                 } else {
                     totalBytes = await playStreamingTts(fullText, result, priority, speechType, () => {
                         scheduleCaptions();
@@ -765,6 +791,7 @@
                 state: result.decision.state || result.state || 'unknown',
                 raw_state: result.decision.rawState || 'unknown',
                 confidence: Number(result.decision.confidence) || 0,
+                phone_visible: Boolean(result.decision.phoneVisible),
                 state_changed: Boolean(result.decision.stateChanged),
                 event: result.decision.event || '',
                 speech_mode: result.decision.speechMode || 'generated',
@@ -781,6 +808,7 @@
             state.recentObservations.push({
                 observedAt: result.observation?.observedAt || new Date().toISOString(),
                 elapsedSeconds,
+                state: result.decision.state || 'UNKNOWN',
                 scene: result.observation?.scene || '',
                 reaction: result.reaction
             });
@@ -806,8 +834,24 @@
             });
             const messages = normalizeMessages(result.messages, result.reaction);
             if (result.decision.shouldSpeak && messages.length) {
-                const ttsBytes = await playMessageSequence(messages, result, 2, 'visual');
+                let ttsBytes = 0;
+                try {
+                    ttsBytes = await playMessageSequence(messages, result, 2, 'visual');
+                } catch (error) {
+                    if (state.companionMode === 'strict' && isCriticalVisualEvent(result, 'visual')) {
+                        releaseFailedVisualCooldown(result.decision);
+                    }
+                    saveLog({ id: logId, ttsStatus: 'failed', ttsBytes: 0, error: error.message || 'TTS failed' });
+                    throw error;
+                }
                 if (ttsBytes) state.lastEventOrDialogueAt = Date.now();
+                if (!ttsBytes && state.companionMode === 'strict' && isCriticalVisualEvent(result, 'visual')) {
+                    releaseFailedVisualCooldown(result.decision);
+                    window.track?.('ai_decision', {
+                        engine: 'vision', decision: 'retry', reason_code: 'critical_tts_not_played',
+                        state: result.decision.state, event: result.decision.event
+                    });
+                }
                 saveLog({ id: logId, ttsStatus: ttsBytes ? 'completed' : 'suppressed', ttsBytes });
             }
         } catch (error) {

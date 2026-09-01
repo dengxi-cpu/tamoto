@@ -150,6 +150,7 @@ async function handler(req, res) {
   const recentObservations = Array.isArray(req.body?.recentObservations)
     ? req.body.recentObservations.slice(-1).map(item => ({
         elapsedSeconds: Math.max(0, Number(item?.elapsedSeconds) || 0),
+        state: String(item?.state || 'UNKNOWN').slice(0, 20),
         scene: String(item?.scene || '').slice(0, 300),
         reaction: String(item?.reaction || '').slice(0, 100)
       }))

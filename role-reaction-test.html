@@ -47,9 +47,7 @@ const cases=[
   {id:'resting',name:'趴桌休息',mode:'reaction_test',elapsedSeconds:900,scene:'用户趴在桌面上，眼睛闭着，停止了当前任务',triggerReason:'首次识别到 RESTING，温和拉回任务，不劝放弃'},
   {id:'drinking',name:'喝水',mode:'reaction_test',elapsedSeconds:1080,scene:'用户拿起水杯喝水，随后把水杯放回桌面',triggerReason:'识别到 DRINKING，自然回应一次'},
   {id:'stretching',name:'伸展',mode:'reaction_test',elapsedSeconds:1260,scene:'用户坐在桌前抬起双臂伸展肩颈',triggerReason:'识别到 STRETCHING，自然回应一次'},
-  {id:'praise',name:'持续认真后的夸奖',mode:'ambient',type:'praise',elapsedSeconds:1500,scene:'用户持续认真专注'},
-  {id:'activity',name:'角色汇报自己在做什么',mode:'ambient',type:'activity',elapsedSeconds:480,activity:'看书',scene:'角色在一旁看书'},
-  {id:'presence',name:'安静陪伴提醒',mode:'ambient',type:'presence',elapsedSeconds:1200,scene:'长时间没有互动'}
+  {id:'completion',name:'完成专注 · 结束鼓励与结束语',mode:'memory_event',eventType:'completion',eventDescription:'用户刚刚完成了本次专注。',elapsedSeconds:1500,scene:'用户完成了本次专注任务'}
 ];
 let running=false;
 function context(){return {name:$('name').value.trim(),userTitle:$('userTitle').value.trim(),relationship:$('relationship').value.trim(),persona:$('persona').value.trim(),voiceType:'zh_male_ruyayichen_saturn_bigtts'}}

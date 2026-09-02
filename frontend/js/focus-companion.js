@@ -22,7 +22,6 @@
         memoryRequestSequence: 0,
         latestAppliedMemoryRequest: 0,
         policyState: {},
-        ambientCount: 0,
         productiveAmbientEncouragementCount: 0,
         lastAmbientAt: 0,
         lastPraiseAt: 0,
@@ -333,7 +332,6 @@
             state.relationshipMemory = null;
         }
         state.policyState = {};
-        state.ambientCount = 0;
         state.productiveAmbientEncouragementCount = 0;
         state.lastAmbientAt = 0;
         state.lastPraiseAt = 0;
@@ -1209,7 +1207,6 @@
         const now = Date.now();
         state.openingAmbientDone = true;
         state.lastAmbientAt = now;
-        state.ambientCount += 1;
         state.policyState.lastAnySpokenAt = now;
         state.preparedOpening = null;
         prepareOpening();
@@ -1254,7 +1251,6 @@
             const now = Date.now();
             state.openingAmbientDone = true;
             state.lastAmbientAt = now;
-            state.ambientCount += 1;
             if (bytes) state.policyState.lastAnySpokenAt = now;
         } catch (error) {
             console.warn('Opening ambient failed:', error);

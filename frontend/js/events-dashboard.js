@@ -15,7 +15,7 @@ function eventName(e){
   const names={focus_page_view:'进入专注页',focus_start_attempt:'尝试开始',focus_start_blocked:'开始被拦截',focus_session_start:'开始专注',focus_pause:'暂停',focus_resume:'恢复',focus_away:'切出页面',focus_return:'回到页面',focus_session_end:'结束专注',ai_decision:'AI 决策',ai_speech_started:'AI 开始说话',ai_speech_ended:'AI 语音结束',user_interaction:'用户互动',camera_toggle:'摄像头操作',client_error:'发生错误',api_result:'接口结果',network_status:'网络变化',beta_action:'Beta 操作'};
   return names[e.event]||e.event;
 }
-function speechTypeName(type){return({opening:'开场白',visual:'看见状态后回应',encourage:'鼓励',praise:'表扬',presence:'陪伴',activity:'同步活动',dialogue:'对话回复',opening_event:'开场事件',session_opening:'见面语音'}[type]||type||'其他')}
+function speechTypeName(type){return({opening:'开场白',visual:'实时镜头互动',dialogue:'对话回复',opening_event:'开场事件',completion:'结束鼓励与结束语',pause:'暂停回应',resume:'恢复回应',stage_tap:'角色点击回应',session_opening:'见面语音'}[type]||type||'其他')}
 function interactionName(type){return({chat_message:'文字聊天',oc_click:'点击角色',voice_input_started:'开始语音',voice_input_result:'语音结果'}[type]||type||'其他互动')}
 function buildModel(){
   const map=new Map();

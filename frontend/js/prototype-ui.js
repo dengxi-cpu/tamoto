@@ -1735,9 +1735,9 @@
       const bar = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       group.setAttribute('transform', `rotate(${index * 360 / count} 250 250)`);
       bar.setAttribute('x1', '250');
-      bar.setAttribute('y1', '0');
+      bar.setAttribute('y1', '10');
       bar.setAttribute('x2', '250');
-      bar.setAttribute('y2', '-72');
+      bar.setAttribute('y2', '-180');
       bar.style.opacity = String(.46 + ((Math.sin(index * .37) + 1) * .16));
       group.appendChild(bar);
       waveform.appendChild(group);
@@ -1748,7 +1748,7 @@
     let last = performance.now();
     const values = Float32Array.from({ length:count }, (_, index) => {
       const angle = index / count * Math.PI * 2;
-      return .23 + .095 * Math.sin(angle * 2 + .6) + .065 * Math.sin(angle * 5 - .9);
+      return .14 + .07 * Math.sin(angle * 2 + .6) + .045 * Math.sin(angle * 5 - .9);
     });
     const draw = now => {
       if (!runningScreen.classList.contains('is-active') || document.hidden) { frame = 0; return; }
@@ -1760,12 +1760,17 @@
         const broadPeak = .5 + .5 * Math.sin(angle * 3 - t * 1.38);
         const fineTexture = .5 + .5 * Math.sin(angle * 11 + t * 1.72);
         const breath = .5 + .5 * Math.sin(t * 2.15);
+        const energy = Math.max(0, Math.min(1, (.44 + .42 * broadPeak + .18 * fineTexture) * spatialEnvelope));
+        const shapedEnergy = Math.pow(energy, 1.42);
         const target = speaking
-          ? Math.max(.32, Math.min(1, (.5 + .43 * broadPeak + .24 * fineTexture) * spatialEnvelope))
-          : Math.max(.14, Math.min(.42, (.16 + .2 * broadPeak + .08 * breath) * spatialEnvelope));
-        values[i] += (target - values[i]) * Math.min(1, dt * (speaking ? .019 : .014));
-        bars[i].style.transform = `scaleY(${values[i].toFixed(3)})`;
-        bars[i].style.opacity = String((speaking ? .62 + values[i] * .36 : .42 + values[i] * 1.25).toFixed(3));
+          ? .09 + .69 * shapedEnergy
+          : .045 + .235 * shapedEnergy * (.82 + .18 * breath);
+        const response = speaking ? .24 : .105;
+        const interpolation = 1 - Math.pow(1 - response, dt / 16.67);
+        values[i] += (target - values[i]) * interpolation;
+        const value = Math.max(.043, Math.min(1, values[i]));
+        bars[i].style.transform = `scaleY(${value.toFixed(3)})`;
+        bars[i].style.opacity = String(Math.min(.94, speaking ? .48 + value * .58 : .34 + value * 1.45).toFixed(3));
       }
       frame = requestAnimationFrame(draw);
     };

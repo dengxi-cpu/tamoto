@@ -260,7 +260,7 @@
           <img class="bn-stage-img" id="bnStageImage" alt="OC 陪伴场景">
           <div class="bn-companion-orb" id="bnCompanionOrb" data-speaking="false" aria-label="AI 视频陪伴窗口">
             <div class="bn-orb-track" aria-hidden="true"><i></i></div>
-            <div class="bn-orb-waveform" aria-hidden="true"></div>
+            <svg class="bn-orb-waveform" viewBox="0 0 500 500" preserveAspectRatio="none" aria-hidden="true"></svg>
             <div class="bn-orb-glass">
               <img class="bn-orb-media" id="bnOrbImage" alt="" aria-hidden="true">
               <video class="bn-orb-media" id="bnOrbVideo" autoplay muted loop playsinline hidden aria-hidden="true"></video>
@@ -1729,31 +1729,43 @@
     const waveform = orb?.querySelector('.bn-orb-waveform');
     const runningScreen = document.querySelector('.bn-screen[data-bn-screen="running"]');
     if (!orb || !waveform || !runningScreen || waveform.childElementCount) return;
-    const count = 96;
+    const count = 192;
     const bars = Array.from({ length:count }, (_, index) => {
-      const bar = document.createElement('i');
-      bar.style.setProperty('--angle', `${index * 360 / count}deg`);
-      bar.style.opacity = String(.34 + ((Math.sin(index * 1.73) + 1) * .12));
-      waveform.appendChild(bar);
+      const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      const bar = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      group.setAttribute('transform', `rotate(${index * 360 / count} 250 250)`);
+      bar.setAttribute('x1', '250');
+      bar.setAttribute('y1', '0');
+      bar.setAttribute('x2', '250');
+      bar.setAttribute('y2', '-72');
+      bar.style.opacity = String(.46 + ((Math.sin(index * .37) + 1) * .16));
+      group.appendChild(bar);
+      waveform.appendChild(group);
       return bar;
     });
     let frame = 0;
     let speaking = false;
     let last = performance.now();
-    const values = new Float32Array(count).fill(.25);
+    const values = Float32Array.from({ length:count }, (_, index) => {
+      const angle = index / count * Math.PI * 2;
+      return .23 + .095 * Math.sin(angle * 2 + .6) + .065 * Math.sin(angle * 5 - .9);
+    });
     const draw = now => {
       if (!runningScreen.classList.contains('is-active') || document.hidden) { frame = 0; return; }
       const dt = Math.min(32, now - last); last = now;
       const t = now / 1000;
       for (let i = 0; i < count; i += 1) {
         const angle = i / count * Math.PI * 2;
-        const region = .78 + .18 * Math.max(0, Math.sin(angle - .35));
-        const flow = (Math.sin(angle * 3 + t * .72) + Math.sin(angle * 7 - t * .48)) * .08;
-        const cadence = speaking ? .42 + .28 * Math.sin(t * 4.1) + .13 * Math.sin(t * 7.7) : .24 + .045 * Math.sin(t * 1.55);
-        const texture = speaking ? .12 * Math.sin(i * 1.91 + t * 5.2) : .018 * Math.sin(i * .83 + t);
-        const target = Math.max(.16, Math.min(1, (cadence + flow + texture) * region));
-        values[i] += (target - values[i]) * Math.min(1, dt * (speaking ? .011 : .0045));
-        bars[i].style.transform = `rotate(var(--angle)) translateY(calc(var(--bn-orb-size) * -.5 - 7px)) scaleY(${values[i].toFixed(3)})`;
+        const spatialEnvelope = .68 + .21 * Math.sin(angle * 2 + t * 1.08) + .14 * Math.sin(angle * 5 - t * .68);
+        const broadPeak = .5 + .5 * Math.sin(angle * 3 - t * 1.38);
+        const fineTexture = .5 + .5 * Math.sin(angle * 11 + t * 1.72);
+        const breath = .5 + .5 * Math.sin(t * 2.15);
+        const target = speaking
+          ? Math.max(.32, Math.min(1, (.5 + .43 * broadPeak + .24 * fineTexture) * spatialEnvelope))
+          : Math.max(.14, Math.min(.42, (.16 + .2 * broadPeak + .08 * breath) * spatialEnvelope));
+        values[i] += (target - values[i]) * Math.min(1, dt * (speaking ? .019 : .014));
+        bars[i].style.transform = `scaleY(${values[i].toFixed(3)})`;
+        bars[i].style.opacity = String((speaking ? .62 + values[i] * .36 : .42 + values[i] * 1.25).toFixed(3));
       }
       frame = requestAnimationFrame(draw);
     };

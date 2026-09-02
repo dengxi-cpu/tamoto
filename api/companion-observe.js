@@ -1,6 +1,7 @@
 const { CompanionPipelineError, generateReaction, generateAmbient, generateSessionOpening, generateBodyDoublePlan, consolidateRelationshipMemory, runDialogueMemoryPipeline, runMemoryEventPipeline, runCompanionPipeline } = require('../lib/companion-pipeline');
 const { assemblePersonaPrompt } = require('../lib/companion-prompt');
 const { upsertCompanionLog } = require('./companion-logs');
+const { visualPipelineTrace, memoryEventTrace, dialogueTrace } = require('../lib/companion-trace');
 
 function json(res, status, body) {
   return res.status(status).json(body);
@@ -74,7 +75,12 @@ async function handler(req, res) {
         turnId: req.body?.turnId,
         task: String(req.body?.task || '').slice(0, 200),
         persona,
-        scene: `${String(req.body?.eventDescription || eventType).slice(0, 300)}\n${memoryDebugText(data)}`,
+        scene: memoryEventTrace({
+          ...req.body, eventType, persona,
+          workingMemory: Array.isArray(req.body?.workingMemory) ? req.body.workingMemory.slice(-24) : [],
+          storyMemory: sanitizeStoryMemory(req.body?.storyMemory),
+          relationshipMemory: sanitizeRelationshipMemory(req.body?.relationshipMemory)
+        }, data),
         reaction: data.reaction,
         status: 'success',
         ttsStatus: data.memory?.shouldSpeak ? 'generated' : 'skipped'
@@ -194,7 +200,12 @@ async function handler(req, res) {
         source: 'dialogue', epoch: req.body?.epoch, turnId: req.body?.turnId,
         task: String(req.body?.task || '保持专注').slice(0, 200),
         persona,
-        scene: `[对话输入] 用户说：${text}\n最近画面：${String(req.body?.scene || '无').slice(0, 300)}\n最近对话：${JSON.stringify(Array.isArray(req.body?.history) ? req.body.history.slice(-6) : [])}`,
+        scene: dialogueTrace({
+          ...req.body, text, persona,
+          workingMemory: Array.isArray(req.body?.workingMemory) ? req.body.workingMemory.slice(-24) : [],
+          storyMemory: sanitizeStoryMemory(req.body?.storyMemory),
+          relationshipMemory: sanitizeRelationshipMemory(req.body?.relationshipMemory)
+        }, data),
         reaction: data.reaction, status: 'success', ttsStatus: 'generated'
       }).catch(error => console.error('Dialogue log write failed:', error));
       return json(res, 200, { success: true, data });
@@ -261,7 +272,11 @@ async function handler(req, res) {
     });
     await upsertCompanionLog({
       epoch, turnId, image, task, persona: `${persona}\n${contextSummary}`,
-      scene: `${data.observation?.scene || ''}\n[${data.decision?.state || 'UNKNOWN'}] ${data.decision?.reason || ''}\n${memoryDebugText(data)}`,
+      scene: visualPipelineTrace({
+        image, task, persona, roleContext: req.body?.roleContext,
+        elapsedSeconds, workingMemory, storyMemory, relationshipMemory,
+        conversationHistory, policyState
+      }, data),
       reaction: data.reaction,
       visionMs: data.timings?.visionMs,
       reactionMs: data.timings?.reactionMs,

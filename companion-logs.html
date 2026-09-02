@@ -3,27 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>伴柠 · 正式番茄钟日志</title>
-  <style>
-    :root{font-family:Inter,"PingFang SC","Microsoft YaHei",sans-serif;background:#f6f4fb;color:#292337}*{box-sizing:border-box}body{margin:0;padding:24px}main{width:min(1380px,100%);margin:auto}header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:18px}h1{font-size:24px;margin:0 0 6px}p{margin:0;color:#756d85}a{color:#6549ce;text-decoration:none}.actions{display:flex;gap:8px;flex-wrap:wrap}button,select{border:1px solid #d9d1e6;background:#fff;color:#3b3150;padding:10px 14px;border-radius:10px;font-weight:700}button{cursor:pointer}.danger{color:#b42318}.row-delete{padding:7px 10px;font-size:12px}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}.metric,.card{background:#fff;border:1px solid #e5dfef;border-radius:16px;box-shadow:0 8px 30px rgba(55,42,80,.05)}.metric{padding:15px;color:#756d85;font-size:12px}.metric b{display:block;color:#292337;font-size:22px;margin-top:4px}.card{overflow:auto}.empty{padding:60px 20px;text-align:center;color:#81798f}table{width:100%;border-collapse:collapse;min-width:1240px;font-size:13px}th,td{text-align:left;padding:11px 9px;border-bottom:1px solid #eee9f4;vertical-align:top}th{position:sticky;top:0;background:#faf9fc;color:#756d85;z-index:1}.shot{width:112px;height:76px;object-fit:cover;border-radius:9px;background:#211d29;cursor:zoom-in}.text{max-width:260px;line-height:1.55;word-break:break-word}.meta{white-space:nowrap;color:#756d85}.ok{color:#087b4c}.bad{color:#b42318}.speaking{color:#8a5b00}dialog{width:min(960px,94vw);padding:0;border:0;border-radius:14px;overflow:hidden;background:#17131e}dialog::backdrop{background:rgba(16,12,22,.72)}dialog img{display:block;width:100%;max-height:86vh;object-fit:contain}.note{font-size:12px;margin:12px 2px;color:#81798f}@media(max-width:760px){body{padding:14px}header{display:block}.actions{margin-top:12px}.summary{grid-template-columns:1fr 1fr}}
-  </style>
+  <title>伴柠 · AI 陪伴流水线监听</title>
+  <link rel="stylesheet" href="frontend/css/companion-logs.css?v=1">
 </head>
-<body><main>
-  <nav class="actions" style="margin-bottom:18px"><a href="/vision-test.html">单帧感知测试</a><a href="/companion-logs.html"><b>正式监管日志</b></a><a href="/role-reaction-test.html">角色批量测试</a></nav>
-  <header><div><h1>正式番茄钟 · 三类语音日志</h1><p>事件语音、氛围语音和对话语音的真实AI输入输出</p></div><div class="actions"><select id="taskFilter" aria-label="按学习任务筛选"><option value="">全部学习任务</option></select><button class="danger" id="deleteFiltered" hidden>删除该任务全部数据</button><button id="refresh">刷新</button><button class="danger" id="clear">清空全部</button></div></header>
-  <section class="summary"><div class="metric">记录数<b id="count">0</b></div><div class="metric">成功<b id="success">0</b></div><div class="metric">失败<b id="failed">0</b></div><div class="metric">平均耗时<b id="average">—</b></div></section>
-  <div class="card"><div class="empty" id="empty">还没有正式番茄钟记录。开始专注后，三类语音的调用会显示在这里。</div><table id="table" hidden><thead><tr><th>来源 / 时间 / 轮次</th><th>输入截图</th><th>学习任务 / 人设</th><th>AI输入 / 判断</th><th>AI输出</th><th>耗时</th><th>TTS</th><th>状态</th><th>操作</th></tr></thead><tbody id="rows"></tbody></table></div>
-  <p class="note">后端日志保存在 Supabase，手机与电脑跨设备可见；最多展示 500 条，24 小时后自动清理。学习任务来自用户在角色页下一页填写的“现在想干嘛”。</p>
-</main><dialog id="dialog"><img id="large" alt="分析截图"></dialog>
-<script>
-const $=id=>document.getElementById(id);const API_BASE=location.pathname.startsWith('/beta/')?'/beta':'';let currentLogs=[];
-function escapeHtml(value){return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]))}
-function sourceName(source){return source==='dialogue'?'对话语音':source==='ambient'?'开场 / 会话事件':source==='session_opening'?'见面语音':'实时镜头互动'}
-function taskName(item){return String(item.task||'').trim()||'未记录'}
-function syncTaskFilter(){const selected=$('taskFilter').value;const tasks=[...new Set(currentLogs.map(taskName))].sort((a,b)=>a.localeCompare(b,'zh-CN'));$('taskFilter').innerHTML='<option value="">全部学习任务</option>'+tasks.map(task=>`<option value="${escapeHtml(task)}">${escapeHtml(task)}</option>`).join('');$('taskFilter').value=tasks.includes(selected)?selected:''}
-function render(){const selected=$('taskFilter').value;const data=selected?currentLogs.filter(item=>taskName(item)===selected):currentLogs;$('count').textContent=data.length;$('success').textContent=data.filter(x=>x.status==='success').length;$('failed').textContent=data.filter(x=>x.status==='failed').length;const times=data.map(x=>Number(x.request_ms||x.total_ms)).filter(Number.isFinite);$('average').textContent=times.length?`${Math.round(times.reduce((a,b)=>a+b,0)/times.length)} ms`:'—';$('empty').hidden=Boolean(data.length);$('empty').textContent=selected?'该学习任务暂无日志。':'还没有正式番茄钟记录。';$('table').hidden=!data.length;$('rows').innerHTML=data.map(item=>`<tr><td class="meta"><b>${sourceName(item.source)}</b><br>${new Date(item.created_at).toLocaleString()}<br>#${escapeHtml(item.turn_id)}</td><td>${item.captured_image?`<img class="shot" src="${item.captured_image}" alt="第 ${escapeHtml(item.turn_id)} 轮截图">`:'—'}</td><td class="text"><b>${escapeHtml(taskName(item))}</b><br>${escapeHtml(item.persona||'—')}</td><td class="text">${escapeHtml(item.scene||item.error||'—')}</td><td class="text"><b>${escapeHtml(item.reaction||'—')}</b></td><td class="meta">视觉 ${item.vision_ms??'—'} ms<br>反应 ${item.reaction_ms??'—'} ms<br>总计 ${item.total_ms??item.request_ms??'—'} ms</td><td class="meta ${item.tts_status==='completed'?'ok':item.tts_status==='failed'?'bad':'speaking'}">${escapeHtml(item.tts_status||'—')}<br>${item.tts_bytes?`${Number(item.tts_bytes).toLocaleString()} bytes`:''}</td><td class="${item.status==='success'?'ok':'bad'}">${item.status==='success'?'成功':'失败'}${item.error?`<br>${escapeHtml(item.error)}`:''}</td><td><button class="danger row-delete" data-event-key="${escapeHtml(item.event_key)}">删除</button></td></tr>`).join('');document.querySelectorAll('.shot').forEach(img=>img.onclick=()=>{$('large').src=img.src;$('dialog').showModal()});document.querySelectorAll('.row-delete').forEach(button=>button.onclick=()=>deleteOne(button.dataset.eventKey))}
-async function load(){try{const response=await fetch(API_BASE+'/api/companion-logs',{cache:'no-store'});const payload=await response.json();if(!response.ok)throw new Error(payload.error||`HTTP ${response.status}`);currentLogs=payload.data||[];syncTaskFilter();render()}catch(error){$('empty').hidden=false;$('empty').textContent=`后端读取失败：${error.message}`;$('table').hidden=true}}
-async function deleteOne(eventKey){if(!eventKey||!confirm('确定删除这一条日志吗？此操作无法撤销。'))return;const response=await fetch(API_BASE+`/api/companion-logs?eventKey=${encodeURIComponent(eventKey)}`,{method:'DELETE'});const payload=await response.json().catch(()=>({}));if(!response.ok){alert(payload.error||'删除失败');return}await load()}
-async function deleteFiltered(){const task=$('taskFilter').value;if(!task)return;const count=currentLogs.filter(item=>taskName(item)===task).length;if(!confirm(`确定删除学习任务“${task}”的全部 ${count} 条日志吗？此操作无法撤销。`))return;const query=task==='未记录'?'missingTask=true':`task=${encodeURIComponent(task)}`;const response=await fetch(API_BASE+`/api/companion-logs?${query}`,{method:'DELETE'});const payload=await response.json().catch(()=>({}));if(!response.ok){alert(payload.error||'删除失败');return}$('deleteFiltered').hidden=true;await load()}
-$('taskFilter').onchange=()=>{$('deleteFiltered').hidden=!$('taskFilter').value;render()};$('deleteFiltered').onclick=deleteFiltered;$('refresh').onclick=load;$('clear').onclick=async()=>{if(!confirm('清空 Supabase 中的全部正式调用日志吗？'))return;await fetch(API_BASE+'/api/companion-logs?all=true',{method:'DELETE'});await load()};$('dialog').onclick=event=>{if(event.target===$('dialog'))$('dialog').close()};load();setInterval(load,5000);
-</script></body></html>
+<body>
+<main>
+  <nav><a href="/vision-test.html">单帧感知测试</a><a class="active" href="/companion-logs.html">流水线监听</a><a href="/role-reaction-test.html">角色批量测试</a></nav>
+  <header>
+    <div><h1>AI 陪伴流水线监听</h1><p>逐轮查看从视觉编码、记忆理解、角色表演到语音输出的完整输入与输出。</p></div>
+    <div class="actions"><select id="taskFilter" aria-label="按任务筛选"><option value="">全部任务</option></select><button id="refresh">刷新</button><button class="danger" id="clear">清空全部</button></div>
+  </header>
+  <section class="metrics">
+    <div>记录数<b id="count">0</b></div><div>成功<b id="success">0</b></div><div>失败<b id="failed">0</b></div><div>平均耗时<b id="average">—</b></div>
+  </section>
+  <section id="empty" class="empty">还没有流水线记录。</section>
+  <section id="logs" class="logs"></section>
+  <p class="note">日志最多展示 500 条并在 24 小时后清理。截图仅用于当前调试记录；流水线 JSON 不重复保存图片正文。</p>
+</main>
+<dialog id="imageDialog"><button id="closeImage" aria-label="关闭">×</button><img id="largeImage" alt="分析截图"></dialog>
+<script src="frontend/js/companion-logs-dashboard.js?v=1"></script>
+</body>
+</html>

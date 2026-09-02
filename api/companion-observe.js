@@ -69,7 +69,7 @@ async function handler(req, res) {
         conversationHistory: Array.isArray(req.body?.conversationHistory) ? req.body.conversationHistory.slice(-8) : []
       });
       await upsertCompanionLog({
-        source: `memory_${eventType}`,
+        source: 'ambient',
         epoch: req.body?.epoch,
         turnId: req.body?.turnId,
         task: String(req.body?.task || '').slice(0, 200),
@@ -77,7 +77,7 @@ async function handler(req, res) {
         scene: `${String(req.body?.eventDescription || eventType).slice(0, 300)}\n${memoryDebugText(data)}`,
         reaction: data.reaction,
         status: 'success',
-        ttsStatus: data.memory?.shouldSpeak ? 'pending' : 'skipped'
+        ttsStatus: data.memory?.shouldSpeak ? 'generated' : 'skipped'
       }).catch(error => console.error('Memory event log write failed:', error));
       return json(res, 200, { success: true, data });
     } catch (error) {
@@ -195,7 +195,7 @@ async function handler(req, res) {
         task: String(req.body?.task || '保持专注').slice(0, 200),
         persona,
         scene: `[对话输入] 用户说：${text}\n最近画面：${String(req.body?.scene || '无').slice(0, 300)}\n最近对话：${JSON.stringify(Array.isArray(req.body?.history) ? req.body.history.slice(-6) : [])}`,
-        reaction: data.reaction, status: 'success', ttsStatus: 'pending'
+        reaction: data.reaction, status: 'success', ttsStatus: 'generated'
       }).catch(error => console.error('Dialogue log write failed:', error));
       return json(res, 200, { success: true, data });
     } catch (error) {

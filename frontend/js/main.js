@@ -1005,7 +1005,7 @@ function loadDetailedStats() {
      clearTimerState();
      window.track?.sessionEnd('completed', true, { gift_received: true });
      if (window.focusCompanion) {
-         window.focusCompanion.stopSession();
+         window.focusCompanion.completeSession();
      }
      showPomodoroComplete();
      enableModeSwitch();
@@ -1281,18 +1281,8 @@ function loadDetailedStats() {
  }
  
  function startEncourageLoop() {
-     if (encourageInterval) {
-         clearInterval(encourageInterval);
-     }
-
-     // ✅ 移除1秒后显示消息的逻辑，等AI生成完成后再显示
-
-     encourageInterval = setInterval(() => {
-         if (isTimerRunning && !isPaused && currentMessageType === 'encourage' && !isIgnoring) {
-             const message = getRandomOCMessage('encourage');
-             showOCMessage(message, 'encourage', true);
-         }
-     }, 60000); // 60秒
+     // 中途固定频率鼓励已取消：偶尔陪伴只在开场与完成时主动发言。
+     stopEncourageLoop();
  }
  
  function stopEncourageLoop() {

@@ -23,7 +23,7 @@ class SyncManager {
     this._retryCount = 0;
     this.status = 'offline';  // offline | synced | syncing | error | not_configured
     this._listeners = [];
-    this._apiBase = '';
+    this._apiBase = window.APP_BASE || '';
   }
 
   // ===================================

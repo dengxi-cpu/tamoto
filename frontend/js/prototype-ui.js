@@ -37,7 +37,6 @@
     betaVoiceAudio: null,
     companionMode: ['quiet', 'occasional', 'strict'].includes(localStorage.getItem('bnCompanionMode'))
       ? localStorage.getItem('bnCompanionMode') : 'quiet',
-    encouragementMinutes: Math.max(3, Math.min(30, Number(localStorage.getItem('bnEncouragementMinutes')) || 10)),
     characterVoiceEnabled: localStorage.getItem('bnCharacterVoiceEnabled') == null
       ? (localStorage.getItem('bnCompanionMode') || 'quiet') !== 'quiet'
       : localStorage.getItem('bnCharacterVoiceEnabled') === 'true'
@@ -187,10 +186,9 @@
             <header><strong id="bnCompanionModeTitle">选择陪伴方式</strong><small>这次专注里，TA 要怎么陪你？</small></header>
             <div class="bn-companion-mode-options" role="radiogroup">
               <button type="button" data-bn-companion-mode="quiet" role="radio"><b>🌙 安静陪伴</b><span>不主动出声，点语音条再听</span></button>
-              <button type="button" data-bn-companion-mode="occasional" role="radio"><b>🌿 偶尔鼓励</b><span>关键时刻和固定间隔陪你</span></button>
-              <button type="button" data-bn-companion-mode="strict" role="radio"><b>👁️ 严格督促</b><span>需要摄像头，分心时严厉提醒</span></button>
+              <button type="button" data-bn-companion-mode="occasional" role="radio"><b>🌿 偶尔陪伴</b><span>开始和结束时陪你说话</span></button>
+              <button type="button" data-bn-companion-mode="strict" role="radio"><b>👁️ 严格监督</b><span>包含首尾陪伴，并实时回应镜头行为</span></button>
             </div>
-            <label class="bn-encouragement-interval" id="bnEncouragementInterval"><span>每隔</span><select id="bnEncouragementMinutes" aria-label="鼓励间隔"><option value="5">5 分钟</option><option value="10">10 分钟</option><option value="15">15 分钟</option><option value="20">20 分钟</option><option value="30">30 分钟</option></select><span>说点鼓励的话</span></label>
           </section>
           <form class="bn-beta-task-form" id="bnBetaMeetingForm" hidden>
             <input id="bnBetaMeetingTask" maxlength="60" autocomplete="off" placeholder="这次想完成什么？" required>
@@ -234,6 +232,15 @@
           </div>
           <label class="bn-field-label" for="bnTaskInput">这次想完成什么</label>
           <input class="bn-task-input" id="bnTaskInput" maxlength="60" placeholder="例如：复习英语单词">
+          <label class="bn-field-label">陪伴模式</label>
+          <div class="bn-start-mode-picker" role="radiogroup" aria-label="选择陪伴模式">
+            <button type="button" data-bn-companion-mode="occasional" role="radio">
+              <span class="bn-start-mode-icon" aria-hidden="true">◌</span><span><b>场景模式</b><small>沉浸陪伴，首尾自然回应</small></span>
+            </button>
+            <button type="button" data-bn-companion-mode="strict" role="radio">
+              <span class="bn-start-mode-icon" aria-hidden="true">◎</span><span><b>监督模式</b><small>开启镜头，实时提醒状态</small></span>
+            </button>
+          </div>
           <label class="bn-field-label">TA 现在陪你做什么</label>
           <div class="bn-statuses">
             <button class="bn-status is-active" data-bn-status="学习" data-bn-icon="📚">📚 学习</button>
@@ -251,6 +258,15 @@
       <section class="bn-screen bn-focus-running" data-bn-screen="running">
         <div class="bn-stage">
           <img class="bn-stage-img" id="bnStageImage" alt="OC 陪伴场景">
+          <div class="bn-companion-orb" id="bnCompanionOrb" data-speaking="false" aria-label="AI 视频陪伴窗口">
+            <div class="bn-orb-track" aria-hidden="true"><i></i></div>
+            <div class="bn-orb-waveform" aria-hidden="true"></div>
+            <div class="bn-orb-glass">
+              <img class="bn-orb-media" id="bnOrbImage" alt="" aria-hidden="true">
+              <video class="bn-orb-media" id="bnOrbVideo" autoplay muted loop playsinline hidden aria-hidden="true"></video>
+              <span class="bn-orb-refraction" aria-hidden="true"></span>
+            </div>
+          </div>
           <div class="bn-camera-preview is-placeholder" id="bnCameraPreview" data-camera-state="camera-off" role="button" tabindex="0" aria-label="点击开启摄像头，可拖动或双指缩放">
             <video id="bnCameraVideo" autoplay muted playsinline aria-label="你的摄像头预览"></video>
             <div class="bn-camera-placeholder" aria-hidden="true">
@@ -276,18 +292,18 @@
           <div class="bn-call-bottom">
             <div class="bn-call-time" id="bnTimer">25:00</div><div class="bn-call-sub" id="bnCallSub">专注中<span>·</span>和角色一起</div>
             <div class="bn-controls">
-              <button class="bn-control" id="bnVoiceInputBtn" type="button" aria-label="和 TA 说话" title="轻触打字 · 长按说话">
+              <div class="bn-control-stack"><button class="bn-control" id="bnVoiceInputBtn" type="button" aria-label="和 TA 说话" title="轻触打字 · 长按说话">
                 <svg class="bn-dialogue-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h14a2.5 2.5 0 012.5 2.5v7a2.5 2.5 0 01-2.5 2.5h-7.2L6.5 21v-3.5H5A2.5 2.5 0 012.5 15V8A2.5 2.5 0 015 5.5zM7.5 11.5h.01M12 11.5h.01M16.5 11.5h.01"/></svg>
-              </button>
+              </button><small>聊天</small></div>
               <div class="bn-dialogue-tip" id="bnDialogueTip" hidden>长按说话 · 轻触打字</div>
               <div class="bn-voice-status" id="bnVoiceStatus" hidden>松开发送</div>
               <div class="bn-pause-control">
                 <button class="bn-control is-primary" id="bnPause" type="button" aria-label="短按暂停，长按结束" title="短按暂停 · 长按结束"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></button>
                 <small class="bn-pause-hint">长按可结束专注</small>
               </div>
-              <button class="bn-control" id="bnCameraBtn" type="button" data-bn-action="toggle-camera" aria-pressed="false" aria-label="开启视频" title="开启视频">
+              <div class="bn-control-stack"><button class="bn-control" id="bnCameraBtn" type="button" data-bn-action="toggle-camera" aria-pressed="false" aria-label="开启视频" title="开启视频">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-              </button>
+              </button><small>视频</small></div>
             </div>
           </div>
         </div>
@@ -329,6 +345,7 @@
           <div class="bn-acc"><button class="bn-acc-head" type="button"><span class="bn-acc-icon">🎁</span><span class="bn-acc-copy"><b>礼物设置</b><small>完成任务时随机送出</small></span><span>⌄</span></button><div class="bn-acc-body">学习、工作、休息等不同状态可以拥有独立礼物。 <button class="bn-link-button" data-bn-action="edit-oc">管理</button></div></div>
           <div class="bn-acc"><button class="bn-acc-head" type="button"><span class="bn-acc-icon">⏰</span><span class="bn-acc-copy"><b>提醒管理</b><small>系统通知和定时提醒</small></span><span>⌄</span></button><div class="bn-acc-body">保留现有 Web Push、提醒时间和通知权限设置。 <button class="bn-link-button" data-bn-action="advanced">管理</button></div></div>
           <div class="bn-acc"><button class="bn-acc-head" type="button"><span class="bn-acc-icon"><svg class="bn-acc-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5.5 6.7 9H3.5v6h3.2l4.3 3.5zM15.5 9.2a4 4 0 0 1 0 5.6M18.2 6.7a7.5 7.5 0 0 1 0 10.6"/></svg></span><span class="bn-acc-copy"><b>陪伴语音</b><small>AI 实时语音</small></span><span>⌄</span></button><div class="bn-acc-body">事件提醒、氛围陪伴和语音对话都会使用当前角色的实时 AI 语音。</div></div>
+          <div class="bn-acc"><button class="bn-acc-head" type="button"><span class="bn-acc-icon">🧠</span><span class="bn-acc-copy"><b>长期记忆</b><small>查看和管理 TA 记住的内容</small></span><span>⌄</span></button><div class="bn-acc-body bn-memory-manager"><label class="bn-memory-toggle"><input id="bnRelationshipMemoryEnabled" type="checkbox">允许 TA 跨专注保留有用记忆</label><p>仅保存稳定偏好、重复习惯、有效陪伴方式和重要成就，不保存原始图片。</p><div id="bnRelationshipMemoryList"></div><div class="bn-memory-actions"><button class="bn-link-button" type="button" data-bn-action="memory-forget-session">忘记本轮内容</button><button class="bn-link-button is-danger" type="button" data-bn-action="memory-clear">清除全部长期记忆</button></div></div></div>
         </div>
         <button class="bn-advanced" type="button" data-bn-action="advanced">高级设置</button>
       </section>
@@ -348,11 +365,58 @@
     if (tab === 'focus' && (isTimerRunning || isPaused)) tab = 'running';
     if (tab === 'chat') prepareChat();
     if (tab === 'focus') window.focusCompanion?.prepareOpening();
+    if (tab === 'oc') renderRelationshipMemory();
     state.tab = tab;
     document.querySelectorAll('[data-bn-screen]').forEach(el => el.classList.toggle('is-active', el.dataset.bnScreen === tab));
     document.querySelectorAll('.bn-tab').forEach(el => el.classList.toggle('is-active', el.dataset.bnGo === (tab === 'running' ? 'focus' : tab)));
     document.getElementById('bnApp').classList.toggle('is-running', tab === 'running');
     refreshUI();
+  }
+
+  const memoryCategoryLabels = {
+    preferences:'偏好', behaviorPatterns:'行为习惯', effectiveCompanionStrategies:'有效陪伴方式',
+    dislikedBehaviors:'不喜欢的方式', achievements:'重要成就', relationshipFacts:'关系记忆'
+  };
+
+  function escapeMemoryHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
+  }
+
+  function renderRelationshipMemory() {
+    const list = document.getElementById('bnRelationshipMemoryList');
+    const toggle = document.getElementById('bnRelationshipMemoryEnabled');
+    if (!list || !toggle || !window.focusCompanion) return;
+    const enabled = window.focusCompanion.isRelationshipMemoryEnabled();
+    toggle.checked = enabled;
+    list.toggleAttribute('hidden', !enabled);
+    const memory = window.focusCompanion.getRelationshipMemory();
+    const rows = [];
+    Object.entries(memoryCategoryLabels).forEach(([category, label]) => {
+      (Array.isArray(memory?.[category]) ? memory[category] : []).forEach((item, index) => rows.push({ category, label, index, item }));
+    });
+    list.innerHTML = rows.length ? rows.map(row => `<div class="bn-memory-item"><div><b>${escapeMemoryHtml(row.label)}</b><span>${escapeMemoryHtml(row.item.content)}</span><small>证据 ${Number(row.item.evidenceCount) || 1} 次 · 置信度 ${Math.round((Number(row.item.confidence) || 0.5) * 100)}%</small></div><button type="button" data-bn-action="memory-edit" data-memory-category="${row.category}" data-memory-index="${row.index}">编辑</button><button type="button" data-bn-action="memory-delete" data-memory-category="${row.category}" data-memory-index="${row.index}">删除</button></div>`).join('') : '<div class="bn-memory-empty">TA 还没有形成长期记忆。</div>';
+  }
+
+  function editRelationshipMemory(action, remove = false) {
+    const memory = window.focusCompanion?.getRelationshipMemory();
+    const category = action.dataset.memoryCategory;
+    const index = Number(action.dataset.memoryIndex);
+    if (!memory || !Array.isArray(memory[category]) || !memory[category][index]) return;
+    const next = JSON.parse(JSON.stringify(memory));
+    if (remove) {
+      if (!confirm('确定删除这条长期记忆吗？')) return;
+      next[category].splice(index, 1);
+    } else {
+      const content = prompt('修改这条记忆', next[category][index].content || '');
+      if (content == null) return;
+      const cleaned = content.trim().slice(0, 400);
+      if (!cleaned) return toast('记忆内容不能为空');
+      next[category][index].content = cleaned;
+      next[category][index].lastValidatedAt = new Date().toISOString();
+      next[category][index].confidence = 1;
+    }
+    window.focusCompanion.replaceRelationshipMemory(next);
+    renderRelationshipMemory();
   }
 
   function skipBetaRoleSetup() {
@@ -434,6 +498,8 @@
     const target = document.getElementById('bnStageImage');
     const source = avatar || betaBackgroundFor();
     if (target && target.getAttribute('src') !== source) target.src = source;
+    const orb = document.getElementById('bnOrbImage');
+    if (orb && orb.getAttribute('src') !== source) orb.src = source;
   }
 
   function returnFromFocusSession() {
@@ -1116,7 +1182,6 @@
     if (state.companionMode === 'strict' && !await window.focusCompanion?.requestStrictCameraPermission()) return;
     window.focusCompanion?.configureMode({
       mode: state.companionMode,
-      encouragementMinutes: state.encouragementMinutes,
       autoPlayVoice: state.characterVoiceEnabled
     });
     startButton.disabled = true;
@@ -1345,7 +1410,7 @@
     const preview = document.getElementById('bnCameraPreview');
     const stage = preview?.parentElement;
     if (!preview || !stage) return;
-    const storageKey = 'bnCameraPreviewPosition';
+    const storageKey = 'bnCameraPreviewPositionOrbV1';
     let drag = null;
     const pointers = new Map();
     let pinch = null;
@@ -1635,8 +1700,10 @@
       const image = parsed.querySelector('.callstage-img');
       if (!image || !image.getAttribute('src')) throw new Error('scene not found');
       target.src = image.getAttribute('src');
+      document.getElementById('bnOrbImage').src = image.getAttribute('src');
     } catch (error) {
       target.src = currentOC().avatar || fallbackAvatar;
+      document.getElementById('bnOrbImage').src = target.src;
       console.warn('原型 Base64 场景图加载失败，已回退到 OC 头像。', error);
     }
   }
@@ -1655,10 +1722,58 @@
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-checked', String(active));
     });
-    const interval = document.getElementById('bnEncouragementInterval');
-    if (interval) interval.hidden = state.companionMode !== 'occasional';
-    const select = document.getElementById('bnEncouragementMinutes');
-    if (select) select.value = String(state.encouragementMinutes);
+  }
+
+  function initCompanionOrb() {
+    const orb = document.getElementById('bnCompanionOrb');
+    const waveform = orb?.querySelector('.bn-orb-waveform');
+    const runningScreen = document.querySelector('.bn-screen[data-bn-screen="running"]');
+    if (!orb || !waveform || !runningScreen || waveform.childElementCount) return;
+    const count = 96;
+    const bars = Array.from({ length:count }, (_, index) => {
+      const bar = document.createElement('i');
+      bar.style.setProperty('--angle', `${index * 360 / count}deg`);
+      bar.style.opacity = String(.34 + ((Math.sin(index * 1.73) + 1) * .12));
+      waveform.appendChild(bar);
+      return bar;
+    });
+    let frame = 0;
+    let speaking = false;
+    let last = performance.now();
+    const values = new Float32Array(count).fill(.25);
+    const draw = now => {
+      if (!runningScreen.classList.contains('is-active') || document.hidden) { frame = 0; return; }
+      const dt = Math.min(32, now - last); last = now;
+      const t = now / 1000;
+      for (let i = 0; i < count; i += 1) {
+        const angle = i / count * Math.PI * 2;
+        const region = .78 + .18 * Math.max(0, Math.sin(angle - .35));
+        const flow = (Math.sin(angle * 3 + t * .72) + Math.sin(angle * 7 - t * .48)) * .08;
+        const cadence = speaking ? .42 + .28 * Math.sin(t * 4.1) + .13 * Math.sin(t * 7.7) : .24 + .045 * Math.sin(t * 1.55);
+        const texture = speaking ? .12 * Math.sin(i * 1.91 + t * 5.2) : .018 * Math.sin(i * .83 + t);
+        const target = Math.max(.16, Math.min(1, (cadence + flow + texture) * region));
+        values[i] += (target - values[i]) * Math.min(1, dt * (speaking ? .011 : .0045));
+        bars[i].style.transform = `rotate(var(--angle)) translateY(calc(var(--bn-orb-size) * -.5 - 7px)) scaleY(${values[i].toFixed(3)})`;
+      }
+      frame = requestAnimationFrame(draw);
+    };
+    const start = () => { if (!frame && runningScreen.classList.contains('is-active') && !document.hidden) { last = performance.now(); frame = requestAnimationFrame(draw); } };
+    const stop = () => { if (frame) cancelAnimationFrame(frame); frame = 0; };
+    const screenObserver = new MutationObserver(() => runningScreen.classList.contains('is-active') ? start() : stop());
+    screenObserver.observe(runningScreen, { attributes:true, attributeFilter:['class'] });
+    window.addEventListener('focus-speech-lifecycle', event => {
+      speaking = ['playback_started','streaming'].includes(event.detail?.status);
+      if (['playback_completed','interrupted','expired'].includes(event.detail?.status)) speaking = false;
+      orb.dataset.speaking = String(speaking);
+    });
+    window.addEventListener('focus-companion-presence', event => {
+      if (event.detail?.presence === 'speaking') speaking = true;
+      else if (['silent','listening','watching'].includes(event.detail?.presence)) speaking = false;
+      orb.dataset.speaking = String(speaking);
+    });
+    document.addEventListener('visibilitychange', () => document.hidden ? stop() : start());
+    window.addEventListener('beforeunload', () => { stop(); screenObserver.disconnect(); }, { once:true });
+    start();
   }
 
   function selectCompanionMode(mode) {
@@ -1786,6 +1901,21 @@
         toast('已设为 TA 的声音');
       }
       if (type === 'beta-generate-voice') generateBetaVoice();
+      if (type === 'memory-edit') editRelationshipMemory(action, false);
+      if (type === 'memory-delete') editRelationshipMemory(action, true);
+      if (type === 'memory-clear') {
+        if (confirm('确定清除 TA 的全部长期记忆吗？此操作无法撤销。')) {
+          window.focusCompanion?.clearRelationshipMemory();
+          renderRelationshipMemory();
+          toast('长期记忆已清除');
+        }
+      }
+      if (type === 'memory-forget-session') {
+        if (confirm('确定让 TA 忘记当前这轮专注的上下文吗？')) {
+          window.focusCompanion?.forgetCurrentSessionMemory();
+          toast('本轮上下文已清除');
+        }
+      }
       if (type === 'beta-use-custom-voice') useCustomBetaVoice();
       if (type === 'gifts' && typeof showGiftModal === 'function') showGiftModal();
       if (type === 'edit-oc' || type === 'new-oc' || type === 'advanced') {
@@ -1793,6 +1923,12 @@
       }
     });
     document.querySelectorAll('.bn-acc-head').forEach(button => button.addEventListener('click', () => button.parentElement.classList.toggle('is-open')));
+    document.getElementById('bnRelationshipMemoryEnabled')?.addEventListener('change', event => {
+      window.focusCompanion?.setRelationshipMemoryEnabled(event.target.checked);
+      renderRelationshipMemory();
+      toast(event.target.checked ? '长期记忆已开启' : '长期记忆已关闭');
+    });
+    window.addEventListener('focus-relationship-memory-updated', renderRelationshipMemory);
     document.getElementById('bnChatForm').addEventListener('submit', submitChat);
     document.getElementById('bnFocusChatForm').addEventListener('submit', submitFocusChat);
     document.getElementById('bnFocusChatInput').addEventListener('input', updateFocusChatSendState);
@@ -1800,14 +1936,11 @@
     document.getElementById('bnTaskInput').addEventListener('change', syncTaskInput);
     document.getElementById('bnBetaRoleForm').addEventListener('submit', saveBetaRole);
     document.getElementById('bnBetaMeetingForm').addEventListener('submit', submitBetaMeetingTask);
-    document.getElementById('bnEncouragementMinutes').addEventListener('change', event => {
-      state.encouragementMinutes = Math.max(3, Math.min(30, Number(event.target.value) || 10));
-      localStorage.setItem('bnEncouragementMinutes', String(state.encouragementMinutes));
-    });
     document.getElementById('bnStageImage').addEventListener('click', event => {
       if (event.target.closest?.('.bn-camera-preview')) return;
       window.focusCompanion?.reactToStageTap();
     });
+    initCompanionOrb();
     document.getElementById('bnBetaBackgroundInput').addEventListener('change', event => handleBetaBackground(event.target.files?.[0]));
     document.getElementById('bnBetaRelationship').addEventListener('change', event => {
       setBetaRelationship(event.target.value);

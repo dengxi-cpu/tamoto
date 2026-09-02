@@ -43,7 +43,7 @@
   }
 
   function currentUi() {
-    return location.pathname === '/beta' || new URLSearchParams(location.search).get('mode') === 'beta' ? 'beta' : 'classic';
+    return window.APP_BASE === '/beta' || new URLSearchParams(location.search).get('mode') === 'beta' ? 'beta' : 'classic';
   }
 
   function publicContext() {
@@ -162,12 +162,12 @@
     const batch = queue.slice(0, BATCH_SIZE);
     const body = JSON.stringify({ events: batch });
     if (useBeacon && navigator.sendBeacon) {
-      navigator.sendBeacon('/api/events', new Blob([body], { type: 'application/json' }));
+      navigator.sendBeacon((window.APP_BASE || '') + '/api/events', new Blob([body], { type: 'application/json' }));
       return;
     }
     flushing = true;
     try {
-      const response = await fetch('/api/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true });
+      const response = await fetch((window.APP_BASE || '') + '/api/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const sent = new Set(batch.map(item => item.event_id));
       queue = queue.filter(item => !sent.has(item.event_id));

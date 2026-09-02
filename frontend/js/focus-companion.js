@@ -14,8 +14,14 @@
         turnId: 0,
         sessionStartedAt: null,
         recentObservations: [],
+        workingMemory: [],
+        storyMemory: null,
+        relationshipMemory: null,
+        relationshipMemoryEnabled: localStorage.getItem('bnRelationshipMemoryEnabled') !== 'false',
+        memoryConsolidationInFlight: false,
+        memoryRequestSequence: 0,
+        latestAppliedMemoryRequest: 0,
         policyState: {},
-        ambientTimer: null,
         ambientCount: 0,
         productiveAmbientEncouragementCount: 0,
         lastAmbientAt: 0,
@@ -30,6 +36,7 @@
         preparingOpening: null,
         activeTrackSpeechId: null,
         dialogueController: null,
+        memoryEventController: null,
         dialogueHistory: [],
         pipelineController: null,
         audioContext: null,
@@ -46,35 +53,20 @@
         speechRecognition: null,
         previousAudioSessionType: null,
         companionMode: 'quiet',
-        encouragementMinutes: 10,
         voiceAutoEnabled: false,
         stageTapCount: 0,
         stageTapTimer: null
     };
 
     // Serialize observations so slow model calls never build a request queue.
-    // 严格监督需要落在短视频的 3 秒节拍内；请求仍然串行，不会堆积。
-    const VISION_INTERVAL_MS = 1000;
+    // 观察以 5 秒为节拍；请求保持串行，避免 VLM 与 Memory LLM 调用堆积。
+    const VISION_INTERVAL_MS = 5000;
     const VISION_INITIAL_DELAY_MS = 1000;
     const TTS_BUFFER_MS = 180;
-    // 测试期高频策略：前5分钟密集建立陪伴感，之后舒适陪伴。
-    const AMBIENT_POLICY = {
-        checkMinMs: 20 * 1000,
-        checkJitterMs: 15 * 1000,
-        studyCheckMinMs: 45 * 1000,
-        studyCheckJitterMs: 25 * 1000,
-        firstOpportunitySeconds: 20,
-        eventCooldownMs: 20 * 1000,
-        ambientCooldownMs: 35 * 1000,
-        baseChance: 1,
-        studyChance: 0.85,
-        studyAmbientCooldownMs: 60 * 1000,
-        firstTenMinutesLimit: 20,
-        perTwentyFiveMinutesLimit: 50
-    };
     const LOG_STORAGE_KEY = 'bn_companion_production_logs_v1';
     const LOG_TTL_MS = 24 * 60 * 60 * 1000;
     const LOG_LIMIT = 20;
+    const RELATIONSHIP_MEMORY_KEY = 'bn_companion_relationship_memory_v1';
 
     function readLogs() {
         try {
@@ -118,6 +110,69 @@
             return;
         }
         console.info(message);
+    }
+
+    function setPresence(presence = 'silent') {
+        const value = ['silent', 'listening', 'watching', 'speaking'].includes(presence) ? presence : 'silent';
+        const root = document.querySelector('.bn-focus-running');
+        const stage = document.querySelector('.bn-stage');
+        if (root) root.dataset.companionPresence = value;
+        if (stage) stage.dataset.companionPresence = value;
+        window.dispatchEvent(new CustomEvent('focus-companion-presence', { detail: { presence: value } }));
+    }
+
+    function createMemoryEvent(type, data = {}) {
+        return {
+            id: `${state.epoch}-${state.turnId}-${type}-${Date.now()}`,
+            type,
+            observedAt: data.observedAt || new Date().toISOString(),
+            elapsedSeconds: Math.max(0, Number(data.elapsedSeconds) || 0),
+            observation: String(data.observation || data.scene || '').slice(0, 300),
+            changes: Array.isArray(data.changes) ? data.changes.slice(0, 4) : [],
+            confidence: Math.max(0, Math.min(1, Number(data.confidence) || 0)),
+            reaction: String(data.reaction || '').slice(0, 200),
+            delivered: data.delivered === true
+        };
+    }
+
+    function appendWorkingMemory(event) {
+        if (!event?.observation) return;
+        const previous = state.workingMemory[state.workingMemory.length - 1];
+        const duplicate = previous && previous.type === event.type && previous.observation === event.observation
+            && Date.parse(event.observedAt) - Date.parse(previous.observedAt) < 15000;
+        if (duplicate) {
+            previous.observedAt = event.observedAt;
+            previous.elapsedSeconds = event.elapsedSeconds;
+            previous.confidence = Math.max(previous.confidence || 0, event.confidence || 0);
+        } else {
+            state.workingMemory.push(event);
+        }
+        state.workingMemory = state.workingMemory
+            .filter(item => Number.isFinite(Date.parse(item.observedAt)) && Date.now() - Date.parse(item.observedAt) <= 3 * 60 * 1000)
+            .slice(-24);
+    }
+
+    function emitSpeechLifecycle(status, detail = {}) {
+        window.dispatchEvent(new CustomEvent('focus-speech-lifecycle', { detail:{ status, at:Date.now(), ...detail } }));
+        if (detail.logId) {
+            const ttsStatus = {
+                generated:'generated', displayed:'displayed', playback_started:'streaming',
+                playback_completed:'completed', interrupted:'interrupted', expired:'expired'
+            }[status] || status;
+            saveLog({ id:detail.logId, ttsStatus, lifecycleStatus:status, lifecycleAt:new Date().toISOString() });
+        }
+    }
+
+    function beginMemoryRequest() {
+        state.memoryRequestSequence += 1;
+        return state.memoryRequestSequence;
+    }
+
+    function applyStoryMemory(memory, requestSequence) {
+        if (!memory?.storyMemory || requestSequence < state.latestAppliedMemoryRequest) return false;
+        state.latestAppliedMemoryRequest = requestSequence;
+        state.storyMemory = memory.storyMemory;
+        return true;
     }
 
     function setButtonState(enabled) {
@@ -229,9 +284,9 @@
 
     function configureMode(options = {}) {
         const mode = ['quiet','occasional','strict'].includes(options.mode) ? options.mode : 'quiet';
+        const modePolicy = window.CompanionModePolicy?.getModePolicy(mode);
         state.companionMode = mode;
-        state.encouragementMinutes = Math.max(3, Math.min(30, Number(options.encouragementMinutes) || 10));
-        state.voiceAutoEnabled = options.autoPlayVoice == null ? mode !== 'quiet' : Boolean(options.autoPlayVoice);
+        state.voiceAutoEnabled = options.autoPlayVoice == null ? Boolean(modePolicy?.autoPlayVoice) : Boolean(options.autoPlayVoice);
     }
 
     function setVoiceAutoEnabled(enabled) {
@@ -263,6 +318,20 @@
             ? focusStartTime
             : Date.now();
         state.recentObservations = [];
+        state.workingMemory = [];
+        state.storyMemory = null;
+        state.memoryRequestSequence = 0;
+        state.latestAppliedMemoryRequest = 0;
+        try {
+            const savedRelationshipMemory = state.relationshipMemoryEnabled ? localStorage.getItem(RELATIONSHIP_MEMORY_KEY) : null;
+            if (!savedRelationshipMemory) state.relationshipMemory = null;
+            else {
+                try { state.relationshipMemory = JSON.parse(savedRelationshipMemory); }
+                catch (_) { state.relationshipMemory = savedRelationshipMemory.slice(0, 6000); }
+            }
+        } catch (_) {
+            state.relationshipMemory = null;
+        }
         state.policyState = {};
         state.ambientCount = 0;
         state.productiveAmbientEncouragementCount = 0;
@@ -275,25 +344,68 @@
         state.latestObservation = null;
         state.dialogueHistory = [];
         state.sessionActive = true;
+        setPresence('silent');
         state.paused = false;
         state.visionUnavailable = false;
         stopCamera();
-        if (state.companionMode !== 'quiet') scheduleOpeningSequence();
-        scheduleAmbientCheck();
-        if (state.companionMode !== 'quiet') playPreparedOpening().catch(error => console.warn('Prepared opening playback failed:', error));
+        scheduleOpeningSequence();
+        playPreparedOpening().catch(error => console.warn('Prepared opening playback failed:', error));
         if (state.companionMode === 'strict') startCamera();
     }
 
     function stopSession() {
+        consolidateSessionMemory();
         state.sessionActive = false;
+        setPresence('silent');
         state.epoch += 1;
         stopAmbientLoop();
         stopOpeningSequence();
         state.dialogueController?.abort();
         state.dialogueController = null;
+        state.memoryEventController?.abort();
+        state.memoryEventController = null;
         cancelReaction('专注已结束');
         stopVoiceInput();
         stopCamera();
+    }
+
+    async function completeSession() {
+        if (!state.sessionActive) return;
+        try {
+            await announceSessionEvent('completion');
+        } finally {
+            stopSession();
+        }
+    }
+
+    async function consolidateSessionMemory() {
+        if (!state.relationshipMemoryEnabled) return;
+        if (state.memoryConsolidationInFlight || (!state.storyMemory && !state.workingMemory.length && !state.dialogueHistory.length)) return;
+        state.memoryConsolidationInFlight = true;
+        const { task, persona, roleContext } = getCompanionContext();
+        const snapshot = {
+            mode: 'memory_consolidation', task, persona, roleContext,
+            storyMemory: state.storyMemory,
+            relationshipMemory: state.relationshipMemory,
+            workingMemory: state.workingMemory.slice(-24),
+            conversationHistory: state.dialogueHistory.slice(-12)
+        };
+        try {
+            const response = await fetch((window.APP_BASE || '') + '/api/companion-observe', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(snapshot), keepalive: true
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || `Memory HTTP ${response.status}`);
+            const relationshipMemory = payload?.data?.relationshipMemory;
+            if (!relationshipMemory || typeof relationshipMemory !== 'object') return;
+            state.relationshipMemory = relationshipMemory;
+            localStorage.setItem(RELATIONSHIP_MEMORY_KEY, JSON.stringify(relationshipMemory));
+            window.dispatchEvent(new CustomEvent('focus-relationship-memory-updated', { detail:{ relationshipMemory } }));
+        } catch (error) {
+            console.warn('Relationship memory consolidation failed:', error);
+        } finally {
+            state.memoryConsolidationInFlight = false;
+        }
     }
 
     function setCaption(text) {
@@ -445,6 +557,14 @@
             state.activeTrackSpeechId = null;
         }
         state.playback = null;
+        if (playback.started && !['replay', 'voice_preview'].includes(playback.speechType)) {
+            emitSpeechLifecycle('interrupted', { speechType:playback.speechType, reason, logId:playback.logId });
+            appendWorkingMemory(createMemoryEvent('ai_speech', {
+                elapsedSeconds:Math.floor(openingElapsedMs() / 1000),
+                observation:`AI 语音被中断：${String(playback.text || '').slice(0, 180)}`,
+                reaction:String(playback.text || '').slice(0, 180), confidence:1, delivered:false
+            }));
+        }
         playback.controller.abort();
         playback.sources.forEach(source => {
             source.onended = null;
@@ -547,6 +667,9 @@
             streamEnded: false,
             priority,
             speechType,
+            text,
+            started: false,
+            logId: result?.logId || '',
             resolveFinished
         };
         state.playback = playback;
@@ -561,7 +684,8 @@
                     voiceType: result.voiceType || voice.voiceType,
                     voiceProvider: result.voiceProvider || voice.voiceProvider,
                     voiceId: result.voiceId || voice.voiceId,
-                    speechLanguage: result.speechLanguage || voice.speechLanguage
+                    speechLanguage: result.speechLanguage || voice.speechLanguage,
+                    performance: result.performance || null
                 };
             })())
         });
@@ -573,6 +697,8 @@
             const bytes = new Uint8Array(await response.arrayBuffer());
             if (!bytes.length) throw new Error('TTS 没有返回音频');
             await scheduleEncodedAudio(bytes, playback);
+            playback.started = true;
+            emitSpeechLifecycle('playback_started', { speechType, text, logId:result?.logId });
             onPlaybackStarted?.();
             playback.streamEnded = true;
             finishPlaybackIfDone(playback);
@@ -598,7 +724,11 @@
                 if (!revealScheduled) {
                     revealScheduled = true;
                     window.setTimeout(() => {
-                        if (playback.epoch === state.epoch && !playback.controller.signal.aborted) onPlaybackStarted?.();
+                        if (playback.epoch === state.epoch && !playback.controller.signal.aborted) {
+                            playback.started = true;
+                            emitSpeechLifecycle('playback_started', { speechType, text, logId:result?.logId });
+                            onPlaybackStarted?.();
+                        }
                     }, TTS_BUFFER_MS + 60);
                 }
             }
@@ -661,31 +791,31 @@
 
     function isCriticalVisualEvent(result, speechType) {
         return speechType === 'visual'
-            && ['PHONE_ENTER', 'PHONE_REPEAT', 'ABSENT_ENTER'].includes(result?.decision?.event);
+            && result?.decision?.shouldSpeak
+            && ['PHONE', 'ABSENT'].includes(result?.decision?.state);
     }
 
     function releaseFailedVisualCooldown(decision) {
-        if (!decision?.event) return;
-        if (['PHONE_ENTER', 'PHONE_REPEAT'].includes(decision.event)) {
-            state.policyState.phoneEventSpokenAt = null;
-        } else if (decision.event === 'ABSENT_ENTER') {
-            state.policyState.absenceEventSpokenAt = null;
-        } else if (decision.event === 'ABSENT_RETURN') {
-            state.policyState.focusEncouragedAt = null;
-        }
+        if (!decision) return;
         state.policyState.lastAnySpokenAt = null;
-        state.policyState.lastVisualSpokenAt = null;
     }
 
     async function playMessageSequence(messages, result, priority = 2, speechType = 'visual', onMessage = appendSpeechMessage) {
         const items = normalizeMessages(messages);
         if (!items.length) return 0;
+        if (result?.validUntil && Date.now() > Number(result.validUntil)) {
+            window.track?.('ai_decision', { engine:'speech', decision:'discard', reason_code:'expired_before_playback', speech_type:speechType });
+            emitSpeechLifecycle('expired', { speechType, text:items.join(''), logId:result?.logId });
+            return 0;
+        }
         if (state.activeSpeechSequence && state.activeSpeechSequence.priority <= priority) return 0;
         if (state.activeSpeechSequence) cancelSpeechSequence();
         const sequenceId = ++state.speechSequenceId;
         state.activeSpeechSequence = { id: sequenceId, priority };
         elements().voiceButton?.classList.add('is-speaking');
+        setPresence('speaking');
         beginSpeechMessages();
+        emitSpeechLifecycle('generated', { speechType, text:items.join(''), logId:result?.logId });
         let totalBytes = 0;
         let trackedSpeechId = null;
         try {
@@ -693,6 +823,11 @@
             const criticalVisualEvent = isCriticalVisualEvent(result, speechType);
             if (result.epoch !== state.epoch || state.voiceHeld || (state.paused && !sessionEvent)) return 0;
             const fullText = items.join('');
+            const performanceCue = result?.performance;
+            if (performanceCue?.pauseBefore && speechType === 'visual') {
+                await new Promise(resolve => window.setTimeout(resolve, Math.min(3000, Math.max(0, Number(performanceCue.pauseBefore) || 0))));
+                if (sequenceId !== state.speechSequenceId) return 0;
+            }
             const shown = new Set();
             const showItem = index => {
                 if (shown.has(index) || sequenceId !== state.speechSequenceId) return;
@@ -701,6 +836,7 @@
             };
             const scheduleCaptions = () => {
                 showItem(0);
+                emitSpeechLifecycle('displayed', { speechType, text:fullText, logId:result?.logId });
                 const totalCharacters = Math.max(1, items.reduce((sum, item) => sum + Array.from(item).length, 0));
                 const estimatedDuration = Math.max(1400, Math.min(12000, totalCharacters * 220));
                 let passedCharacters = Array.from(items[0]).length;
@@ -721,9 +857,11 @@
                     || speechType === 'voice_preview';
                 if (!shouldPlayAudio) {
                     items.forEach((_, index) => showItem(index));
+                    emitSpeechLifecycle('displayed', { speechType, text:fullText, logId:result?.logId });
                     totalBytes = 0;
                 } else {
                     totalBytes = await playStreamingTts(fullText, result, priority, speechType, () => {
+                        state.policyState.lastAnySpokenAt = Date.now();
                         scheduleCaptions();
                         if (!trackedSpeechId) {
                             trackedSpeechId = window.track?.speechStarted({
@@ -746,8 +884,10 @@
                 window.track?.speechEnded(trackedSpeechId, totalBytes ? 'completed' : 'failed', { tts_bytes: totalBytes });
                 state.activeTrackSpeechId = null;
             }
+            if (totalBytes) emitSpeechLifecycle('playback_completed', { speechType, text:items.join(''), ttsBytes:totalBytes, logId:result?.logId });
             if (state.activeSpeechSequence?.id === sequenceId) state.activeSpeechSequence = null;
             elements().voiceButton?.classList.remove('is-speaking');
+            if (state.sessionActive) setPresence('silent');
         }
         return totalBytes;
     }
@@ -758,6 +898,7 @@
         if (!image) return;
         const requestEpoch = state.epoch;
         const turnId = ++state.turnId;
+        const memoryRequestSequence = beginMemoryRequest();
         const controller = new AbortController();
         const logId = `${requestEpoch}-${turnId}`;
         const startedAt = performance.now();
@@ -767,7 +908,7 @@
             const { task, persona, roleContext } = getCompanionContext();
             const sessionStartedAt = new Date(state.sessionStartedAt || Date.now()).toISOString();
             const elapsedSeconds = Math.max(0, Math.floor((Date.now() - (state.sessionStartedAt || Date.now())) / 1000));
-            const recentObservations = state.recentObservations.slice(-1);
+            const recentObservations = state.recentObservations.slice(-24);
             const response = await fetch((window.APP_BASE || '') + '/api/companion-observe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -775,6 +916,10 @@
                 body: JSON.stringify({
                     image, task, persona, roleContext, epoch: requestEpoch, turnId,
                     sessionStartedAt, elapsedSeconds, recentObservations,
+                    workingMemory: state.workingMemory.slice(-24),
+                    storyMemory: state.storyMemory,
+                    relationshipMemory: state.relationshipMemory,
+                    conversationHistory: state.dialogueHistory.slice(-8),
                     policyState: state.policyState
                 })
             });
@@ -789,8 +934,11 @@
             const result = payload?.data || payload;
             if (requestEpoch !== state.epoch || state.paused || !state.sessionActive) return;
             if (!result?.decision) throw new Error('AI 没有返回发言决策');
+            result.logId = logId;
             window.track?.('ai_decision', {
                 engine: 'vision', decision: result.decision.shouldSpeak ? 'speak' : 'silent',
+                decision_id: result.decision.decisionId || '',
+                evidence_event_ids: result.decision.evidenceEventIds || [],
                 should_speak: Boolean(result.decision.shouldSpeak), reason_code: result.decision.reason || 'unspecified',
                 state: result.decision.state || result.state || 'unknown',
                 raw_state: result.decision.rawState || 'unknown',
@@ -804,19 +952,26 @@
                 total_ms: result.timings?.totalMs
             });
             state.policyState = result.decision.policyState || state.policyState;
+            setPresence(result.decision.shouldSpeak ? 'speaking' : (result.decision.silentReaction || 'silent'));
+            applyStoryMemory(result.memory, memoryRequestSequence);
             state.latestObservation = {
                 capturedAt: Date.now(),
                 scene: result.observation?.scene || '',
                 state: result.decision.state || 'UNKNOWN'
             };
-            state.recentObservations.push({
+            const memoryEvent = createMemoryEvent('vision', {
                 observedAt: result.observation?.observedAt || new Date().toISOString(),
                 elapsedSeconds,
-                state: result.decision.state || 'UNKNOWN',
                 scene: result.observation?.scene || '',
+                observation: result.observation?.observation || result.observation?.scene || '',
+                changes: result.observation?.changes || [],
+                confidence: result.observation?.confidence,
                 reaction: result.reaction
             });
-            state.recentObservations = state.recentObservations.slice(-1);
+            memoryEvent.state = result.decision.state || 'UNKNOWN';
+            state.recentObservations.push(memoryEvent);
+            state.recentObservations = state.recentObservations.slice(-24);
+            appendWorkingMemory(memoryEvent);
             window.dispatchEvent(new CustomEvent('focus-companion-result', { detail: result }));
             saveLog({
                 id: logId,
@@ -824,6 +979,14 @@
                 status: 'success',
                 epoch: requestEpoch,
                 turnId,
+                decisionId: result.decision.decisionId || '',
+                decisionReason: result.decision.reason || '',
+                evidenceEventIds: Array.isArray(result.decision.evidenceEventIds) ? result.decision.evidenceEventIds : [],
+                validUntil: result.decision.validUntil || null,
+                memoryShouldUpdateStory: Boolean(result.memory?.shouldUpdateStory),
+                memoryCurrentSituation: result.memory?.currentSituation || '',
+                memoryBehaviorChange: result.memory?.behaviorChange || '',
+                memoryResponseIntent: result.memory?.responseIntent || '',
                 task,
                 persona,
                 image,
@@ -845,7 +1008,7 @@
                     if (state.companionMode === 'strict' && isCriticalVisualEvent(result, 'visual')) {
                         releaseFailedVisualCooldown(result.decision);
                     }
-                    saveLog({ id: logId, ttsStatus: 'failed', ttsBytes: 0, error: error.message || 'TTS failed' });
+                    if (error.name !== 'AbortError') saveLog({ id: logId, ttsStatus: 'failed', ttsBytes: 0, error: error.message || 'TTS failed' });
                     throw error;
                 }
                 if (ttsBytes) state.lastEventOrDialogueAt = Date.now();
@@ -910,11 +1073,10 @@
             cancelReaction('专注已暂停');
             stopAmbientLoop();
             stopOpeningSequence();
-            if (state.companionMode !== 'quiet') announceSessionEvent('pause');
+            announceSessionEvent('pause');
         } else if (state.sessionActive) {
             if (state.stream) startVisionLoop();
-            scheduleAmbientCheck();
-            if (state.companionMode !== 'quiet') announceSessionEvent('resume');
+            announceSessionEvent('resume');
             if (openingElapsedMs() < 120000 && (!state.openingAmbientDone || !state.openingEventDone)) {
                 addOpeningTimer(state.openingAmbientDone ? runOpeningEvent : runOpeningAmbient, 1000);
             }
@@ -922,8 +1084,7 @@
     }
 
     function stopAmbientLoop() {
-        if (state.ambientTimer) window.clearTimeout(state.ambientTimer);
-        state.ambientTimer = null;
+        // 中途定时鼓励已移除。保留空函数供旧生命周期调用安全过渡。
     }
 
     function openingElapsedMs() {
@@ -986,6 +1147,13 @@
     async function playPreparedOpening() {
         const prepared = state.preparedOpening;
         if (!prepared || state.openingAmbientDone || !state.sessionActive) return false;
+        if (!state.voiceAutoEnabled) {
+            beginSpeechMessages();
+            prepared.messages.forEach(message => appendSpeechMessage(message));
+            state.openingAmbientDone = true;
+            state.preparedOpening = null;
+            return true;
+        }
         await ensureAudio();
         if (state.activeSpeechSequence) return false;
         const sequenceId = ++state.speechSequenceId;
@@ -1004,9 +1172,14 @@
             streamEnded: false,
             priority: 4,
             speechType: 'opening',
+            text: prepared.messages.join(''),
+            started: false,
             resolveFinished
         };
         state.playback = playback;
+        playback.started = true;
+        emitSpeechLifecycle('playback_started', { speechType:'opening', text:playback.text });
+        state.policyState.lastAnySpokenAt = Date.now();
         const trackedSpeechId = window.track?.speechStarted({
             source: 'opening', speech_type: 'opening', text_len: prepared.messages.join('').length,
             speech_id: `${state.epoch}-prepared-opening`
@@ -1029,6 +1202,7 @@
         if (!await finished || sequenceId !== state.speechSequenceId) return false;
         if (trackedSpeechId && state.activeTrackSpeechId === trackedSpeechId) {
             window.track?.speechEnded(trackedSpeechId, 'completed', { tts_bytes: prepared.bytes.length });
+            emitSpeechLifecycle('playback_completed', { speechType:'opening', text:playback.text, ttsBytes:prepared.bytes.length });
             state.activeTrackSpeechId = null;
         }
         if (state.activeSpeechSequence?.id === sequenceId) state.activeSpeechSequence = null;
@@ -1076,12 +1250,12 @@
                 return;
             }
             const bytes = await playMessageSequence(messages, { epoch: requestEpoch, turnId }, 4, 'opening');
-            if (!bytes) return;
+            if (!bytes && state.voiceAutoEnabled) return;
             const now = Date.now();
             state.openingAmbientDone = true;
             state.lastAmbientAt = now;
             state.ambientCount += 1;
-            state.policyState.lastAnySpokenAt = now;
+            if (bytes) state.policyState.lastAnySpokenAt = now;
         } catch (error) {
             console.warn('Opening ambient failed:', error);
             if (openingElapsedMs() < 120000) addOpeningTimer(runOpeningAmbient, 5000);
@@ -1111,48 +1285,34 @@
                 return;
             }
             const bytes = await playMessageSequence(messages, { epoch: requestEpoch, turnId }, 2, 'opening_event');
-            if (!bytes) return;
+            if (!bytes && state.voiceAutoEnabled) return;
             state.openingEventDone = true;
             state.lastEventOrDialogueAt = Date.now();
-            state.policyState.lastAnySpokenAt = state.lastEventOrDialogueAt;
+            if (bytes) state.policyState.lastAnySpokenAt = state.lastEventOrDialogueAt;
         } catch (error) {
             console.warn('Opening event failed:', error);
             if (openingElapsedMs() < 120000) addOpeningTimer(runOpeningEvent, 5000);
         }
     }
 
-    function scheduleAmbientCheck() {
-        stopAmbientLoop();
-        if (!state.sessionActive || state.paused) return;
-        if (state.companionMode !== 'occasional') return;
-        const delay = state.encouragementMinutes * 60 * 1000;
-        state.ambientTimer = window.setTimeout(async () => {
-            await speakScheduledEncouragement();
-            scheduleAmbientCheck();
-        }, delay);
-    }
-
-    async function speakScheduledEncouragement() {
-        if (!state.sessionActive || state.paused || state.voiceHeld || state.playback) return;
-        const requestEpoch = state.epoch;
-        const turnId = ++state.turnId;
-        try {
-            const messages = await requestAmbientLine('encourage', { epoch:requestEpoch, turnId });
-            if (!messages.length || requestEpoch !== state.epoch || state.paused) return;
-            await playMessageSequence(messages, { epoch:requestEpoch, turnId }, 4, 'encourage');
-        } catch (error) {
-            console.warn('Scheduled encouragement failed:', error);
-        }
-    }
-
     async function announceSessionEvent(type) {
-        if (state.companionMode === 'quiet') return 0;
         const requestEpoch = state.epoch;
         const turnId = ++state.turnId;
+        const memoryRequestSequence = beginMemoryRequest();
         try {
-            const messages = await requestAmbientLine(type, { epoch:requestEpoch, turnId });
+            const description = type === 'pause' ? '用户刚刚暂停了本次专注。'
+                : type === 'resume' ? '用户暂停后重新恢复了本次专注。'
+                    : '用户刚刚完成了本次专注。';
+            const data = await requestMemoryEvent(type, description, { epoch: requestEpoch, turnId });
+            const messages = normalizeMessages(data.messages, data.reaction);
+            applyStoryMemory(data.memory, memoryRequestSequence);
             if (!messages.length) return 0;
-            return await playMessageSequence(messages, { epoch:requestEpoch, turnId }, 1, type);
+            const bytes = await playMessageSequence(messages, { epoch:requestEpoch, turnId, performance:data.performance }, 1, type);
+            if (bytes) appendWorkingMemory(createMemoryEvent('ai_speech', {
+                elapsedSeconds: Math.floor(openingElapsedMs() / 1000), observation:`AI 对用户说：${messages.join('')}`,
+                reaction:messages.join('\n'), confidence:1, delivered:true
+            }));
+            return bytes;
         } catch (error) {
             console.warn(`Session ${type} announcement failed:`, error);
             return 0;
@@ -1164,94 +1324,47 @@
         state.stageTapCount += 1;
         if (state.stageTapTimer) window.clearTimeout(state.stageTapTimer);
         state.stageTapTimer = window.setTimeout(() => { state.stageTapCount = 0; }, 3000);
-        const level = state.stageTapCount >= 5 ? 'angry' : state.stageTapCount >= 3 ? 'annoyed' : 'normal';
-        const prompt = level === 'angry'
-            ? '我又连续点了你很多次。请严厉但不侮辱地反应，提醒我回到专注。'
-            : level === 'annoyed'
-                ? '我连续点了你几次。请略带无奈地反应，提醒我别玩了。'
-                : '我轻轻点了一下你。请按你的人设给一句自然的反应。';
-        if (level === 'angry') {
-            const stage = document.querySelector('.bn-stage-img');
-            stage?.animate?.([{ transform:'translateX(0)' },{ transform:'translateX(-5px)' },{ transform:'translateX(5px)' },{ transform:'translateX(0)' }], { duration:320 });
-        }
-        await respondToVoice(prompt, { hideUserMessage:true, speechType:'stage_tap' });
-    }
-
-    function scheduleLegacyAmbientCheck() {
-        stopAmbientLoop();
-        if (!state.sessionActive || state.paused) return;
-        const studyPhase = openingElapsedMs() >= 5 * 60 * 1000;
-        const delay = studyPhase
-            ? AMBIENT_POLICY.studyCheckMinMs + Math.floor(Math.random() * AMBIENT_POLICY.studyCheckJitterMs)
-            : AMBIENT_POLICY.checkMinMs + Math.floor(Math.random() * AMBIENT_POLICY.checkJitterMs);
-        state.ambientTimer = window.setTimeout(async () => {
-            await considerAmbientSpeech();
-            scheduleLegacyAmbientCheck();
-        }, delay);
-    }
-
-    async function considerAmbientSpeech() {
-        const now = Date.now();
-        const elapsedSeconds = Math.floor((now - (state.sessionStartedAt || now)) / 1000);
-        const policy = state.policyState || {};
-        if (!state.sessionActive || state.paused || state.voiceHeld || state.visionInFlight || state.playback) return;
-        const productiveStates = ['STUDYING', 'READING', 'WRITING', 'COMPUTER_WORK'];
-        const ambientSafe = !state.stream || !policy.currentState || productiveStates.includes(policy.currentState);
-        if (elapsedSeconds < AMBIENT_POLICY.firstOpportunitySeconds || !ambientSafe || policy.phoneStartedAt) {
-            window.track?.('ai_decision', { engine: 'ambient', decision: 'skip', reason_code: 'early_or_unsafe' }); return;
-        }
-        if (state.lastEventOrDialogueAt && now - state.lastEventOrDialogueAt < AMBIENT_POLICY.eventCooldownMs) return;
-        const studyPhase = elapsedSeconds >= 5 * 60;
-        const ambientCooldownMs = studyPhase ? AMBIENT_POLICY.studyAmbientCooldownMs : AMBIENT_POLICY.ambientCooldownMs;
-        if (state.lastAmbientAt && now - state.lastAmbientAt < ambientCooldownMs) return;
-        const ambientLimit = elapsedSeconds <= 10 * 60
-            ? AMBIENT_POLICY.firstTenMinutesLimit
-            : Math.ceil(elapsedSeconds / (25 * 60)) * AMBIENT_POLICY.perTwentyFiveMinutesLimit;
-        if (state.ambientCount >= ambientLimit) return;
-
-        const focusSeconds = policy.focusStreakStartedAt ? Math.floor((now - policy.focusStreakStartedAt) / 1000) : 0;
-        const speakChance = studyPhase ? AMBIENT_POLICY.studyChance : AMBIENT_POLICY.baseChance;
-        if (Math.random() > speakChance) { window.track?.('ai_decision', { engine: 'ambient', decision: 'skip', reason_code: 'random_roll' }); return; }
-        let type = 'presence';
-        let priority = 5;
-        let activity = '';
-        const studyRoll = Math.random();
-        const needsProductiveEncouragement = productiveStates.includes(policy.currentState)
-            && state.productiveAmbientEncouragementCount < 3;
-        if (needsProductiveEncouragement) {
-            type = 'encourage';
-            priority = 4;
-        } else if (studyPhase && studyRoll < 0.34 && (!state.lastPraiseAt || now - state.lastPraiseAt >= 3 * 60 * 1000)) {
-            type = 'praise';
-            priority = 4;
-        } else if (studyPhase && studyRoll < 0.67) {
-            activity = state.roleActivity;
-            type = 'activity';
-        } else if (studyPhase) {
-            type = 'encourage';
-        }
-
-        const { task, persona } = getCompanionContext();
-        window.track?.('ai_decision', { engine: 'ambient', decision: 'speak', reason_code: type, should_speak: true });
         const requestEpoch = state.epoch;
         const turnId = ++state.turnId;
+        const memoryRequestSequence = beginMemoryRequest();
+        const description = `用户在3秒内点击了角色${state.stageTapCount}次。`;
         try {
-            const messages = await requestAmbientLine(type, { activity, epoch: requestEpoch, turnId });
-            if (requestEpoch !== state.epoch || state.paused || state.voiceHeld || state.visionInFlight) return;
-            if (!messages.length) return;
-            const bytes = await playMessageSequence(messages, { epoch: requestEpoch, turnId }, priority, type);
-            if (!bytes) return;
-            state.lastAmbientAt = now;
-            state.ambientCount += 1;
-            state.policyState.lastAnySpokenAt = now;
-            if (needsProductiveEncouragement) state.productiveAmbientEncouragementCount += 1;
-            if (type === 'praise') {
-                state.lastPraiseAt = now;
+            const data = await requestMemoryEvent('stage_tap', description, { epoch:requestEpoch, turnId });
+            const messages = normalizeMessages(data.messages, data.reaction);
+            applyStoryMemory(data.memory, memoryRequestSequence);
+            if (messages.length) {
+                const bytes = await playMessageSequence(messages, { epoch:requestEpoch, turnId, performance:data.performance }, 1, 'stage_tap');
+                if (bytes) appendWorkingMemory(createMemoryEvent('ai_speech', {
+                    elapsedSeconds:Math.floor(openingElapsedMs() / 1000), observation:`AI 对用户说：${messages.join('')}`,
+                    reaction:messages.join('\n'), confidence:1, delivered:true
+                }));
             }
-            window.dispatchEvent(new CustomEvent('focus-ambient-spoken', { detail: { type, reaction: messages.join('\n'), messages } }));
         } catch (error) {
-            console.warn('Ambient speech failed:', error);
+            console.warn('Stage tap memory event failed:', error);
         }
+    }
+
+    async function requestMemoryEvent(eventType, eventDescription, ids = {}) {
+        state.pipelineController?.abort();
+        state.pipelineController = null;
+        state.memoryEventController?.abort();
+        const controller = new AbortController();
+        state.memoryEventController = controller;
+        const { task, persona, roleContext } = getCompanionContext();
+        const elapsedSeconds = Math.max(0, Math.floor(openingElapsedMs() / 1000));
+        appendWorkingMemory(createMemoryEvent('session', { elapsedSeconds, observation:eventDescription, confidence:1, delivered:true }));
+        const response = await fetch((window.APP_BASE || '') + '/api/companion-observe', {
+            method:'POST', headers:{ 'Content-Type':'application/json' }, signal:controller.signal,
+            body:JSON.stringify({
+                mode:'memory_event', eventType, eventDescription, task, persona, roleContext, elapsedSeconds,
+                workingMemory:state.workingMemory.slice(-24), storyMemory:state.storyMemory,
+                relationshipMemory:state.relationshipMemory, conversationHistory:state.dialogueHistory.slice(-8), ...ids
+            })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || `Memory event HTTP ${response.status}`);
+        if (state.memoryEventController === controller) state.memoryEventController = null;
+        return payload.data || {};
     }
 
     async function startVoiceInput() {
@@ -1322,6 +1435,7 @@
             }
             const { voiceButton } = elements();
             voiceButton?.classList.add('is-listening');
+            setPresence('listening');
             voiceButton?.setAttribute('aria-label', '松开结束语音');
             setCaption('我在听……');
         } catch (error) {
@@ -1387,10 +1501,23 @@
 
     async function respondToVoice(text, options = {}) {
         if (!text) return;
+        cancelReaction('用户主动发言');
+        state.memoryEventController?.abort();
+        state.memoryEventController = null;
+        const memoryCommand = window.companionMemoryCommand?.parseMemoryCommand(text);
+        if (memoryCommand?.type === 'forget_recent') {
+            forgetRecentContext();
+            const acknowledgement = '好，我不会记住刚才的内容。';
+            appendConversationMessage(text, 'user');
+            appendConversationMessage(acknowledgement, 'assistant');
+            setCaption(acknowledgement);
+            return;
+        }
         const { caption } = elements();
         if (caption && caption.id !== 'ocMessageText' && !caption.querySelector('.bn-speech-message')) caption.replaceChildren();
         const requestEpoch = state.epoch;
         const turnId = ++state.turnId;
+        const memoryRequestSequence = beginMemoryRequest();
         const controller = new AbortController();
         state.dialogueController = controller;
         const { task, persona, roleContext } = getCompanionContext();
@@ -1400,6 +1527,7 @@
         const history = state.dialogueHistory.slice(-6);
         if (!options.hideUserMessage) {
             state.dialogueHistory.push({ role: 'user', content: text });
+            appendWorkingMemory(createMemoryEvent('user_speech', { elapsedSeconds, observation: `用户说：${text}`, confidence: 1, delivered: true }));
             appendConversationMessage(text, 'user');
         }
         appendConversationMessage('正在想……', 'assistant', true);
@@ -1408,21 +1536,27 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 signal: controller.signal,
-                body: JSON.stringify({ mode: 'dialogue', text, task, persona, roleContext, elapsedSeconds, scene, history, epoch: requestEpoch, turnId })
+                body: JSON.stringify({
+                    mode: 'dialogue', text, task, persona, roleContext, elapsedSeconds, scene, history,
+                    workingMemory: state.workingMemory.slice(-24), storyMemory: state.storyMemory,
+                    relationshipMemory: state.relationshipMemory, epoch: requestEpoch, turnId
+                })
             });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(payload.error || `Dialogue HTTP ${response.status}`);
             if (requestEpoch !== state.epoch || state.voiceHeld || state.paused) return;
             const messages = normalizeMessages(payload.data?.messages, payload.data?.reaction);
             if (!messages.length) throw new Error('AI 没有生成回复');
+            applyStoryMemory(payload.data?.memory, memoryRequestSequence);
             const reaction = messages.join('\n');
             state.dialogueHistory.push({ role: 'assistant', content: reaction });
             state.dialogueHistory = state.dialogueHistory.slice(-6);
             window.dispatchEvent(new CustomEvent('focus-dialogue-spoken', { detail: { text, reaction, messages } }));
-            const bytes = await playMessageSequence(messages, { epoch: requestEpoch, turnId }, 1, options.speechType || 'dialogue');
+            const bytes = await playMessageSequence(messages, { epoch: requestEpoch, turnId, performance: payload.data?.performance }, 1, options.speechType || 'dialogue');
             if (bytes) {
                 state.lastEventOrDialogueAt = Date.now();
                 state.policyState.lastAnySpokenAt = state.lastEventOrDialogueAt;
+                appendWorkingMemory(createMemoryEvent('ai_speech', { elapsedSeconds, observation: `AI 对用户说：${reaction}`, reaction, confidence: 1, delivered: true }));
             }
         } catch (error) {
             if (error.name !== 'AbortError') {
@@ -1460,12 +1594,34 @@
         }
         const { voiceButton } = elements();
         voiceButton?.classList.remove('is-listening');
+        if (state.sessionActive && !state.playback) setPresence('silent');
         if (voiceButton) voiceButton.setAttribute('aria-label', `和${voiceButton.dataset.roleName || '角色'}说话`);
+    }
+
+    function invalidateMemoryRequests() {
+        state.pipelineController?.abort();
+        state.dialogueController?.abort();
+        state.memoryEventController?.abort();
+        state.pipelineController = null;
+        state.dialogueController = null;
+        state.memoryEventController = null;
+        state.memoryRequestSequence += 1;
+        state.latestAppliedMemoryRequest = state.memoryRequestSequence;
+    }
+
+    function forgetRecentContext() {
+        invalidateMemoryRequests();
+        state.workingMemory = [];
+        state.recentObservations = [];
+        state.storyMemory = null;
+        state.dialogueHistory = [];
+        state.latestObservation = null;
     }
 
     window.focusCompanion = {
         startSession,
         stopSession,
+        completeSession,
         startCamera,
         stopCamera,
         toggleCamera,
@@ -1476,6 +1632,31 @@
         setPaused,
         configureMode,
         setVoiceAutoEnabled,
+        isRelationshipMemoryEnabled: () => state.relationshipMemoryEnabled,
+        getRelationshipMemory: () => state.relationshipMemory,
+        setRelationshipMemoryEnabled: enabled => {
+            state.relationshipMemoryEnabled = Boolean(enabled);
+            localStorage.setItem('bnRelationshipMemoryEnabled', String(state.relationshipMemoryEnabled));
+            if (!state.relationshipMemoryEnabled) state.relationshipMemory = null;
+            else {
+                try { state.relationshipMemory = JSON.parse(localStorage.getItem(RELATIONSHIP_MEMORY_KEY) || 'null'); }
+                catch (_) { state.relationshipMemory = null; }
+            }
+            window.dispatchEvent(new CustomEvent('focus-relationship-memory-updated', { detail:{ relationshipMemory:state.relationshipMemory } }));
+        },
+        replaceRelationshipMemory: memory => {
+            if (!memory || typeof memory !== 'object') return false;
+            state.relationshipMemory = memory;
+            localStorage.setItem(RELATIONSHIP_MEMORY_KEY, JSON.stringify(memory));
+            window.dispatchEvent(new CustomEvent('focus-relationship-memory-updated', { detail:{ relationshipMemory:memory } }));
+            return true;
+        },
+        clearRelationshipMemory: () => {
+            state.relationshipMemory = null;
+            localStorage.removeItem(RELATIONSHIP_MEMORY_KEY);
+            window.dispatchEvent(new CustomEvent('focus-relationship-memory-updated', { detail:{ relationshipMemory:null } }));
+        },
+        forgetCurrentSessionMemory: forgetRecentContext,
         requestStrictCameraPermission,
         announceSessionEvent,
         reactToStageTap,

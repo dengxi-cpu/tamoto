@@ -35,6 +35,9 @@ async function handler(req, res) {
   const voiceProvider = String(req.body?.voiceProvider || '').trim().toLowerCase();
   const requestedVoiceId = String(req.body?.voiceId || '').trim();
   const speechLanguage = String(req.body?.speechLanguage || '').toLowerCase() === 'en' ? 'en' : 'zh';
+  const performance = req.body?.performance && typeof req.body.performance === 'object' ? req.body.performance : {};
+  const performanceIntensity = Math.max(0, Math.min(1, Number(performance.intensity) || 0.3));
+  const performancePace = ['slow', 'normal', 'fast'].includes(performance.pace) ? performance.pace : 'normal';
   const apiKey = process.env.TTS_API_KEY || process.env.SPEECH_API_KEY;
   const apiUrl = process.env.TTS_API_URL || DEFAULT_TTS_API_URL;
   const resourceId = process.env.TTS_RESOURCE_ID || DEFAULT_TTS_RESOURCE_ID;
@@ -78,7 +81,7 @@ async function handler(req, res) {
           text,
           model_id: process.env.ELEVENLABS_TTS_MODEL || DEFAULT_ELEVENLABS_MODEL,
           language_code: speechLanguage,
-          voice_settings: { stability: 0.58, similarity_boost: 0.78, style: 0.18, use_speaker_boost: true }
+          voice_settings: { stability: 0.58, similarity_boost: 0.78, style: Math.min(0.65, 0.1 + performanceIntensity * 0.45), use_speaker_boost: true }
         })
       });
       if (!upstream.ok || !upstream.body) {
@@ -127,8 +130,8 @@ async function handler(req, res) {
           sample_rate: DEFAULT_SAMPLE_RATE,
           audio_params: {
             format: 'pcm',
-            speech_rate: 0,
-            loudness_rate: 0
+            speech_rate: performancePace === 'slow' ? -15 : performancePace === 'fast' ? 15 : 0,
+            loudness_rate: Math.round((performanceIntensity - 0.3) * 20)
           },
           additions: JSON.stringify({
             post_process: { pitch: 0 },

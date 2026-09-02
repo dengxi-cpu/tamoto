@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>伴柠番茄钟 · 问卷统计工作台</title>
+<style>
+  :root {
+    --grad-from: #a855f7;
+    --grad-to: #ec4899;
+    --ink: #1e293b;
+    --muted: #64748b;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: linear-gradient(160deg, #f5f3ff 0%, #fdf2f8 100%);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 26px 14px 80px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  header { margin-bottom: 22px; }
+  header h1 {
+    font-size: 24px; font-weight: 800;
+    background: linear-gradient(90deg, var(--grad-from), var(--grad-to));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  header p { color: var(--muted); font-size: 13px; margin-top: 6px; }
+
+  .header-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .header-actions a, .header-actions button {
+    text-decoration: none; border: none; cursor: pointer;
+    font-size: 13px; font-weight: 700; padding: 10px 14px; border-radius: 12px;
+    transition: transform .1s, opacity .15s; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .header-actions a:active, .header-actions button:active { transform: scale(.97); }
+  .btn-link { background: linear-gradient(90deg, var(--grad-from), var(--grad-to)); color: #fff; box-shadow: 0 4px 14px rgba(168,85,247,.3); }
+  .btn-ghost { background: #fff; color: var(--ink); border: 1px solid #e9d5ff !important; }
+  .btn-danger { background: #fff; color: #e11d48; border: 1px solid #fecdd3 !important; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat {
+    background: var(--card); border: 1px solid rgba(168,85,247,.12);
+    border-radius: 16px; padding: 14px 16px;
+    box-shadow: 0 3px 12px rgba(168,85,247,.06);
+  }
+  .stat b { display: block; font-size: 26px; background: linear-gradient(90deg, var(--grad-from), var(--grad-to)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat span { font-size: 12px; color: var(--muted); }
+
+  .card {
+    background: var(--card); border: 1px solid rgba(168,85,247,.12);
+    border-radius: 18px; padding: 18px 20px; margin-bottom: 16px;
+    box-shadow: 0 4px 18px rgba(168,85,247,.06);
+  }
+  .card h3 { font-size: 15px; font-weight: 800; margin-bottom: 6px; }
+  .card h3 .tag { font-size: 11px; color: #a855f7; background: #f3e8ff; padding: 2px 8px; border-radius: 999px; margin-left: 8px; font-weight: 600; }
+  .hint { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 10px; }
+
+  textarea {
+    width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px;
+    font-size: 13px; font-family: inherit; line-height: 1.6;
+    outline: none; background: #fafafa; resize: vertical; min-height: 120px;
+  }
+  textarea:focus { border-color: #a855f7; box-shadow: 0 0 0 3px rgba(168,85,247,.12); background: #fff; }
+  .btn-primary {
+    width: 100%; margin-top: 10px; border: none; cursor: pointer;
+    background: linear-gradient(90deg, var(--grad-from), var(--grad-to));
+    color: #fff; font-size: 14px; font-weight: 700; padding: 12px;
+    border-radius: 12px; box-shadow: 0 4px 14px rgba(168,85,247,.3);
+  }
+  .btn-primary:active { transform: scale(.98); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #f1f5f9; }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td.del button { border: none; background: none; color: #e11d48; cursor: pointer; font-size: 12px; padding: 2px 6px; border-radius: 6px; }
+  td.del button:hover { background: #ffe4e6; }
+  td.dev { font-family: ui-monospace, monospace; font-size: 11px; color: #a78bfa; word-break: break-all; }
+  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 14px 0; }
+
+  .bar-row { display: grid; grid-template-columns: 200px 1fr 64px; gap: 10px; align-items: center; padding: 4px 0; }
+  .bar-label { font-size: 12.5px; color: var(--ink); line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { height: 16px; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--grad-from), var(--grad-to)); border-radius: 999px; transition: width .3s ease; }
+  .bar-num { font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; }
+  .bar-row.unknown .bar-fill { background: #94a3b8; }
+  @media (max-width: 560px) { .bar-row { grid-template-columns: 110px 1fr 52px; gap: 6px; } }
+
+  .open-item { border: 1px solid #f1f5f9; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; background: #fafafa; }
+  .open-item .meta { font-size: 11px; color: #a78bfa; margin-bottom: 4px; }
+  .open-item .body { font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%) translateY(20px);
+    background: rgba(15,23,42,0.88); color: #fff; font-size: 13px;
+    padding: 10px 18px; border-radius: 999px; z-index: 60;
+    opacity: 0; pointer-events: none; transition: all .25s ease;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📊 伴柠番茄钟 · 问卷统计工作台</h1>
+    <p>与「内测反馈问卷」配套。回收问卷结果 → 自动解析 → 聚合统计。</p>
+    <div class="header-actions">
+      <a class="btn-link" href="内测反馈问卷.html" target="_blank">🌸 打开内测问卷</a>
+      <button class="btn-ghost" onclick="importDraft()">导入本机问卷草稿</button>
+      <button class="btn-ghost" onclick="exportCSV()">导出 CSV</button>
+      <button class="btn-ghost" onclick="exportJSON()">导出 JSON</button>
+      <button class="btn-danger" onclick="clearAll()">清空数据</button>
+    </div>
+  </header>
+
+  <div class="stats-row">
+    <div class="stat"><b id="statCount">0</b><span>回收份数</span></div>
+    <div class="stat"><b id="statKeep">0</b><span>会继续使用（肯定+应该）</span></div>
+    <div class="stat"><b id="statFreq">0</b><span>认为AI频率刚好/更频繁</span></div>
+    <div class="stat"><b id="statCam">0</b><span>摄像头开着/想开</span></div>
+  </div>
+
+  <div class="card">
+    <h3>📥 回收问卷 <span class="tag">两种方式</span></h3>
+    <p class="hint">
+      <b>方式一</b>：把用户提交后复制的结果粘贴到下面（可一次粘多条，每条以「【伴柠番茄钟 · 内测反馈】」开头），点「解析并入库」。<br>
+      <b>方式二</b>：如果你自己在问卷里填过，直接点上面「导入本机问卷草稿」。
+    </p>
+    <textarea id="pasteArea" placeholder="在此粘贴问卷提交结果…"></textarea>
+    <button class="btn-primary" onclick="importPaste()">解析并入库</button>
+  </div>
+
+  <div class="card">
+    <h3>🗂 明细 <span class="tag" id="recordCount">0 份</span></h3>
+    <table>
+      <thead><tr><th>#</th><th>提交时间</th><th>设备ID（用于和埋点关联）</th><th></th></tr></thead>
+      <tbody id="recordBody"></tbody>
+    </table>
+  </div>
+
+  <div id="stats"></div>
+
+  <div class="card">
+    <h3>📝 开放回答</h3>
+    <div id="openAnswers"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+const STORE_KEY = 'tamoto_survey_workbench_v1';
+const DRAFT_KEY = 'tamoto_survey_v1';
+
+// ============ 与问卷镜像的配置（顺序必须一致） ============
+const CONFIG = [
+  { type: 'single', label: '使用场景', opts: ['学习 / 备考', '工作', '健身 / 自律', '休闲 / 阅读', '其他'] },
+  { type: 'single', label: 'TA 陪伴的帮助度', opts: ['帮助很大，没它我可能坚持不下来', '有一些帮助，是加分项', '帮助不大，番茄钟本身才是重点', '反而是负担 / 干扰', '说不好'] },
+  { type: 'single', label: '心流频率', opts: ['总是', '经常', '偶尔', '很少', '几乎没有'] },
+  { type: 'single', label: '刷手机分心', opts: ['基本不看手机', '偶尔瞄一眼', '会刷一会儿', '经常走神看手机'] },
+  { type: 'multi', label: '放弃原因', opts: ['任务太难 / 做不下去', '25 分钟太长，坐不住', '有急事 / 临时要离开', '被 TA 的语音打扰', '一个人专注太无聊', '其他'] },
+  { type: 'single', label: '希望 AI 主动说话的频率', opts: ['更频繁，陪伴感越强越好', '现在这个频率刚好', '再少一点', '最好别主动说', '完全静音（偶尔手动点 TA）'] },
+  { type: 'multi', label: 'AI 说话的合适时机', opts: ['专注刚开始时', '我分心 / 玩手机时提醒我', '我长时间专注后（比如 20 分钟）', '我休息 / 暂停时', '我从外面回来时', '无所谓，我自己想听时点 TA'] },
+  { type: 'multi', label: '喜欢的 AI 内容类型', opts: ['加油鼓励', '夸我“认真 / 坚持”', '提醒我别分心', '报进度（你已经专注 X 分钟了）', '闲聊日常', '剧情扮演 / 角色代入', '其他'] },
+  { type: 'multi', label: '喜欢的 AI 语气', opts: ['温柔 / 治愈', '活泼 / 元气', '严厉督促', '幽默 / 搞笑', '中二 / 中二病', '高冷 / 话少'] },
+  { type: 'multi', label: '觉得被打扰的时刻', opts: ['没有，都挺好', '专注刚开始（我还没进入状态）', '我正卡壳思考 / 解题时', '我已经在专注了还频繁说话', '内容重复 / 说来说去差不多', '内容尴尬 / 出戏', '其他'] },
+  { type: 'multi', label: '更愿意的互动方式', opts: ['文字聊天', '按住说话（语音输入）', '点 TA 头像', '开摄像头让 TA“看见”我', '基本不互动，TA 看着就行'] },
+  { type: 'single', label: '摄像头情况', opts: ['开着，很喜欢', '想开，但担心隐私', '想开，但怕耗电 / 发热', '开了但觉得没用', '不知道有这功能', '环境不允许 / 不想被看见'] },
+  { type: 'single', label: '语音输入情况', opts: ['用过，体验不错', '用过，但识别不准 / 卡', '知道有，但没试过', '不喜欢 / 觉得麻烦', '不知道有这个功能'] },
+  { type: 'single_reason', label: '是否继续使用 + 原因', opts: ['肯定会，已经离不开', '应该会，再看体验', '不好说', '大概不会'] },
+  { type: 'text', label: '其他建议' }
+];
+
+// ============ 存取 ============
+function loadRecords() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); } catch { return []; }
+}
+function saveRecords(list) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(list));
+  render();
+}
+
+// ============ 解析粘贴文本 ============
+function parseSurvey(text) {
+  const chunks = String(text).split('【伴柠番茄钟 · 内测反馈】').map(c => c.trim()).filter(Boolean);
+  const records = [];
+  for (const chunk of chunks) {
+    const mTime = chunk.match(/提交时间：([^\n]*)/);
+    const mDev = chunk.match(/设备ID：([^\n]*)/);
+    const answers = {};
+    const blocks = chunk.split(/^\d+[.．、]/m).slice(1);
+    blocks.forEach((b, i) => {
+      const ai = b.indexOf('答：');
+      answers['q' + (i + 1)] = ai >= 0 ? b.slice(ai + '答：'.length).trim() : '';
+    });
+    if (!Object.keys(answers).length) continue;
+    records.push({
+      submittedAt: mTime ? mTime[1].trim() : '',
+      deviceId: mDev ? mDev[1].trim() : '',
+      answers
+    });
+  }
+  return records;
+}
+
+function importPaste() {
+  const text = document.getElementById('pasteArea').value.trim();
+  if (!text) { toast('先粘贴问卷结果'); return; }
+  const parsed = parseSurvey(text);
+  if (!parsed.length) { toast('没解析到有效内容，请确认格式'); return; }
+  const list = loadRecords();
+  let added = 0, dup = 0;
+  for (const r of parsed) {
+    if (r.deviceId && r.submittedAt && list.some(x => x.deviceId === r.deviceId && x.submittedAt === r.submittedAt)) { dup++; continue; }
+    list.push(r); added++;
+  }
+  saveRecords(list);
+  document.getElementById('pasteArea').value = '';
+  toast(`入库 ${added} 份${dup ? '，跳过重复 ' + dup + ' 份' : ''}`);
+}
+
+function importDraft() {
+  let draft;
+  try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}'); } catch { draft = {}; }
+  if (!Object.keys(draft).length) { toast('本机没有问卷草稿，请先在问卷页填写'); return; }
+  const answers = {};
+  for (let i = 1; i <= CONFIG.length; i++) {
+    const v = draft['q' + i];
+    if (v == null) continue;
+    if (v && typeof v === 'object') answers['q' + i] = (v.choice || '') + (v.reason ? '；原因：' + v.reason : '');
+    else if (Array.isArray(v)) answers['q' + i] = v.join('、');
+    else answers['q' + i] = String(v);
+  }
+  const list = loadRecords();
+  const deviceId = localStorage.getItem('tamotoPushDeviceId') || '';
+  const submittedAt = new Date().toLocaleString();
+  if (deviceId && list.some(x => x.deviceId === deviceId && x.submittedAt === submittedAt)) { toast('已存在相同记录'); return; }
+  list.push({ submittedAt, deviceId, answers });
+  saveRecords(list);
+  toast('已从本机问卷草稿导入 1 份');
+}
+
+function deleteRecord(i) {
+  const list = loadRecords();
+  list.splice(i, 1);
+  saveRecords(list);
+  toast('已删除');
+}
+function clearAll() {
+  if (!confirm('确定清空工作台全部统计数据和明细？')) return;
+  localStorage.removeItem(STORE_KEY);
+  render();
+  toast('已清空');
+}
+
+// ============ 聚合 ============
+function baseOf(token) { return String(token).split('：')[0].trim(); }
+
+function tally(records, key, type) {
+  const counts = {};
+  let respondents = 0, selections = 0;
+  for (const r of records) {
+    const raw = r.answers[key];
+    if (!raw || raw === '（未选）' || raw === '（未填）') continue;
+    respondents++;
+    if (type === 'multi') {
+      for (const p of raw.split('、')) { const b = baseOf(p); counts[b] = (counts[b] || 0) + 1; selections++; }
+    } else {
+      const b = baseOf(raw.split('；原因：')[0]);
+      counts[b] = (counts[b] || 0) + 1; selections++;
+    }
+  }
+  return { counts, respondents, selections };
+}
+
+function barChart(counts, opts, total, totalLabel) {
+  const known = opts.map(o => ({ o, n: counts[o] || 0 }));
+  const unknownKeys = Object.keys(counts).filter(k => !opts.includes(k));
+  const unknown = unknownKeys.map(k => ({ o: k, n: counts[k] })).sort((a, b) => b.n - a.n);
+  const rows = [...known, ...unknown.map(x => ({ o: x.o, n: x.n, unk: true }))]
+    .filter(r => r.n > 0)
+    .sort((a, b) => {
+      if (a.unk && !b.unk) return 1;
+      if (!a.unk && b.unk) return -1;
+      return b.n - a.n;
+    });
+  if (!rows.length) return '<div class="empty">暂无数据</div>';
+  const max = Math.max(...rows.map(r => r.n));
+  return rows.map(r => {
+    const pct = total ? Math.round(r.n / total * 100) : 0;
+    return `<div class="bar-row${r.unk ? ' unknown' : ''}">
+      <div class="bar-label" title="${r.o}">${escapeHtml(r.o)}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, pct)}%"></div></div>
+      <div class="bar-num">${r.n} · ${pct}%</div>
+    </div>`;
+  }).join('') + `<div class="hint" style="margin-top:6px">共 ${total} ${totalLabel}</div>`;
+}
+
+function textList(records, key) {
+  const items = records
+    .map(r => ({ t: r.submittedAt, d: r.deviceId, v: r.answers[key] }))
+    .filter(x => x.v && x.v !== '（未填）' && x.v !== '（未选）');
+  if (!items.length) return '<div class="empty">暂无填写</div>';
+  return items.map((x, i) => `
+    <div class="open-item">
+      <div class="meta">#${i + 1} · ${x.t || '时间未知'} · ${x.d || '无设备ID'}</div>
+      <div class="body">${escapeHtml(x.v)}</div>
+    </div>`).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ============ 渲染 ============
+function render() {
+  const records = loadRecords();
+  document.getElementById('statCount').textContent = records.length;
+  document.getElementById('recordCount').textContent = records.length + ' 份';
+
+  const keepT = tally(records, 'q14', 'single_reason');
+  const freqT = tally(records, 'q6', 'single');
+  const camT = tally(records, 'q12', 'single');
+  document.getElementById('statKeep').textContent = (keepT.counts['肯定会，已经离不开'] || 0) + (keepT.counts['应该会，再看体验'] || 0);
+  document.getElementById('statFreq').textContent = (freqT.counts['现在这个频率刚好'] || 0) + (freqT.counts['更频繁，陪伴感越强越好'] || 0);
+  document.getElementById('statCam').textContent = (camT.counts['开着，很喜欢'] || 0) + (camT.counts['想开，但担心隐私'] || 0) + (camT.counts['想开，但怕耗电 / 发热'] || 0);
+
+  // 明细表
+  const body = document.getElementById('recordBody');
+  if (!records.length) {
+    body.innerHTML = '<tr><td colspan="4" class="empty">还没有数据，先回收几份问卷吧</td></tr>';
+  } else {
+    body.innerHTML = records.map((r, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${escapeHtml(r.submittedAt || '—')}</td>
+        <td class="dev">${escapeHtml(r.deviceId || '—')}</td>
+        <td class="del"><button onclick="deleteRecord(${i})">删除</button></td>
+      </tr>`).join('');
+  }
+
+  // 逐题统计
+  let html = '';
+  CONFIG.forEach((c, i) => {
+    const key = 'q' + (i + 1);
+    html += `<div class="card"><h3>Q${i + 1} · ${c.label}</h3>`;
+    if (c.type === 'single' || c.type === 'multi') {
+      const t = tally(records, key, c.type);
+      const total = c.type === 'multi' ? t.selections : t.respondents;
+      html += barChart(t.counts, c.opts, total, c.type === 'multi' ? '次选择' : '人回答');
+    } else if (c.type === 'single_reason') {
+      const t = tally(records, key, 'single_reason');
+      html += barChart(t.counts, c.opts, t.respondents, '人回答');
+    } else {
+      html += textList(records, key);
+    }
+    html += '</div>';
+  });
+  document.getElementById('stats').innerHTML = html;
+
+  // 开放回答（Q14 原因 + Q15 建议）
+  let openHtml = '';
+  const reasons = records
+    .map(r => ({ t: r.submittedAt, d: r.deviceId, v: r.answers['q14'] || '' }))
+    .filter(x => x.v && x.v.includes('；原因：'));
+  openHtml += `<h3 style="font-size:14px;margin:2px 0 10px">Q14 · 继续使用的原因</h3>`;
+  openHtml += reasons.length ? reasons.map((x, i) => `
+    <div class="open-item"><div class="meta">#${i + 1} · ${escapeHtml(x.t)} · ${escapeHtml(x.d)}</div>
+    <div class="body">${escapeHtml(x.v.split('；原因：')[1])}</div></div>`).join('')
+    : '<div class="empty">暂无填写</div>';
+  openHtml += `<h3 style="font-size:14px;margin:16px 0 10px">Q15 · 其他建议 / 吐槽</h3>`;
+  openHtml += textList(records, 'q15');
+  document.getElementById('openAnswers').innerHTML = openHtml;
+}
+
+// ============ 导出 ============
+function download(filename, content, mime) {
+  const blob = new Blob([content], { type: mime || 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function exportCSV() {
+  const records = loadRecords();
+  const headers = ['提交时间', '设备ID', ...CONFIG.map(c => 'Q' + c.label)];
+  const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""').replace(/\n/g, ' ') + '"';
+  const lines = [headers.map(esc).join(',')];
+  records.forEach(r => {
+    const row = [r.submittedAt, r.deviceId, ...CONFIG.map((c, i) => r.answers['q' + (i + 1)] || '')];
+    lines.push(row.map(esc).join(','));
+  });
+  download('伴柠内测问卷统计.csv', '﻿' + lines.join('\r\n'), 'text/csv;charset=utf-8');
+  toast('已导出 CSV');
+}
+function exportJSON() {
+  download('伴柠内测问卷统计.json', JSON.stringify(loadRecords(), null, 2), 'application/json;charset=utf-8');
+  toast('已导出 JSON');
+}
+
+// ============ toast ============
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+render();
+</script>
+</body>
+</html>

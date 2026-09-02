@@ -32,7 +32,7 @@ async function apiCall(endpoint, options = {}) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
         try {
-            const response = await fetch(endpoint, { ...fetchOptions, signal: controller.signal });
+            const response = await fetch((window.APP_BASE || '') + endpoint, { ...fetchOptions, signal: controller.signal });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
                 const error = new Error(payload.error || `HTTP Error: ${response.status}`);

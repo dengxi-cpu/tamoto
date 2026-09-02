@@ -17,6 +17,14 @@ app.use(cors());
 // 解析 JSON 请求体
 app.use(express.json({ limit: '4mb' }));
 
+// 与线上一致：/beta/:path* → /:path*（剥离前缀，让 /beta 下的资源/API 正常解析）
+app.use((req, res, next) => {
+  if (req.originalUrl.startsWith('/beta/') && req.originalUrl !== '/beta/') {
+    req.url = req.originalUrl.replace(/^\/beta/, '');
+  }
+  next();
+});
+
 // 静态文件服务（index.html 在根目录）
 app.use(express.static(__dirname));
 

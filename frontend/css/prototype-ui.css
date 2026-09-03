@@ -1614,6 +1614,29 @@ body.bn-beta-setup-keyboard { overflow:hidden; overscroll-behavior:none; }
 @keyframes bn-orb-breathe { 50% { transform:translateX(-50%) scale(1.003); } }
 @keyframes bn-orb-orbit { from { transform:rotate(0deg) translateX(calc(var(--bn-orb-size) / 2 + 7px)); } to { transform:rotate(360deg) translateX(calc(var(--bn-orb-size) / 2 + 7px)); } }
 
+/* Supervision keeps the original full-screen companion view; only scene mode uses the orb. */
+.bn-focus-running[data-companion-visual="supervision"] .bn-companion-orb { display:none; }
+.bn-focus-running[data-companion-visual="supervision"] .bn-stage-img {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  margin:0;
+  object-position:center;
+  filter:none;
+  transform:none;
+}
+.bn-focus-running[data-companion-visual="supervision"] .bn-stage::after {
+  background:linear-gradient(to bottom,rgba(19,13,25,.55),transparent 28%,transparent 50%,rgba(18,11,24,.82));
+}
+.bn-focus-running[data-companion-visual="supervision"] .bn-camera-preview {
+  top:max(72px,calc(env(safe-area-inset-top) + 62px));
+  right:22px;
+  left:auto;
+  width:76px;
+  border-radius:17px;
+}
+
 /* Reserve the middle of the vertical composition for the orb without changing controls. */
 .bn-focus-running .bn-dialogue-row { margin-top:auto; }
 .bn-focus-running .bn-call-time { font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif; font-variant-numeric:tabular-nums; font-weight:550; letter-spacing:-.045em; }

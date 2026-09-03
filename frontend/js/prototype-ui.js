@@ -1722,6 +1722,16 @@
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-checked', String(active));
     });
+    syncCompanionVisualMode();
+  }
+
+  function syncCompanionVisualMode() {
+    const runningScreen = document.querySelector('.bn-screen[data-bn-screen="running"]');
+    if (!runningScreen) return;
+    const visualMode = state.companionMode === 'occasional' ? 'scene' : 'supervision';
+    if (runningScreen.dataset.companionVisual === visualMode) return;
+    runningScreen.dataset.companionVisual = visualMode;
+    window.dispatchEvent(new CustomEvent('companion-visual-mode-change', { detail:{ visualMode } }));
   }
 
   function initCompanionOrb() {
@@ -1751,7 +1761,7 @@
       return .14 + .07 * Math.sin(angle * 2 + .6) + .045 * Math.sin(angle * 5 - .9);
     });
     const draw = now => {
-      if (!runningScreen.classList.contains('is-active') || document.hidden) { frame = 0; return; }
+      if (!runningScreen.classList.contains('is-active') || runningScreen.dataset.companionVisual !== 'scene' || document.hidden) { frame = 0; return; }
       const dt = Math.min(32, now - last); last = now;
       const t = now / 1000;
       for (let i = 0; i < count; i += 1) {
@@ -1788,6 +1798,7 @@
       else if (['silent','listening','watching'].includes(event.detail?.presence)) speaking = false;
       orb.dataset.speaking = String(speaking);
     });
+    window.addEventListener('companion-visual-mode-change', event => event.detail?.visualMode === 'scene' ? start() : stop());
     document.addEventListener('visibilitychange', () => document.hidden ? stop() : start());
     window.addEventListener('beforeunload', () => { stop(); screenObserver.disconnect(); }, { once:true });
     start();
@@ -2052,6 +2063,7 @@
 
   function init() {
     renderShell();
+    syncCompanionVisualMode();
     document.body.classList.add('bn-ui-active');
     if (isBetaMode) document.body.classList.add('bn-beta-mode');
     document.querySelectorAll('body > div:not(#bnApp) .floating, body > div:not(#bnApp) .sparkle').forEach(element => {

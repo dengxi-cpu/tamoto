@@ -262,7 +262,9 @@ async function handler(req, res) {
           said: String(item.actorAction.said || item.reaction || '').slice(0, 200),
           intent: String(item.actorAction.intent || '').slice(0, 300),
           intendedUserAction: String(item.actorAction.intendedUserAction || '').slice(0, 300),
-          outputLanguage: String(item.actorAction.outputLanguage || '').slice(0, 20)
+          outputLanguage: String(item.actorAction.outputLanguage || '').slice(0, 20),
+          actionType: String(item.actorAction.actionType || '').slice(0, 30),
+          expectsUserResponse: item.actorAction.expectsUserResponse !== false
         } : null
       })) : recentObservations;
   const storyMemory = sanitizeStoryMemory(req.body?.storyMemory);

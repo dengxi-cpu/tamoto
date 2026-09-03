@@ -73,7 +73,7 @@ app.all('/api/sync', proxyApi(apiModules.sync));
 app.all('/api/push', proxyApi(apiModules.push));
 app.all('/api/reminders', proxyApi(apiModules.reminders));
 app.post('/api/speech', proxyApi(apiModules.speech.handler));
-app.post('/api/companion-observe', proxyApi(apiModules.companionObserve.handler));
+app.all('/api/companion-observe', proxyApi(apiModules.companionObserve.handler));
 app.get('/api/vision-health', proxyApi(apiModules.visionHealth.handler));
 app.post('/api/tts-stream', proxyApi(apiModules.ttsStream.handler));
 app.all('/api/companion-logs', proxyApi(apiModules.companionLogs.handler));

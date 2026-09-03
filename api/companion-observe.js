@@ -1,4 +1,4 @@
-const { CompanionPipelineError, generateReaction, generateAmbient, generateSessionOpening, generateBodyDoublePlan, consolidateRelationshipMemory, runDialogueMemoryPipeline, runMemoryEventPipeline, runCompanionPipeline } = require('../lib/companion-pipeline');
+const { CompanionPipelineError, generateReaction, generateAmbient, generateSessionOpening, generateBodyDoublePlan, consolidateRelationshipMemory, runDialogueMemoryPipeline, runMemoryEventPipeline, runCompanionPipeline, getCompanionSystemPrompts } = require('../lib/companion-pipeline');
 const { assemblePersonaPrompt } = require('../lib/companion-prompt');
 const { upsertCompanionLog } = require('./companion-logs');
 const { visualPipelineTrace, memoryEventTrace, dialogueTrace } = require('../lib/companion-trace');
@@ -36,6 +36,7 @@ function memoryDebugText(data) {
 }
 
 async function handler(req, res) {
+  if (req.method === 'GET') return json(res, 200, { success:true, data:{ prompts:getCompanionSystemPrompts() } });
   if (req.method !== 'POST') return json(res, 405, { success: false, error: 'Method not allowed' });
   const persona = assemblePersonaPrompt(req.body?.roleContext, req.body?.persona);
 
@@ -268,7 +269,9 @@ async function handler(req, res) {
     const data = await runCompanionPipeline({
       image, task, persona, epoch, turnId,
       sessionStartedAt, elapsedSeconds, recentObservations, workingMemory,
-      storyMemory, relationshipMemory, conversationHistory, policyState
+      storyMemory, relationshipMemory, conversationHistory, policyState,
+      promptOverrides: req.body?.promptOverrides && typeof req.body.promptOverrides === 'object'
+        ? req.body.promptOverrides : {}
     });
     await upsertCompanionLog({
       epoch, turnId, image, task, persona: `${persona}\n${contextSummary}`,

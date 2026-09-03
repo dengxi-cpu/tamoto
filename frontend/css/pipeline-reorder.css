@@ -1,0 +1,46 @@
+.reorder-col {
+  width: 58px;
+  text-align: center;
+}
+
+.reorder-cell {
+  width: 58px;
+  padding: 7px 6px;
+  text-align: center;
+  background: #fafafa;
+}
+
+.reorder-cell button {
+  display: block;
+  width: 42px;
+  margin: 0 auto 4px;
+  padding: 2px;
+  border: 1px solid #d8dbe0;
+  border-radius: 4px;
+  background: #fff;
+  color: #646a73;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.reorder-cell .drag-handle {
+  font-size: 18px;
+  line-height: 20px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.reorder-cell .drag-handle:active { cursor: grabbing; }
+tr.dragging { opacity: .42; }
+tr.drag-over td { border-top: 2px solid #3370ff; }
+.truth-col { width: 220px; }
+.truth-editor { display: grid; gap: 5px; }
+.truth-editor select,
+.truth-editor input {
+  width: 100%;
+  height: 27px;
+  border: 1px solid #c9cdd4;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 11px;
+}

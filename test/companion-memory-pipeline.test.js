@@ -194,3 +194,59 @@ test('later visual reaction can reference an unresolved earlier promise', async 
   assert.deepEqual(result.decision.evidenceEventIds, ['speech-1','vision-2']);
   assert.equal(result.memory.storyMemory.openLoops[0].status, 'open');
 });
+
+test('interaction memory sends the last actor request and later evidence to Memory LLM', async () => {
+  const requestBodies = [];
+  const responses = [
+    { observation:'用户仍手持手机注视屏幕。', visibleFacts:{ phone:true }, state:'PHONE', confidence:0.98 },
+    { shouldUpdateStory:false, storyMemory:{}, behaviorTransition:{ from:'PHONE', to:'PHONE', meaning:'用户未响应上一句' }, interactionOutcome:{ type:'ignored_previous_request', evidence:'提醒后仍看手机', confidence:0.96 }, characterShift:{ from:'克制提醒', to:'更严肃', reason:'要求未被响应' }, characterState:{ emotion:'firm', tension:'medium', attitude:'更严肃' }, intendedUserAction:'停止看手机并拿起笔', responseIntent:'承接被忽视的上一句，用更短的追问', avoidRepetition:['手机放下'], shouldSpeak:true, silentReaction:'watching' },
+    { text:'还在看？', performance:{ emotion:'firm', intensity:0.55, pace:'slow', pauseBefore:300 } }
+  ];
+  global.fetch = async (_url, options = {}) => {
+    if (options.body) requestBodies.push(JSON.parse(options.body));
+    return jsonResponse({ choices:[{ message:{ content:JSON.stringify(responses.shift()) } }] });
+  };
+  const result = await runCompanionPipeline({
+    image:'data:image/jpeg;base64,AA==', task:'写作业', persona:'严格但关心用户', epoch:8, turnId:2,
+    sessionStartedAt:new Date().toISOString(), elapsedSeconds:20, recentObservations:[], policyState:{},
+    workingMemory:[{ id:'frame-1', type:'vision', elapsedSeconds:0, state:'PHONE', observation:'用户看手机', reaction:'手机先放下。', actorAction:{ said:'手机先放下。', intent:'拉回任务', intendedUserAction:'停止看手机并拿起笔', outputLanguage:'zh' } }]
+  });
+  const memoryInput = requestBodies[1].messages.find(message => message.role === 'user').content;
+  assert.match(memoryInput, /上一轮待判断互动/);
+  assert.match(memoryInput, /手机先放下/);
+  assert.match(memoryInput, /停止看手机并拿起笔/);
+  assert.equal(result.memory.interactionOutcome.type, 'ignored_previous_request');
+  assert.deepEqual(result.memory.avoidRepetition, ['手机放下']);
+  assert.deepEqual(result.messages, ['还在看？']);
+});
+
+test('followed request can be acknowledged once while stable focus stays silent', async () => {
+  const responses = [
+    { observation:'用户放下手机重新持笔书写。', visibleFacts:{ phone:false, hands:'writing' }, state:'WRITING', confidence:0.96 },
+    { shouldUpdateStory:true, evidenceEventIds:['frame-1','vision-20'], storyMemory:{ version:1, sessionGoal:'写作业', summary:'用户听从提醒恢复书写。', importantMoments:[], openLoops:[{ id:'return', content:'放下手机回到任务', status:'resolved', evidenceEventIds:['frame-1','vision-20'] }], characterState:{ emotion:'relieved', tension:'low', attitude:'克制认可' }, lastInteraction:{ type:'vision', summary:'用户恢复书写', elapsedSeconds:20 } }, behaviorTransition:{ from:'PHONE', to:'WRITING', meaning:'用户回应了上一轮要求' }, interactionOutcome:{ type:'followed_previous_request', evidence:'手机消失并重新持笔', confidence:0.95 }, characterShift:{ from:'严肃督促', to:'克制认可', reason:'用户执行了要求' }, characterState:{ emotion:'relieved', tension:'low', attitude:'克制认可' }, intendedUserAction:'继续当前任务', responseIntent:'只简短确认一次，然后不再打扰', avoidRepetition:['手机放下'], shouldSpeak:true, silentReaction:'watching' },
+    { text:'嗯，继续。', performance:{ emotion:'relieved', intensity:0.25, pace:'slow', pauseBefore:100 } }
+  ];
+  global.fetch = async () => jsonResponse({ choices:[{ message:{ content:JSON.stringify(responses.shift()) } }] });
+  const result = await runCompanionPipeline({
+    image:'data:image/jpeg;base64,AA==', task:'写作业', persona:'严格但关心用户', epoch:9, turnId:2,
+    sessionStartedAt:new Date().toISOString(), elapsedSeconds:20, recentObservations:[], policyState:{},
+    workingMemory:[{ id:'frame-1', type:'vision', elapsedSeconds:0, state:'PHONE', observation:'用户看手机', reaction:'手机放下。', actorAction:{ said:'手机放下。', intendedUserAction:'停止看手机并恢复书写', outputLanguage:'zh' } }]
+  });
+  assert.equal(result.memory.interactionOutcome.type, 'followed_previous_request');
+  assert.equal(result.memory.storyMemory.openLoops[0].status, 'resolved');
+  assert.equal(result.decision.shouldSpeak, true);
+  assert.deepEqual(result.messages, ['嗯，继续。']);
+});
+
+test('Actor receives current output language as a hard session constraint', async () => {
+  const requestBodies = [];
+  const responses = [
+    { observation:'用户正在看手机。', visibleFacts:{ phone:true }, state:'PHONE', confidence:1 },
+    { shouldUpdateStory:false, storyMemory:{}, behaviorTransition:{}, interactionOutcome:{ type:'no_pending_request', evidence:'首次发现', confidence:1 }, characterShift:{}, characterState:{ emotion:'firm', tension:'low', attitude:'提醒' }, intendedUserAction:'put the phone down', responseIntent:'brief English reminder', avoidRepetition:[], shouldSpeak:true, silentReaction:'watching' },
+    { text:'Eyes back here.', performance:{} }
+  ];
+  global.fetch = async (_url, options = {}) => { if (options.body) requestBodies.push(JSON.parse(options.body)); return jsonResponse({ choices:[{ message:{ content:JSON.stringify(responses.shift()) } }] }); };
+  await runCompanionPipeline({ image:'data:image/jpeg;base64,AA==', task:'study', persona:'strict companion', epoch:10, turnId:1, elapsedSeconds:0, recentObservations:[], workingMemory:[], policyState:{}, outputLanguage:'en' });
+  const actorInput = requestBodies[2].messages.find(message => message.role === 'user').content;
+  assert.match(actorInput, /outputLanguage：en-US/);
+});

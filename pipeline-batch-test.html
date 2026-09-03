@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="frontend/css/pipeline-batch-test.css?v=1">
   <link rel="stylesheet" href="frontend/css/pipeline-prompt-editor.css?v=1">
   <link rel="stylesheet" href="frontend/css/focus-simulation.css?v=1">
+  <link rel="stylesheet" href="frontend/css/pipeline-reorder.css?v=1">
 </head>
 <body>
 <aside class="sidebar">
@@ -54,7 +55,7 @@
   <section class="sheet">
     <div class="table-wrap">
       <table>
-        <thead><tr><th class="index-col">Time</th><th class="shot-col">Frame</th><th class="truth-col">Ground Truth</th><th><button class="prompt-link" data-prompt="vlm">VLM <span>编辑提示词</span></button></th><th><button class="prompt-link" data-prompt="working">Working Memory <span>查看规则</span></button></th><th><button class="prompt-link" data-prompt="memory">Memory LLM <span>编辑提示词</span></button></th><th><button class="prompt-link" data-prompt="actor">Actor LLM <span>编辑提示词</span></button></th><th class="audio-col">TTS</th><th class="action-col">操作</th></tr></thead>
+        <thead><tr><th class="reorder-col">排序</th><th class="index-col">Time</th><th class="shot-col">Frame</th><th class="truth-col">Ground Truth</th><th><button class="prompt-link" data-prompt="vlm">VLM <span>编辑提示词</span></button></th><th><button class="prompt-link" data-prompt="working">Working Memory <span>查看规则</span></button></th><th><button class="prompt-link" data-prompt="memory">Memory LLM <span>编辑提示词</span></button></th><th><button class="prompt-link" data-prompt="actor">Actor LLM <span>编辑提示词</span></button></th><th class="audio-col">TTS</th><th class="action-col">操作</th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
       <div class="empty" id="empty">
@@ -65,11 +66,12 @@
     <div class="add-row"><label>＋ 添加截图<input type="file" accept="image/*" multiple data-add-upload></label></div>
   </section>
   <section class="metrics-card" id="metrics" hidden></section>
+  <input id="insertFiles" type="file" accept="image/*" multiple hidden>
 </main>
 
 <dialog id="detailDialog"><div class="dialog-head"><div><span id="detailStageType">PIPELINE STAGE</span><h2 id="detailTitle">阶段详情</h2></div><button id="closeDetail" aria-label="关闭">×</button></div><div class="io"><section><h3>INPUT 输入</h3><pre id="detailInput"></pre></section><section><h3>OUTPUT 输出</h3><pre id="detailOutput"></pre></section></div></dialog>
 <dialog id="promptDialog" class="prompt-dialog"><div class="dialog-head"><div><span>SYSTEM PROMPT</span><h2 id="promptTitle">系统提示词</h2></div><button id="closePrompt" aria-label="关闭">×</button></div><div class="prompt-editor"><p id="promptHint"></p><textarea id="promptText" spellcheck="false"></textarea><div class="prompt-actions"><button id="resetPrompt" class="secondary">恢复后端默认</button><button id="savePrompt" class="primary">保存并用于后续生成</button></div></div></dialog>
 <dialog id="imageDialog" class="image-dialog"><button id="closeImage" aria-label="关闭">×</button><img id="largeImage" alt="视频截图大图"></dialog>
-<script src="frontend/js/pipeline-batch-test.js?v=5"></script>
+<script src="frontend/js/pipeline-batch-test.js?v=6"></script>
 </body>
 </html>

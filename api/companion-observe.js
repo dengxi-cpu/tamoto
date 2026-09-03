@@ -39,6 +39,7 @@ async function handler(req, res) {
   if (req.method === 'GET') return json(res, 200, { success:true, data:{ prompts:getCompanionSystemPrompts() } });
   if (req.method !== 'POST') return json(res, 405, { success: false, error: 'Method not allowed' });
   const persona = assemblePersonaPrompt(req.body?.roleContext, req.body?.persona);
+  const outputLanguage = String(req.body?.roleContext?.speechLanguage || '').toLowerCase() === 'en' ? 'en' : 'zh';
 
   if (req.body?.mode === 'memory_consolidation') {
     try {
@@ -252,10 +253,17 @@ async function handler(req, res) {
         type: ['vision', 'user_speech', 'ai_speech', 'session'].includes(item?.type) ? item.type : 'vision',
         observedAt: String(item?.observedAt || '').slice(0, 40),
         elapsedSeconds: Math.max(0, Number(item?.elapsedSeconds) || 0),
+        state: String(item?.state || 'UNKNOWN').slice(0, 30),
         observation: String(item?.observation || item?.scene || '').slice(0, 300),
         changes: Array.isArray(item?.changes) ? item.changes.slice(0, 4).map(change => String(change).slice(0, 200)) : [],
         confidence: Math.max(0, Math.min(1, Number(item?.confidence) || 0)),
-        reaction: String(item?.reaction || '').slice(0, 200)
+        reaction: String(item?.reaction || '').slice(0, 200),
+        actorAction: item?.actorAction && typeof item.actorAction === 'object' ? {
+          said: String(item.actorAction.said || item.reaction || '').slice(0, 200),
+          intent: String(item.actorAction.intent || '').slice(0, 300),
+          intendedUserAction: String(item.actorAction.intendedUserAction || '').slice(0, 300),
+          outputLanguage: String(item.actorAction.outputLanguage || '').slice(0, 20)
+        } : null
       })) : recentObservations;
   const storyMemory = sanitizeStoryMemory(req.body?.storyMemory);
   const relationshipMemory = sanitizeRelationshipMemory(req.body?.relationshipMemory);
@@ -270,6 +278,7 @@ async function handler(req, res) {
       image, task, persona, epoch, turnId,
       sessionStartedAt, elapsedSeconds, recentObservations, workingMemory,
       storyMemory, relationshipMemory, conversationHistory, policyState,
+      outputLanguage,
       promptOverrides: req.body?.promptOverrides && typeof req.body.promptOverrides === 'object'
         ? req.body.promptOverrides : {}
     });

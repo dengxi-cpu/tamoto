@@ -76,12 +76,13 @@
         const image = new Image();
         image.onerror = () => reject(new Error('无法解析图片'));
         image.onload = () => {
-          const scale = Math.min(1, 1280 / image.naturalWidth, 1280 / image.naturalHeight);
+          // 与正式监督模式保持一致，避免高分辨率截图拖慢视觉首步。
+          const scale = Math.min(1, 640 / image.naturalWidth, 640 / image.naturalHeight);
           const canvas = document.createElement('canvas');
           canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
           canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
           canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
-          resolve({ dataUrl:canvas.toDataURL('image/jpeg', .78), width:canvas.width, height:canvas.height });
+          resolve({ dataUrl:canvas.toDataURL('image/jpeg', .72), width:canvas.width, height:canvas.height });
         };
         image.src = reader.result;
       };

@@ -4,7 +4,7 @@ const { updateTtsLog } = require('./companion-logs');
 const DEFAULT_TTS_API_URL = 'https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse';
 const DEFAULT_TTS_RESOURCE_ID = 'seed-tts-2.0';
 const DEFAULT_SAMPLE_RATE = 24000;
-const DEFAULT_ELEVENLABS_MODEL = 'eleven_flash_v2_5';
+const ELEVENLABS_V3_MODEL = 'eleven_v3';
 const BUILT_IN_VOICES = [
   'zh_male_ruyayichen_saturn_bigtts',
   'zh_male_m191_uranus_bigtts',
@@ -79,7 +79,7 @@ async function handler(req, res) {
         headers: { 'Content-Type': 'application/json', 'xi-api-key': elevenKey.trim() },
         body: JSON.stringify({
           text,
-          model_id: process.env.ELEVENLABS_TTS_MODEL || DEFAULT_ELEVENLABS_MODEL,
+          model_id: ELEVENLABS_V3_MODEL,
           language_code: speechLanguage,
           voice_settings: { stability: 0.58, similarity_boost: 0.78, style: Math.min(0.65, 0.1 + performanceIntensity * 0.45), use_speaker_boost: true }
         })

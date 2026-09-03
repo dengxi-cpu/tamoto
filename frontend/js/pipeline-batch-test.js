@@ -1,246 +1,51 @@
 (() => {
   const $ = id => document.getElementById(id);
   const rows = [];
-  const epoch = Date.now();
-  let nextId = 0;
-  let defaultPrompts = {};
-  let promptOverrides = {};
-  let editingPrompt = '';
-
+  let epoch = Date.now(), nextId = 0, running = false, stopRequested = false, activeController = null;
+  let defaultPrompts = {}, promptOverrides = {}, editingPrompt = '';
+  const behaviors = ['UNKNOWN','STUDYING','READING','WRITING','COMPUTER_WORK','PHONE_DISTRACTION','PHONE_VISIBLE_ONLY','AWAY','RETURN','IDLE','DRINKING','TALKING'];
   const safeJson = value => JSON.stringify(value ?? null, null, 2);
-  const statusLabel = status => ({ idle:'待生成', running:'运行中', success:'完成', failed:'失败', skipped:'跳过' }[status] || status);
-  const stage = (label, input = null) => ({ label, status:'idle', input, output:null, durationMs:null, error:'' });
+  const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const labels = {idle:'待生成',running:'运行中',success:'完成',failed:'失败',skipped:'跳过'};
+  const stage = (label, input=null) => ({label,status:'idle',input,output:null,durationMs:null,error:''});
+  const interval = () => Math.max(1, Number($('frameInterval').value) || 20);
+  const formatTime = seconds => `${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
 
-  function selectedVoice() {
-    const option = $('voice').selectedOptions[0];
-    const provider = option?.dataset.provider || 'volcengine';
-    return {
-      voiceProvider:provider,
-      voiceType:provider === 'elevenlabs' ? '' : option?.value || '',
-      voiceId:provider === 'elevenlabs' ? option?.value || '' : '',
-      voiceName:option?.textContent?.trim() || '当前声音',
-      speechLanguage:$('language').value === 'en' ? 'en' : 'zh'
-    };
-  }
-
-  function makeRow(file, image, width, height) {
-    const id = ++nextId;
-    return {
-      id, file, image, width, height, status:'idle', startedAt:null, controller:null, audioUrl:'',
-      stages: {
-        vlm:stage('VLM 视觉编码', { image:{ name:file.name, type:file.type, width, height, payload:'[图片数据已省略]' } }),
-        working:stage('Working Memory', { previousEvents:[], maxEvents:24, ttlSeconds:180 }),
-        memory:stage('Memory LLM'), actor:stage('Actor LLM'), tts:stage('TTS 输出')
-      }
-    };
-  }
-
-  function badge(status) { return `<span class="badge ${status}">${status === 'running' ? '● ' : ''}${statusLabel(status)}</span>`; }
-  function text(value, fallback = '等待生成') { return String(value || fallback); }
-  function esc(value) { return String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char])); }
-
-  function stageCell(item, key, summary) {
-    const current = item.stages[key];
-    const detail = current.status === 'failed' ? current.error : summary;
-    return `<td><div class="cell ${current.status === 'idle' ? 'empty-cell' : ''}">${badge(current.status)}<div class="cell-main">${esc(text(detail))}</div>${current.status !== 'idle' ? `<button class="inspect" data-detail="${item.id}:${key}">查看输入 / 输出${current.durationMs != null ? ` · ${current.durationMs} ms` : ''}</button>` : ''}</div></td>`;
-  }
-
-  function render() {
-    $('summary').textContent = `${rows.length} 条记录 · ${rows.filter(item => item.status === 'success').length} 条完成`;
-    $('empty').hidden = rows.length > 0;
-    $('rows').innerHTML = rows.map((item, index) => {
-      const observation = item.stages.vlm.output || {};
-      const memory = item.stages.memory.output || {};
-      const actor = item.stages.actor.output || {};
-      const tts = item.stages.tts;
-      const audio = item.audioUrl ? `<audio controls preload="metadata" src="${item.audioUrl}"></audio><a class="download" href="${item.audioUrl}" download="tamoto-tts-${item.id}.${tts.output?.format === 'mp3' ? 'mp3' : 'wav'}">下载音频</a>` : '';
-      return `<tr>
-        <td class="index">${index + 1}</td>
-        <td><img class="thumb" src="${item.image}" alt="${esc(item.file.name)}" data-image="${item.id}"><span class="shot-meta">${esc(item.file.name)}<br>${item.width}×${item.height}</span></td>
-        ${stageCell(item,'vlm',observation.scene || observation.observation)}
-        ${stageCell(item,'working',item.stages.working.output ? `接收视觉事件 · 当前 ${item.stages.working.output.eventCountAfterAppend} 条` : '')}
-        ${stageCell(item,'memory',memory.responseIntent || memory.reason || (memory.shouldSpeak === false ? '决定保持沉默' : ''))}
-        ${stageCell(item,'actor',actor.reaction || (item.stages.actor.status === 'skipped' ? '本轮策略决定不说话' : ''))}
-        <td><div class="audio-box">${badge(tts.status)}${tts.error ? `<span>${esc(tts.error)}</span>` : audio || '<span class="cell-main">等待语音生成</span>'}${tts.status !== 'idle' ? `<button class="inspect" data-detail="${item.id}:tts">查看输入 / 输出${tts.durationMs != null ? ` · ${tts.durationMs} ms` : ''}</button>` : ''}</div></td>
-        <td><div class="row-actions"><button class="run" data-run="${item.id}" ${item.status === 'running' ? 'disabled' : ''}>单独生成</button><button class="remove" data-remove="${item.id}" ${item.status === 'running' ? 'disabled' : ''}>删除</button></div></td>
-      </tr>`;
-    }).join('');
-    $('runAll').disabled = !rows.length || rows.some(item => item.status === 'running');
-  }
-
-  function fileToJpeg(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(new Error('读取图片失败'));
-      reader.onload = () => {
-        const image = new Image();
-        image.onerror = () => reject(new Error('无法解析图片'));
-        image.onload = () => {
-          // 与正式监督模式保持一致，避免高分辨率截图拖慢视觉首步。
-          const scale = Math.min(1, 640 / image.naturalWidth, 640 / image.naturalHeight);
-          const canvas = document.createElement('canvas');
-          canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-          canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-          canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
-          resolve({ dataUrl:canvas.toDataURL('image/jpeg', .72), width:canvas.width, height:canvas.height });
-        };
-        image.src = reader.result;
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  async function addFiles(fileList) {
-    for (const file of [...fileList].filter(file => file.type.startsWith('image/'))) {
-      try {
-        const converted = await fileToJpeg(file);
-        rows.push(makeRow(file, converted.dataUrl, converted.width, converted.height));
-      } catch (error) { window.alert(`${file.name}：${error.message}`); }
-    }
-    render();
-  }
-
-  async function loadMockRow() {
-    try {
-      const response = await fetch('/frontend/assets/mock/focus-phone-sample.jpg', { cache:'no-store' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const blob = await response.blob();
-      await addFiles([new File([blob], '手机分心示例.jpg', { type:blob.type || 'image/jpeg' })]);
-    } catch (error) { console.warn('示例截图加载失败:', error); }
-  }
-
-  function mark(item, key, status, values = {}) { Object.assign(item.stages[key], { status, ...values }); render(); }
-
-  async function requestJson(url, options) {
-    const response = await fetch(url, options);
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(`${payload.stage ? `[${payload.stage}] ` : ''}${payload.error || `HTTP ${response.status}`}`);
-    return payload.data || {};
-  }
-
-  function pcmToWav(pcm, sampleRate) {
-    const buffer = new ArrayBuffer(44 + pcm.byteLength);
-    const view = new DataView(buffer);
-    const write = (offset, value) => [...value].forEach((char, index) => view.setUint8(offset + index, char.charCodeAt(0)));
-    write(0,'RIFF'); view.setUint32(4,36 + pcm.byteLength,true); write(8,'WAVE'); write(12,'fmt ');
-    view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true); view.setUint32(24,sampleRate,true);
-    view.setUint32(28,sampleRate * 2,true); view.setUint16(32,2,true); view.setUint16(34,16,true); write(36,'data'); view.setUint32(40,pcm.byteLength,true);
-    new Uint8Array(buffer,44).set(new Uint8Array(pcm));
-    return new Blob([buffer], { type:'audio/wav' });
-  }
-
-  async function generateTts(item, result) {
-    const textValue = result.reaction || '';
-    const input = { text:textValue, ...selectedVoice(), performance:result.performance || null, epoch, turnId:item.id, speechType:'visual' };
-    if (!textValue) {
-      mark(item,'tts','skipped',{ input, output:{ status:'skipped', reason:'Memory LLM 决定本轮不发言' } });
-      return;
-    }
-    mark(item,'tts','running',{ input });
-    const started = performance.now();
-    const response = await fetch('/api/tts-stream', { method:'POST', headers:{'Content-Type':'application/json'}, signal:item.controller.signal, body:JSON.stringify(input) });
-    if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.error || `TTS HTTP ${response.status}`); }
-    const raw = await response.arrayBuffer();
-    if (!raw.byteLength) throw new Error('TTS 没有返回音频');
-    const format = response.headers.get('x-audio-format') || 'pcm_s16le';
-    const sampleRate = Number(response.headers.get('x-audio-sample-rate')) || 24000;
-    const blob = format === 'mp3' ? new Blob([raw], { type:'audio/mpeg' }) : pcmToWav(raw, sampleRate);
-    if (item.audioUrl) URL.revokeObjectURL(item.audioUrl);
-    item.audioUrl = URL.createObjectURL(blob);
-    mark(item,'tts','success',{ durationMs:Math.round(performance.now() - started), output:{ status:'completed', bytes:raw.byteLength, format:format === 'mp3' ? 'mp3' : 'wav', sampleRate } });
-  }
-
-  async function run(item) {
-    if (!item || item.status === 'running') return;
-    item.status = 'running'; item.controller = new AbortController(); item.startedAt = performance.now();
-    Object.values(item.stages).forEach(current => Object.assign(current,{ status:'idle', output:null, durationMs:null, error:'' }));
-    mark(item,'vlm','running');
-    const persona = $('persona').value.trim();
-    const voice = selectedVoice();
-    const request = { image:item.image, task:$('task').value.trim() || '保持专注学习', persona, roleContext:{ name:'TA', userTitle:'大小姐', relationship:'学习搭子', persona, ...voice }, epoch, turnId:item.id, elapsedSeconds:0, workingMemory:[], recentObservations:[], policyState:{}, promptOverrides };
-    try {
-      const result = await requestJson('/api/companion-observe', { method:'POST', headers:{'Content-Type':'application/json'}, signal:item.controller.signal, body:JSON.stringify(request) });
-      mark(item,'vlm','success',{ durationMs:result.timings?.visionMs, output:result.observation });
-      mark(item,'working','success',{ input:{ previousEvents:[], maxEvents:24, ttlSeconds:180 }, output:{ acceptedObservation:result.observation, eventCountBeforeAppend:0, eventCountAfterAppend:1 } });
-      mark(item,'memory',result.memory?.degraded ? 'failed' : 'success',{ durationMs:result.timings?.memoryMs, input:{ observation:result.observation, workingMemory:[], task:request.task, elapsedSeconds:0, policyState:{} }, output:{ ...result.memory, decision:result.decision } });
-      mark(item,'actor',result.decision?.shouldSpeak ? (result.messages?.length ? 'success' : 'failed') : 'skipped',{ durationMs:result.timings?.reactionMs, input:{ persona:request.persona, speechLanguage:voice.speechLanguage, task:request.task, memoryDecision:result.memory }, output:{ messages:result.messages || [], reaction:result.reaction || '', performance:result.performance || null } });
-      try { await generateTts(item, result); } catch (error) { mark(item,'tts','failed',{ durationMs:Math.round(performance.now() - item.startedAt), error:error.message, output:{ status:'failed', error:error.message } }); }
-      item.status = item.stages.tts.status === 'failed' ? 'failed' : 'success';
-    } catch (error) {
-      const active = Object.keys(item.stages).find(key => item.stages[key].status === 'running') || 'vlm';
-      mark(item,active,'failed',{ error:error.name === 'AbortError' ? '请求已取消' : error.message, output:{ error:error.message } });
-      item.status = 'failed';
-    } finally { item.controller = null; render(); }
-  }
-
-  async function runAll() {
-    $('runAll').disabled = true;
-    for (const item of rows) await run(item);
-    render();
-  }
-
-  function showDetail(id, key) {
-    const item = rows.find(row => row.id === Number(id)); const current = item?.stages[key];
-    if (!current) return;
-    $('detailTitle').textContent = current.label; $('detailStageType').textContent = `${key.toUpperCase()} · ${statusLabel(current.status)}`;
-    $('detailInput').textContent = safeJson(current.input); $('detailOutput').textContent = safeJson(current.output || (current.error ? { error:current.error } : null));
-    $('detailDialog').showModal();
-  }
-
-  function openPrompt(key) {
-    editingPrompt = key;
-    const names = { vlm:'VLM 视觉编码', working:'Working Memory', memory:'Memory LLM', actor:'Actor LLM / 文案' };
-    const readOnly = key === 'working';
-    $('promptTitle').textContent = `${names[key]} · ${readOnly ? '运行规则' : '系统提示词'}`;
-    $('promptHint').textContent = readOnly
-      ? 'Working Memory 是确定性数据处理阶段，不调用模型，因此没有系统提示词。下面展示的是当前运行规则。'
-      : '修改只作用于本批测页面的后续请求，不会改变正式监督模式。Actor 提示词中的 {{persona}} 会在请求时替换为上方角色人设。';
-    $('promptText').value = promptOverrides[key] || defaultPrompts[key] || '正在读取后端默认值…';
-    $('promptText').readOnly = readOnly;
-    $('savePrompt').disabled = readOnly;
-    $('resetPrompt').disabled = readOnly;
-    $('promptDialog').showModal();
-  }
-
-  function savePrompt() {
-    if (!editingPrompt || editingPrompt === 'working') return;
-    const value = $('promptText').value.trim();
-    if (!value) return window.alert('系统提示词不能为空');
-    promptOverrides = { ...promptOverrides, [editingPrompt]:value };
-    localStorage.setItem('tamotoBatchPromptOverrides', JSON.stringify(promptOverrides));
-    $('promptDialog').close();
-  }
-
-  function resetPrompt() {
-    if (!editingPrompt || editingPrompt === 'working') return;
-    delete promptOverrides[editingPrompt];
-    localStorage.setItem('tamotoBatchPromptOverrides', JSON.stringify(promptOverrides));
-    $('promptText').value = defaultPrompts[editingPrompt] || '';
-  }
-
-  document.querySelectorAll('#files,[data-empty-upload],[data-add-upload]').forEach(input => input.addEventListener('change', event => { addFiles(event.target.files); event.target.value=''; }));
-  $('runAll').addEventListener('click', runAll);
-  $('clear').addEventListener('click', () => { rows.forEach(item => { item.controller?.abort(); if(item.audioUrl) URL.revokeObjectURL(item.audioUrl); }); rows.length=0; render(); });
-  $('rows').addEventListener('click', event => {
-    const detail = event.target.closest('[data-detail]'); if (detail) return showDetail(...detail.dataset.detail.split(':'));
-    const runButton = event.target.closest('[data-run]'); if (runButton) return run(rows.find(item => item.id === Number(runButton.dataset.run)));
-    const remove = event.target.closest('[data-remove]'); if (remove) { const index=rows.findIndex(item => item.id===Number(remove.dataset.remove)); if(index>=0){if(rows[index].audioUrl)URL.revokeObjectURL(rows[index].audioUrl);rows.splice(index,1);render();} return; }
-    const image = event.target.closest('[data-image]'); if(image){const item=rows.find(row=>row.id===Number(image.dataset.image));$('largeImage').src=item.image;$('imageDialog').showModal();}
-  });
-  $('closeDetail').addEventListener('click', () => $('detailDialog').close());
-  document.querySelectorAll('[data-prompt]').forEach(button => button.addEventListener('click', () => openPrompt(button.dataset.prompt)));
-  $('closePrompt').addEventListener('click', () => $('promptDialog').close());
-  $('savePrompt').addEventListener('click', savePrompt);
-  $('resetPrompt').addEventListener('click', resetPrompt);
-  $('closeImage').addEventListener('click', () => $('imageDialog').close());
-  $('imageDialog').addEventListener('click', event => { if(event.target === $('imageDialog')) $('imageDialog').close(); });
-
-  try { promptOverrides = JSON.parse(localStorage.getItem('tamotoBatchPromptOverrides') || '{}') || {}; } catch (_) { promptOverrides = {}; }
-  fetch('/api/companion-observe',{cache:'no-store'}).then(response=>response.json()).then(payload=>{ defaultPrompts=payload.data?.prompts||{}; }).catch(error=>console.warn('提示词读取失败:',error));
-  fetch('/api/vision-health',{cache:'no-store'}).then(response=>response.json()).then(payload=>{
-    const data=payload.data||{}; const ready=data.configured&&data.reactionConfigured&&data.ttsKeyConfigured&&data.ttsVoiceConfigured;
-    $('health').className=`health ${ready?'ok':'bad'}`; $('health').querySelector('span').textContent=ready?'视觉、反应与 TTS 已配置':'部分后端能力尚未配置';
-  }).catch(()=>{$('health').className='health bad';$('health').querySelector('span').textContent='后端健康检查失败';});
-  render();
-  loadMockRow();
+  function selectedVoice(){const option=$('voice').selectedOptions[0],provider=option?.dataset.provider||'volcengine';return{voiceProvider:provider,voiceType:provider==='elevenlabs'?'':option?.value||'',voiceId:provider==='elevenlabs'?option?.value||'':'',voiceName:option?.textContent?.trim()||'当前声音',speechLanguage:$('language').value==='en'?'en':'zh'}}
+  function makeRow(file,image,width,height){const id=++nextId;return{id,file,image,width,height,status:'idle',controller:null,audioUrl:'',groundTruth:{behavior:id===1?'PHONE_DISTRACTION':'UNKNOWN',shouldSpeak:id===1,expectedIntent:id===1?'提醒放下手机，回到当前任务':''},result:null,stages:{vlm:stage('VLM 视觉编码',{image:{name:file.name,type:file.type,width,height,payload:'[图片数据已省略]'}}),working:stage('Working Memory'),memory:stage('Memory LLM'),actor:stage('Actor LLM'),tts:stage('TTS 输出')}}}
+  function badge(status){return`<span class="badge ${status}">${status==='running'?'● ':''}${labels[status]}</span>`}
+  function stageCell(item,key,summary){const current=item.stages[key],detail=current.status==='failed'?current.error:summary;return`<td><div class="cell ${current.status==='idle'?'empty-cell':''}">${badge(current.status)}<div class="cell-main">${esc(detail||'等待生成')}</div>${current.status!=='idle'?`<button class="inspect" data-detail="${item.id}:${key}">查看输入 / 输出${current.durationMs!=null?` · ${current.durationMs} ms`:''}</button>`:''}</div></td>`}
+  function renderTimeline(){const step=interval();$('timelineDuration').textContent=formatTime(Math.max(0,(rows.length-1)*step));$('timeline').innerHTML=rows.length?rows.map((item,index)=>{const behavior=item.groundTruth.behavior==='UNKNOWN'?(item.result?.observation?.state||'UNKNOWN'):item.groundTruth.behavior;return`<div class="timeline-segment ${String(behavior).toLowerCase()}"><b>${esc(behavior)}</b><small>${formatTime(index*step)}</small>${item.result?.reaction?'<span class="speech-mark" title="AI 已开口">💬</span>':''}</div>`}).join(''):'<span class="timeline-empty">上传连续截图后生成时间轴</span>'}
+  function render(){const step=interval();$('summary').textContent=`${rows.length} Frames · ${rows.filter(r=>r.status==='success').length} 完成`;$('empty').hidden=rows.length>0;$('rows').innerHTML=rows.map((item,index)=>{const observation=item.stages.vlm.output||{},memory=item.stages.memory.output||{},actor=item.stages.actor.output||{},tts=item.stages.tts,audio=item.audioUrl?`<audio controls preload="metadata" src="${item.audioUrl}"></audio><a class="download" href="${item.audioUrl}" download="focus-simulation-${item.id}.${tts.output?.format==='mp3'?'mp3':'wav'}">下载</a>`:'';return`<tr class="${item.status==='running'?'row-current':''}"><td class="index">${formatTime(index*step)}</td><td><img class="thumb" src="${item.image}" alt="${esc(item.file.name)}" data-image="${item.id}"><span class="shot-meta">Frame ${String(index+1).padStart(3,'0')}<br>${item.width}×${item.height}</span></td><td><div class="truth-editor"><select data-truth-behavior="${item.id}">${behaviors.map(v=>`<option ${v===item.groundTruth.behavior?'selected':''}>${v}</option>`).join('')}</select><label class="truth-speak"><input type="checkbox" data-truth-speak="${item.id}" ${item.groundTruth.shouldSpeak?'checked':''}>应该说话</label><input data-truth-intent="${item.id}" value="${esc(item.groundTruth.expectedIntent)}" placeholder="Expected Intent"></div></td>${stageCell(item,'vlm',observation.scene||observation.observation)}${stageCell(item,'working',item.stages.working.output?`连续记忆 ${item.stages.working.output.eventCountAfterAppend} 条`:'')}${stageCell(item,'memory',memory.responseIntent||(memory.shouldSpeak===false?'决定保持沉默':''))}${stageCell(item,'actor',actor.reaction||(item.stages.actor.status==='skipped'?'本轮不说话':''))}<td><div class="audio-box">${badge(tts.status)}${tts.error?`<span>${esc(tts.error)}</span>`:audio||'<span class="cell-main">等待语音生成</span>'}${tts.status!=='idle'?`<button class="inspect" data-detail="${item.id}:tts">查看输入 / 输出</button>`:''}</div></td><td><div class="row-actions"><button class="run" data-run="${item.id}" ${running?'disabled':''}>独立生成</button><button data-run-prefix="${item.id}" ${running?'disabled':''}>运行到此</button><button class="remove" data-remove="${item.id}" ${running?'disabled':''}>删除</button></div></td></tr>`}).join('');$('runAll').disabled=!rows.length||running;$('stopRun').disabled=!running;renderTimeline()}
+  function fileToJpeg(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error('读取图片失败'));reader.onload=()=>{const image=new Image();image.onerror=()=>reject(new Error('无法解析图片'));image.onload=()=>{const scale=Math.min(1,640/image.naturalWidth,640/image.naturalHeight),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);resolve({dataUrl:canvas.toDataURL('image/jpeg',.72),width:canvas.width,height:canvas.height})};image.src=reader.result};reader.readAsDataURL(file)})}
+  async function addFiles(list){for(const file of [...list].filter(f=>f.type.startsWith('image/'))){try{const converted=await fileToJpeg(file);rows.push(makeRow(file,converted.dataUrl,converted.width,converted.height))}catch(error){alert(`${file.name}：${error.message}`)}}render()}
+  async function loadMockRow(){try{const response=await fetch('/frontend/assets/mock/focus-phone-sample.jpg',{cache:'no-store'}),blob=await response.blob();await addFiles([new File([blob],'手机分心示例.jpg',{type:blob.type||'image/jpeg'})])}catch(error){console.warn('示例截图加载失败:',error)}}
+  function mark(item,key,status,values={}){Object.assign(item.stages[key],{status,...values});render()}
+  async function requestJson(url,options){const response=await fetch(url,options),payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(`${payload.stage?`[${payload.stage}] `:''}${payload.error||`HTTP ${response.status}`}`);return payload.data||{}}
+  function pcmToWav(pcm,sampleRate){const buffer=new ArrayBuffer(44+pcm.byteLength),view=new DataView(buffer),write=(offset,value)=>[...value].forEach((char,i)=>view.setUint8(offset+i,char.charCodeAt(0)));write(0,'RIFF');view.setUint32(4,36+pcm.byteLength,true);write(8,'WAVE');write(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,sampleRate,true);view.setUint32(28,sampleRate*2,true);view.setUint16(32,2,true);view.setUint16(34,16,true);write(36,'data');view.setUint32(40,pcm.byteLength,true);new Uint8Array(buffer,44).set(new Uint8Array(pcm));return new Blob([buffer],{type:'audio/wav'})}
+  async function generateTts(item,result){const text=result.reaction||'',input={text,...selectedVoice(),performance:result.performance||null,epoch,turnId:item.id,speechType:'visual'};if(!text){mark(item,'tts','skipped',{input,output:{status:'skipped',reason:'Memory LLM 决定本轮不发言'}});return}mark(item,'tts','running',{input});const started=performance.now(),response=await fetch('/api/tts-stream',{method:'POST',headers:{'Content-Type':'application/json'},signal:item.controller.signal,body:JSON.stringify(input)});if(!response.ok){const body=await response.json().catch(()=>({}));throw new Error(body.error||`TTS HTTP ${response.status}`)}const raw=await response.arrayBuffer();if(!raw.byteLength)throw new Error('TTS 没有返回音频');const format=response.headers.get('x-audio-format')||'pcm_s16le',sampleRate=Number(response.headers.get('x-audio-sample-rate'))||24000,blob=format==='mp3'?new Blob([raw],{type:'audio/mpeg'}):pcmToWav(raw,sampleRate);if(item.audioUrl)URL.revokeObjectURL(item.audioUrl);item.audioUrl=URL.createObjectURL(blob);mark(item,'tts','success',{durationMs:Math.round(performance.now()-started),output:{status:'completed',bytes:raw.byteLength,format:format==='mp3'?'mp3':'wav',sampleRate}})}
+  function newContext(){return{workingMemory:[],storyMemory:'',relationshipMemory:'',conversationHistory:[],lastSpokenElapsed:null,sessionStartedAt:new Date().toISOString()}}
+  function appendContext(context,item,result,elapsedSeconds){const event={id:`frame-${item.id}`,type:'vision',observedAt:new Date(Date.parse(context.sessionStartedAt)+elapsedSeconds*1000).toISOString(),elapsedSeconds,observation:result.observation?.observation||result.observation?.scene||'',changes:result.observation?.changes||[],confidence:result.observation?.confidence||0,reaction:result.reaction||''};context.workingMemory=[...context.workingMemory,event].slice(-24);context.storyMemory=result.memory?.storyMemory||context.storyMemory;if(result.reaction)context.lastSpokenElapsed=elapsedSeconds}
+  async function runFrame(item,index,context){item.status='running';item.controller=new AbortController();activeController=item.controller;Object.values(item.stages).forEach(s=>Object.assign(s,{status:'idle',output:null,durationMs:null,error:''}));mark(item,'vlm','running');const elapsedSeconds=index*interval(),persona=$('persona').value.trim(),voice=selectedVoice(),workingMemory=context?.workingMemory||[],policyState=context?.lastSpokenElapsed==null?{}:{lastAnySpokenAt:Date.now()-Math.max(0,elapsedSeconds-context.lastSpokenElapsed)*1000};const request={image:item.image,task:$('task').value.trim()||'保持专注学习',persona,roleContext:{name:'TA',userTitle:'大小姐',relationship:'监督型陪伴者',persona,...voice},epoch,turnId:item.id,sessionStartedAt:context?.sessionStartedAt||new Date().toISOString(),elapsedSeconds,workingMemory,storyMemory:context?.storyMemory||'',relationshipMemory:context?.relationshipMemory||'',conversationHistory:context?.conversationHistory||[],recentObservations:workingMemory,policyState,promptOverrides};try{const result=await requestJson('/api/companion-observe',{method:'POST',headers:{'Content-Type':'application/json'},signal:item.controller.signal,body:JSON.stringify(request)});item.result=result;mark(item,'vlm','success',{durationMs:result.timings?.visionMs,output:result.observation});mark(item,'working','success',{input:{previousEvents:workingMemory,maxEvents:24,simulatedElapsedSeconds:elapsedSeconds},output:{acceptedObservation:result.observation,eventCountBeforeAppend:workingMemory.length,eventCountAfterAppend:workingMemory.length+1}});mark(item,'memory',result.memory?.degraded?'failed':'success',{durationMs:result.timings?.memoryMs,input:{observation:result.observation,workingMemory,storyMemory:request.storyMemory,task:request.task,elapsedSeconds,policyState},output:{...result.memory,decision:result.decision}});mark(item,'actor',result.decision?.shouldSpeak?(result.messages?.length?'success':'failed'):'skipped',{durationMs:result.timings?.reactionMs,input:{persona:request.persona,speechLanguage:voice.speechLanguage,task:request.task,memoryDecision:result.memory},output:{messages:result.messages||[],reaction:result.reaction||'',performance:result.performance||null}});try{await generateTts(item,result)}catch(error){mark(item,'tts','failed',{error:error.message,output:{status:'failed',error:error.message}})}item.status=item.stages.tts.status==='failed'?'failed':'success';if(context)appendContext(context,item,result,elapsedSeconds);return result}catch(error){const active=Object.keys(item.stages).find(k=>item.stages[k].status==='running')||'vlm';mark(item,active,'failed',{error:error.name==='AbortError'?'请求已停止':error.message,output:{error:error.message}});item.status='failed';throw error}finally{item.controller=null;activeController=null;render()}}
+  async function delayForSpeed(){const speed=$('simulationSpeed').value;if(speed==='instant')return;await new Promise(resolve=>setTimeout(resolve,interval()*1000/Number(speed)))}
+  async function runScenario(endIndex=rows.length-1){if(running||!rows.length)return;running=true;stopRequested=false;epoch=Date.now();$('runStatus').textContent='模拟运行中';render();const context=newContext();for(let i=0;i<=endIndex&&!stopRequested;i++){try{await runFrame(rows[i],i,context)}catch(error){if(error.name!=='AbortError')console.error(error);if(!stopRequested)break}if(i<endIndex&&!stopRequested)await delayForSpeed()}running=false;$('runStatus').textContent=stopRequested?'已停止':'运行完成';renderMetrics();saveRun();render()}
+  async function runIndependent(item){if(running)return;running=true;render();try{await runFrame(item,rows.indexOf(item),null)}catch(_){}finally{running=false;renderMetrics();render()}}
+  function stopRun(){stopRequested=true;activeController?.abort();$('runStatus').textContent='正在停止…'}
+  function resetRun(){stopRun();rows.forEach(item=>{if(item.audioUrl)URL.revokeObjectURL(item.audioUrl);item.audioUrl='';item.result=null;item.status='idle';Object.values(item.stages).forEach(s=>Object.assign(s,{status:'idle',output:null,durationMs:null,error:''}))});$('metrics').hidden=true;$('runStatus').textContent='已重置';render()}
+  function renderMetrics(){const done=rows.filter(r=>r.result),rated=done.filter(r=>r.groundTruth.behavior!=='UNKNOWN'),expected=done.filter(r=>r.groundTruth.shouldSpeak),spoken=done.filter(r=>Boolean(r.result.reaction)),correct=rated.filter(r=>r.groundTruth.behavior==='PHONE_DISTRACTION'?r.result.observation?.state==='PHONE':r.groundTruth.behavior===r.result.observation?.state).length,truePositive=expected.filter(r=>Boolean(r.result.reaction)).length,falseInterventions=spoken.filter(r=>!r.groundTruth.shouldSpeak).length,repeat=spoken.filter((r,i,a)=>i&&a[i-1].result?.reaction===r.result?.reaction).length,avg=done.length?Math.round(done.reduce((sum,r)=>sum+(r.result.timings?.totalMs||0),0)/done.length):0;const metrics=[['VLM Accuracy',`${rated.length?Math.round(correct/rated.length*100):0}%`,'good'],['Speak Recall',`${expected.length?Math.round(truePositive/expected.length*100):100}%`,'good'],['False Intervention',falseInterventions,falseInterventions?'bad':'good'],['Repeated Nagging',repeat,repeat?'bad':'good'],['Avg Latency',`${avg} ms`,'']];$('metrics').innerHTML=metrics.map(([label,value,cls])=>`<div class="metric-box ${cls}">${label}<b>${value}</b></div>`).join('');$('metrics').hidden=!done.length}
+  function snapshot(results=true){return{name:$('scenarioName').value.trim(),purpose:$('scenarioPurpose').value.trim(),task:$('task').value.trim(),frameInterval:interval(),speed:$('simulationSpeed').value,persona:$('persona').value.trim(),voice:selectedVoice(),frames:rows.map((r,i)=>({index:i,timeSeconds:i*interval(),fileName:r.file.name,groundTruth:r.groundTruth,...(results?{result:r.result,stages:r.stages}:{}),image:'[not persisted]'})),savedAt:new Date().toISOString()}}
+  function saveScenario(){const list=JSON.parse(localStorage.getItem('focusSimulationScenarios')||'[]').filter(x=>x.name!==$('scenarioName').value.trim());list.unshift(snapshot(false));localStorage.setItem('focusSimulationScenarios',JSON.stringify(list.slice(0,20)));$('runStatus').textContent='Scenario 已保存（图片不持久化）'}
+  function saveRun(){try{const runs=JSON.parse(localStorage.getItem('focusSimulationRuns')||'[]');runs.unshift(snapshot(true));localStorage.setItem('focusSimulationRuns',JSON.stringify(runs.slice(0,10)))}catch(error){console.warn('运行结果保存失败:',error)}}
+  function showDetail(id,key){const item=rows.find(r=>r.id===Number(id)),current=item?.stages[key];if(!current)return;$('detailTitle').textContent=current.label;$('detailStageType').textContent=`${key.toUpperCase()} · ${labels[current.status]}`;$('detailInput').textContent=safeJson(current.input);$('detailOutput').textContent=safeJson(current.output||(current.error?{error:current.error}:null));$('detailDialog').showModal()}
+  function openPrompt(key){editingPrompt=key;const names={vlm:'VLM 视觉编码',working:'Working Memory',memory:'Memory LLM',actor:'Actor LLM / 文案'},readOnly=key==='working';$('promptTitle').textContent=`${names[key]} · ${readOnly?'运行规则':'系统提示词'}`;$('promptHint').textContent=readOnly?'Working Memory 是连续事件列表，不调用模型。':'修改只作用于模拟平台，不改变正式监督模式；Actor 中 {{persona}} 会替换为当前人设。';$('promptText').value=promptOverrides[key]||defaultPrompts[key]||'正在读取…';$('promptText').readOnly=readOnly;$('savePrompt').disabled=readOnly;$('resetPrompt').disabled=readOnly;$('promptDialog').showModal()}
+  function savePrompt(){if(!editingPrompt||editingPrompt==='working')return;const value=$('promptText').value.trim();if(!value)return alert('提示词不能为空');promptOverrides={...promptOverrides,[editingPrompt]:value};localStorage.setItem('tamotoBatchPromptOverrides',JSON.stringify(promptOverrides));$('promptDialog').close()}
+  function resetPrompt(){if(!editingPrompt||editingPrompt==='working')return;delete promptOverrides[editingPrompt];localStorage.setItem('tamotoBatchPromptOverrides',JSON.stringify(promptOverrides));$('promptText').value=defaultPrompts[editingPrompt]||''}
+  document.querySelectorAll('#files,[data-empty-upload],[data-add-upload]').forEach(input=>input.addEventListener('change',e=>{addFiles(e.target.files);e.target.value=''}));
+  $('runAll').addEventListener('click',()=>runScenario());$('stopRun').addEventListener('click',stopRun);$('resetRun').addEventListener('click',resetRun);$('saveScenario').addEventListener('click',saveScenario);$('clear').addEventListener('click',()=>{stopRun();rows.forEach(r=>r.audioUrl&&URL.revokeObjectURL(r.audioUrl));rows.length=0;render()});$('frameInterval').addEventListener('change',render);
+  $('rows').addEventListener('change',e=>{const id=Number(e.target.dataset.truthBehavior||e.target.dataset.truthSpeak||e.target.dataset.truthIntent),item=rows.find(r=>r.id===id);if(!item)return;if(e.target.dataset.truthBehavior)item.groundTruth.behavior=e.target.value;if(e.target.dataset.truthSpeak)item.groundTruth.shouldSpeak=e.target.checked;if(e.target.dataset.truthIntent)item.groundTruth.expectedIntent=e.target.value;renderTimeline()});
+  $('rows').addEventListener('click',e=>{const detail=e.target.closest('[data-detail]');if(detail)return showDetail(...detail.dataset.detail.split(':'));const one=e.target.closest('[data-run]');if(one)return runIndependent(rows.find(r=>r.id===Number(one.dataset.run)));const prefix=e.target.closest('[data-run-prefix]');if(prefix)return runScenario(rows.findIndex(r=>r.id===Number(prefix.dataset.runPrefix)));const remove=e.target.closest('[data-remove]');if(remove){const i=rows.findIndex(r=>r.id===Number(remove.dataset.remove));if(i>=0){if(rows[i].audioUrl)URL.revokeObjectURL(rows[i].audioUrl);rows.splice(i,1);render()}return}const image=e.target.closest('[data-image]');if(image){const item=rows.find(r=>r.id===Number(image.dataset.image));$('largeImage').src=item.image;$('imageDialog').showModal()}});
+  $('closeDetail').addEventListener('click',()=>$('detailDialog').close());document.querySelectorAll('[data-prompt]').forEach(b=>b.addEventListener('click',()=>openPrompt(b.dataset.prompt)));$('closePrompt').addEventListener('click',()=>$('promptDialog').close());$('savePrompt').addEventListener('click',savePrompt);$('resetPrompt').addEventListener('click',resetPrompt);$('closeImage').addEventListener('click',()=>$('imageDialog').close());
+  try{promptOverrides=JSON.parse(localStorage.getItem('tamotoBatchPromptOverrides')||'{}')||{}}catch(_){promptOverrides={}}
+  fetch('/api/companion-observe',{cache:'no-store'}).then(r=>r.json()).then(p=>{defaultPrompts=p.data?.prompts||{}}).catch(console.warn);fetch('/api/vision-health',{cache:'no-store'}).then(r=>r.json()).then(p=>{const d=p.data||{},ready=d.configured&&d.reactionConfigured&&d.ttsKeyConfigured&&d.ttsVoiceConfigured;$('health').className=`health ${ready?'ok':'bad'}`;$('health').querySelector('span').textContent=ready?'Pipeline 已配置':'部分后端能力尚未配置'}).catch(()=>{$('health').className='health bad'});
+  render();loadMockRow();
 })();

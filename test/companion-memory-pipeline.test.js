@@ -199,7 +199,7 @@ test('interaction memory sends the last actor request and later evidence to Memo
   const requestBodies = [];
   const responses = [
     { observation:'用户仍手持手机注视屏幕。', visibleFacts:{ phone:true }, state:'PHONE', confidence:0.98 },
-    { shouldUpdateStory:false, storyMemory:{}, behaviorTransition:{ from:'PHONE', to:'PHONE', meaning:'用户未响应上一句' }, interactionOutcome:{ type:'ignored_previous_request', evidence:'提醒后仍看手机', confidence:0.96 }, characterShift:{ from:'克制提醒', to:'更严肃', reason:'要求未被响应' }, characterState:{ emotion:'firm', tension:'medium', attitude:'更严肃' }, intendedUserAction:'停止看手机并拿起笔', responseIntent:'承接被忽视的上一句，用更短的追问', avoidRepetition:['手机放下'], shouldSpeak:true, silentReaction:'watching' },
+    { shouldUpdateStory:false, storyMemory:{}, behaviorTransition:{ from:'PHONE', to:'PHONE', meaning:'用户未响应上一句' }, interactionOutcome:{ type:'ignored_previous_request', evidence:'提醒后仍看手机', confidence:0.96 }, characterShift:{ from:'克制提醒', to:'更严肃', reason:'要求未被响应' }, characterState:{ emotion:'firm', tension:'medium', attitude:'更严肃' }, expressionStrategy:{ approach:'追问', structure:'一句短问句', pressureLever:'指出上一句没有被执行', variationFromLast:'从命令切换为追问' }, intendedUserAction:'停止看手机并拿起笔', responseIntent:'承接被忽视的上一句，用更短的追问', avoidRepetition:['手机放下'], shouldSpeak:true, silentReaction:'watching' },
     { text:'还在看？', performance:{ emotion:'firm', intensity:0.55, pace:'slow', pauseBefore:300 } }
   ];
   global.fetch = async (_url, options = {}) => {
@@ -218,6 +218,33 @@ test('interaction memory sends the last actor request and later evidence to Memo
   assert.equal(result.memory.interactionOutcome.type, 'ignored_previous_request');
   assert.deepEqual(result.memory.avoidRepetition, ['手机放下']);
   assert.deepEqual(result.messages, ['还在看？']);
+  assert.equal(result.memory.expressionStrategy.approach, '追问');
+});
+
+test('invalid Actor output retries then speaks through fallback instead of swallowing a PHONE intervention', async () => {
+  let calls = 0;
+  const responses = [
+    { observation:'用户重新拿起手机并注视屏幕。', visibleFacts:{ phone:true, gaze:'on phone screen' }, state:'PHONE', confidence:1 },
+    { shouldUpdateStory:true, evidenceEventIds:['vision-120'], storyMemory:{}, behaviorTransition:{ from:'WRITING', to:'PHONE', meaning:'刚恢复后再次分心' }, interactionOutcome:{ type:'ignored_previous_request', evidence:'用户再次拿起手机', confidence:1 }, characterShift:{ from:'克制认可', to:'认真拉回', reason:'刚恢复又分心' }, characterState:{ emotion:'firm', tension:'medium', attitude:'认真拉回' }, expressionStrategy:{ approach:'共同经历', structure:'先点出刚才恢复，再给一个最小动作', pressureLever:'刚刚共同完成的恢复', variationFromLast:'不重复放下手机命令，改为承接刚才' }, intendedUserAction:'放下手机并继续背单词', responseIntent:'承接刚恢复又分心的共同经历', avoidRepetition:['手机放下'], shouldSpeak:true, silentReaction:'watching' },
+    'not json',
+    '{"text":""}'
+  ];
+  global.fetch = async () => {
+    calls += 1;
+    const next = responses.shift();
+    return jsonResponse({ choices:[{ message:{ content:typeof next === 'string' ? next : JSON.stringify(next) } }] });
+  };
+  const result = await runCompanionPipeline({
+    image:'data:image/jpeg;base64,AA==', task:'背单词', persona:'毒舌且话痨', epoch:11, turnId:7,
+    sessionStartedAt:new Date().toISOString(), elapsedSeconds:120, recentObservations:[], policyState:{}, outputLanguage:'en',
+    workingMemory:[{ id:'frame-6', type:'vision', elapsedSeconds:100, state:'WRITING', observation:'用户在写字', reaction:'', actorAction:null }]
+  });
+  assert.equal(calls, 4);
+  assert.equal(result.decision.shouldSpeak, true);
+  assert.equal(result.decision.speechMode, 'actor');
+  assert.equal(result.actorDegraded, true);
+  assert.match(result.reaction, /Screen down/);
+  assert.ok(result.messages.length > 0);
 });
 
 test('followed request can be acknowledged once while stable focus stays silent', async () => {
@@ -249,4 +276,8 @@ test('Actor receives current output language as a hard session constraint', asyn
   await runCompanionPipeline({ image:'data:image/jpeg;base64,AA==', task:'study', persona:'strict companion', epoch:10, turnId:1, elapsedSeconds:0, recentObservations:[], workingMemory:[], policyState:{}, outputLanguage:'en' });
   const actorInput = requestBodies[2].messages.find(message => message.role === 'user').content;
   assert.match(actorInput, /outputLanguage：en-US/);
+  assert.deepEqual(requestBodies[1].response_format, { type:'json_object' });
+  assert.deepEqual(requestBodies[2].response_format, { type:'json_object' });
+  assert.equal(requestBodies[1].max_tokens, 420);
+  assert.equal(requestBodies[2].max_tokens, 150);
 });

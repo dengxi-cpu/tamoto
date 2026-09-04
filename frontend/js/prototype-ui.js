@@ -35,6 +35,8 @@
     betaVoiceCandidateId: '',
     betaVoiceTranslatedDescription: '',
     betaVoiceAudio: null,
+    sceneId: ['cultivation', 'spring'].includes(localStorage.getItem('bnSceneId'))
+      ? localStorage.getItem('bnSceneId') : 'cultivation',
     companionMode: ['quiet', 'occasional', 'strict'].includes(localStorage.getItem('bnCompanionMode'))
       ? localStorage.getItem('bnCompanionMode') : 'quiet',
     characterVoiceEnabled: localStorage.getItem('bnCharacterVoiceEnabled') == null
@@ -253,10 +255,21 @@
           <div class="bn-focus-hint" id="bnFocusHint"></div>
           <button class="bn-primary" type="button" data-bn-action="start-focus">开始专注 →</button>
         </div>
+        <div class="bn-scene-picker-layer" id="bnScenePicker" hidden>
+          <button class="bn-scene-picker-dismiss" type="button" data-bn-action="close-scene-picker" aria-label="关闭场景选择"></button>
+          <div class="bn-scene-picker-card" role="dialog" aria-modal="true" aria-labelledby="bnScenePickerTitle">
+            <header><div><h2 id="bnScenePickerTitle">选择自习场景</h2><p>选一个想一起待着的地方</p></div><button type="button" data-bn-action="close-scene-picker" aria-label="关闭">×</button></header>
+            <div class="bn-scene-options" role="radiogroup" aria-label="自习场景">
+              <button type="button" data-bn-scene="cultivation" role="radio"><span class="bn-scene-cover is-cultivation">修</span><span><b>修仙自习室</b><small>洞天书阁 · 静心修习</small></span><i>✓</i></button>
+              <button type="button" data-bn-scene="spring" role="radio"><span class="bn-scene-cover is-spring">春</span><span><b>春日自习室</b><small>春光作伴 · 轻盈专注</small></span><i>✓</i></button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="bn-screen bn-focus-running" data-bn-screen="running">
         <div class="bn-stage">
+          <video class="bn-stage-scene-video" id="bnStageSceneVideo" autoplay muted loop playsinline preload="auto" hidden aria-hidden="true"></video>
           <img class="bn-stage-img" id="bnStageImage" alt="OC 陪伴场景">
           <div class="bn-companion-orb" id="bnCompanionOrb" data-speaking="false" aria-label="AI 视频陪伴窗口">
             <div class="bn-orb-track" aria-hidden="true"><i></i></div>
@@ -1688,6 +1701,13 @@
 
   async function loadPrototypeScene() {
     const target = document.getElementById('bnStageImage');
+    const sceneVideo = document.getElementById('bnStageSceneVideo');
+    if (sceneVideo && isBetaMode) {
+      sceneVideo.muted = true;
+      sceneVideo.defaultMuted = true;
+      sceneVideo.src = sceneVideoUrl(state.sceneId);
+      sceneVideo.hidden = false;
+    }
     if (isBetaMode) {
       syncBetaFocusBackground();
       return;
@@ -1725,13 +1745,54 @@
     syncCompanionVisualMode();
   }
 
+  function sceneVideoUrl(sceneId) {
+    const filename = sceneId === 'spring' ? 'spring-study-room.mp4' : 'default-scene.mp4';
+    return (window.APP_BASE || '') + `/frontend/assets/${filename}`;
+  }
+
+  function renderScenePicker() {
+    document.querySelectorAll('[data-bn-scene]').forEach(button => {
+      const active = button.dataset.bnScene === state.sceneId;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-checked', String(active));
+    });
+  }
+
+  function showScenePicker(show) {
+    const picker = document.getElementById('bnScenePicker');
+    if (!picker || !isBetaMode) return;
+    picker.hidden = !show;
+    if (show) renderScenePicker();
+  }
+
+  function selectScene(sceneId) {
+    if (!['cultivation', 'spring'].includes(sceneId)) return;
+    state.sceneId = sceneId;
+    localStorage.setItem('bnSceneId', sceneId);
+    const sceneVideo = document.getElementById('bnStageSceneVideo');
+    if (sceneVideo) {
+      sceneVideo.muted = true;
+      sceneVideo.src = sceneVideoUrl(sceneId);
+      sceneVideo.load();
+    }
+    renderScenePicker();
+    showScenePicker(false);
+    toast(sceneId === 'spring' ? '已选择春日自习室' : '已选择修仙自习室');
+  }
+
   function syncCompanionVisualMode() {
     const runningScreen = document.querySelector('.bn-screen[data-bn-screen="running"]');
     if (!runningScreen) return;
     const visualMode = state.companionMode === 'occasional' ? 'scene' : 'supervision';
-    if (runningScreen.dataset.companionVisual === visualMode) return;
-    runningScreen.dataset.companionVisual = visualMode;
-    window.dispatchEvent(new CustomEvent('companion-visual-mode-change', { detail:{ visualMode } }));
+    const changed = runningScreen.dataset.companionVisual !== visualMode;
+    if (changed) runningScreen.dataset.companionVisual = visualMode;
+    const sceneVideo = document.getElementById('bnStageSceneVideo');
+    if (sceneVideo && isBetaMode) {
+      sceneVideo.muted = true;
+      if (visualMode === 'scene') sceneVideo.play().catch(() => {});
+      else sceneVideo.pause();
+    }
+    if (changed) window.dispatchEvent(new CustomEvent('companion-visual-mode-change', { detail:{ visualMode } }));
   }
 
   function initCompanionOrb() {
@@ -1859,7 +1920,13 @@
       const voiceMode = event.target.closest('[data-bn-voice-mode]');
       if (voiceMode) return setBetaVoiceMode(voiceMode.dataset.bnVoiceMode);
       const companionMode = event.target.closest('[data-bn-companion-mode]');
-      if (companionMode) return selectCompanionMode(companionMode.dataset.bnCompanionMode);
+      if (companionMode) {
+        selectCompanionMode(companionMode.dataset.bnCompanionMode);
+        if (companionMode.dataset.bnCompanionMode === 'occasional' && companionMode.closest('.bn-start-mode-picker')) showScenePicker(true);
+        return;
+      }
+      const scene = event.target.closest('[data-bn-scene]');
+      if (scene) return selectScene(scene.dataset.bnScene);
       const voiceCandidate = event.target.closest('[data-voice-candidate]');
       if (voiceCandidate) {
         document.querySelectorAll('[data-voice-candidate]').forEach(button => button.classList.toggle('is-selected', button === voiceCandidate));
@@ -1909,6 +1976,7 @@
       if (type === 'toggle-character-voice') toggleCharacterVoice();
       if (type === 'toggle-focus-chat') toggleFocusChat();
       if (type === 'close-chat-sheet') toggleFocusChat(false);
+      if (type === 'close-scene-picker') showScenePicker(false);
       if (type === 'beta-skip-role') skipBetaRoleSetup();
       if (type === 'cancel-end-focus') showEndConfirm(false);
       if (type === 'confirm-end-focus') stopFocusSession();

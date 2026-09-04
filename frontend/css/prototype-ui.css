@@ -1593,9 +1593,30 @@ body.bn-beta-setup-keyboard { overflow:hidden; overscroll-behavior:none; }
 .bn-start-mode-picker b { font-size:12px; font-weight:720; }
 .bn-start-mode-picker small { margin-top:3px; color:var(--bn-muted); font-size:9px; line-height:1.35; }
 .bn-start-mode-icon { display:grid; width:30px; height:30px; place-items:center; border:1px solid rgba(121,104,169,.17); border-radius:50%; background:rgba(255,255,255,.58); font-size:18px; font-weight:300; }
+.bn-scene-picker-layer { position:absolute; z-index:30; inset:0; display:flex; align-items:flex-end; padding:18px; background:rgba(29,24,38,.32); -webkit-backdrop-filter:blur(9px); backdrop-filter:blur(9px); }
+.bn-scene-picker-layer[hidden] { display:none; }
+.bn-scene-picker-dismiss { position:absolute; inset:0; width:100%; height:100%; border:0; background:transparent; }
+.bn-scene-picker-card { position:relative; width:100%; padding:20px; border:1px solid rgba(255,255,255,.78); border-radius:26px; background:rgba(250,248,255,.94); box-shadow:0 24px 70px rgba(41,31,61,.22); }
+.bn-scene-picker-card header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:16px; }
+.bn-scene-picker-card h2 { margin:0; color:var(--bn-ink); font-size:18px; }
+.bn-scene-picker-card p { margin:4px 0 0; color:var(--bn-muted); font-size:11px; }
+.bn-scene-picker-card header > button { width:30px; height:30px; border:0; border-radius:50%; color:var(--bn-muted); background:rgba(112,91,156,.08); font-size:21px; line-height:1; }
+.bn-scene-options { display:grid; gap:10px; }
+.bn-scene-options > button { display:grid; grid-template-columns:58px minmax(0,1fr) 22px; align-items:center; gap:12px; width:100%; padding:10px; border:1px solid rgba(112,91,156,.12); border-radius:18px; color:var(--bn-ink-soft); background:rgba(255,255,255,.72); text-align:left; }
+.bn-scene-options > button.is-active { border-color:rgba(124,107,182,.44); background:linear-gradient(145deg,#fff,rgba(235,230,249,.9)); box-shadow:0 8px 24px rgba(91,72,135,.1); }
+.bn-scene-cover { display:grid; width:58px; height:58px; place-items:center; border-radius:14px; color:#fff; font:700 18px/1 serif; text-shadow:0 2px 8px rgba(0,0,0,.22); }
+.bn-scene-cover.is-cultivation { background:linear-gradient(145deg,#3d342c,#847052 48%,#263b32); }
+.bn-scene-cover.is-spring { background:linear-gradient(145deg,#88b99a,#f0c9d2 52%,#f7dfaa); }
+.bn-scene-options b,.bn-scene-options small { display:block; }
+.bn-scene-options b { font-size:13px; }
+.bn-scene-options small { margin-top:4px; color:var(--bn-muted); font-size:10px; }
+.bn-scene-options i { display:none; color:var(--bn-primary-deep); font-size:16px; font-style:normal; }
+.bn-scene-options > button.is-active i { display:block; }
 
 /* Dual-layer companion media: atmospheric scene behind a clear, living lens. */
+.bn-focus-running .bn-stage-scene-video { position:absolute; z-index:0; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; background:#17131f; }
 .bn-focus-running .bn-stage-img { position:relative; z-index:0; width:calc(100% + 18px); height:calc(100% + 18px); margin:-9px; object-position:center 34%; filter:blur(7px) brightness(.81) saturate(.92); transform:scale(1.015); }
+body.bn-beta-mode .bn-focus-running[data-companion-visual="scene"] .bn-stage-img { visibility:hidden; }
 .bn-focus-running .bn-stage::after { z-index:1; background:linear-gradient(to bottom,rgba(15,15,18,.08) 0%,rgba(15,15,18,0) 22%,rgba(15,15,18,.04) 45%,rgba(15,15,18,.3) 100%); }
 .bn-focus-running .bn-camera-preview { top:max(122px,calc(env(safe-area-inset-top) + 112px)); right:auto; left:22px; width:68px; border-radius:24px; }
 .bn-companion-orb { --bn-orb-size:clamp(280px,72vw,390px); position:absolute; z-index:2; top:clamp(202px,25.5dvh,238px); left:50%; width:var(--bn-orb-size); aspect-ratio:1; transform:translateX(-50%); pointer-events:none; isolation:isolate; animation:bn-orb-breathe 6s ease-in-out infinite; }
@@ -1616,6 +1637,7 @@ body.bn-beta-setup-keyboard { overflow:hidden; overscroll-behavior:none; }
 
 /* Supervision keeps the original full-screen companion view; only scene mode uses the orb. */
 .bn-focus-running[data-companion-visual="supervision"] .bn-companion-orb { display:none; }
+.bn-focus-running[data-companion-visual="supervision"] .bn-stage-scene-video { display:none; }
 .bn-focus-running[data-companion-visual="supervision"] .bn-stage-img {
   position:absolute;
   inset:0;

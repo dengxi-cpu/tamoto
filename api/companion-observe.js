@@ -35,6 +35,14 @@ function memoryDebugText(data) {
   ].join('\n');
 }
 
+function dataUrlPayloadBytes(value) {
+  const comma = String(value || '').indexOf(',');
+  if (comma < 0) return 0;
+  const payloadLength = String(value).length - comma - 1;
+  const padding = String(value).endsWith('==') ? 2 : String(value).endsWith('=') ? 1 : 0;
+  return Math.max(0, Math.floor(payloadLength * 3 / 4) - padding);
+}
+
 async function handler(req, res) {
   if (req.method === 'GET') return json(res, 200, { success:true, data:{ prompts:getCompanionSystemPrompts() } });
   if (req.method !== 'POST') return json(res, 405, { success: false, error: 'Method not allowed' });
@@ -284,6 +292,17 @@ async function handler(req, res) {
       promptOverrides: req.body?.promptOverrides && typeof req.body.promptOverrides === 'object'
         ? req.body.promptOverrides : {}
     });
+    data.metrics = data.metrics || { schemaVersion:1, tokens:{} };
+    data.metrics.bytes = {
+      image: dataUrlPayloadBytes(image),
+      request: Buffer.byteLength(JSON.stringify(req.body || {}), 'utf8'),
+      response: 0
+    };
+    let responseBytes = 0;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      responseBytes = Buffer.byteLength(JSON.stringify({ success:true, data }), 'utf8');
+      data.metrics.bytes.response = responseBytes;
+    }
     await upsertCompanionLog({
       epoch, turnId, image, task, persona: `${persona}\n${contextSummary}`,
       scene: visualPipelineTrace({

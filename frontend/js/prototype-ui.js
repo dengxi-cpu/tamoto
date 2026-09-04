@@ -273,7 +273,7 @@
           <img class="bn-stage-img" id="bnStageImage" alt="OC 陪伴场景">
           <div class="bn-companion-orb" id="bnCompanionOrb" data-speaking="false" aria-label="AI 视频陪伴窗口">
             <div class="bn-orb-track" aria-hidden="true"><i></i></div>
-            <svg class="bn-orb-waveform" viewBox="0 0 500 500" preserveAspectRatio="none" aria-hidden="true"></svg>
+            <svg class="bn-orb-waveform" viewBox="0 0 900 900" preserveAspectRatio="none" aria-hidden="true"></svg>
             <div class="bn-orb-glass">
               <img class="bn-orb-media" id="bnOrbImage" alt="" aria-hidden="true">
               <video class="bn-orb-media" id="bnOrbVideo" autoplay muted loop playsinline hidden aria-hidden="true"></video>
@@ -1804,11 +1804,11 @@
     const bars = Array.from({ length:count }, (_, index) => {
       const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       const bar = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      group.setAttribute('transform', `rotate(${index * 360 / count} 250 250)`);
-      bar.setAttribute('x1', '250');
-      bar.setAttribute('y1', '10');
-      bar.setAttribute('x2', '250');
-      bar.setAttribute('y2', '-180');
+      group.setAttribute('transform', `rotate(${index * 360 / count} 450 450)`);
+      bar.setAttribute('x1', '450');
+      bar.setAttribute('y1', '190');
+      bar.setAttribute('x2', '450');
+      bar.setAttribute('y2', '0');
       bar.style.opacity = String(.46 + ((Math.sin(index * .37) + 1) * .16));
       group.appendChild(bar);
       waveform.appendChild(group);

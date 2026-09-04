@@ -51,11 +51,15 @@ test('ElevenLabs voices always call the eleven_v3 model and preserve audio tags'
   }
 });
 
-test('Actor prompt is written for short v3 spoken performance without fixed stages', () => {
+test('Actor prompt enforces natural 1-4 beat v3 spoken performance', () => {
   const actor = getCompanionSystemPrompts().actor;
-  assert.match(actor, /Do not write dialogue\. React\./);
+  assert.match(actor, /只负责表演 Memory 的导演意图/);
+  assert.match(actor, /1–4 个 speech beats/);
+  assert.match(actor, /每个 beat 默认 1–12 个 spoken words/);
+  assert.match(actor, /不要为了达到 beat 数量填充内容/);
+  assert.match(actor, /后一句只是换词重复前一句，就删除它/);
   assert.match(actor, /\[sighs\]/);
-  assert.match(actor, /话痨.*不等于每次开口都很长/);
-  assert.match(actor, /不是固定阶段或状态机/);
-  assert.match(actor, /一个情绪准确的五词反应/);
+  assert.match(actor, /interactionOutcome、characterShift、expressionStrategy、responseIntent 和 avoidRepetition/);
+  assert.match(actor, /严格使用 outputLanguage/);
+  assert.doesNotMatch(actor, /"pauseBefore"/);
 });

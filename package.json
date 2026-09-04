@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "伴柠番茄钟",
   "scripts": {
-    "dev": "node dev-server.js"
+    "dev": "node dev-server.js",
+    "baseline:v1": "node scripts/run-v1-baseline.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

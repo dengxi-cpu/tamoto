@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const baseUrl = String(process.argv[2] || 'https://dengxi.site/beta').replace(/\/$/, '');
+const protocol = String(process.argv[3] || 'v1').toLowerCase() === 'v2' ? 'v2' : 'v1';
 const frames = [
   ['focus-phone.jpg', 'PHONE', 'first_phone_intervention'],
   ['focus-phone.jpg', 'PHONE', 'ignored_request_strategy_change'],
@@ -49,6 +50,17 @@ async function main() {
   let storyMemory = '';
   let conversationHistory = [];
   let lastSpokenElapsed = null;
+  let sessionId = null;
+
+  if (protocol === 'v2') {
+    const sessionPayload = await (await postJson(`${baseUrl}/api/companion-session`, {
+      task:'背单词', persona:'毒舌且话痨',
+      roleContext:{ name:'TA', userTitle:'大小姐', relationship:'监督型陪伴者', persona:'毒舌且话痨', voiceProvider:'elevenlabs', voiceId:'3b4ekg3VkQNcDNdIvGEo', speechLanguage:'en' },
+      relationshipMemory:'', epoch, sessionStartedAt:sessionStartedAt.toISOString()
+    })).json();
+    sessionId = sessionPayload.data?.sessionId;
+    if (!sessionId) throw new Error('V2 session creation returned no sessionId');
+  }
 
   for (let index = 0; index < frames.length; index += 1) {
     const [fileName, truth, expectation] = frames[index];
@@ -78,8 +90,9 @@ async function main() {
       policyState,
       promptOverrides: {}
     };
+    const requestBody = protocol === 'v2' ? { image, sessionId, turnId:index + 1, elapsedSeconds } : body;
     const pipelineStartedAt = Date.now();
-    const result = (await (await postJson(`${baseUrl}/api/companion-observe`, body)).json()).data;
+    const result = (await (await postJson(`${baseUrl}/api/companion-observe`, requestBody)).json()).data;
     const pipelineRequestMs = Date.now() - pipelineStartedAt;
     const ttsFirstByteMs = await measureTtsFirstByte(result, epoch, index + 1);
     rows.push({
@@ -122,7 +135,8 @@ async function main() {
     }
   }
 
-  process.stdout.write(`${JSON.stringify({ schemaVersion:1, pipelineVersion:'v1-baseline', baseUrl, generatedAt:new Date().toISOString(), rows }, null, 2)}\n`);
+  if (sessionId) await fetch(`${baseUrl}/api/companion-session?sessionId=${encodeURIComponent(sessionId)}`, { method:'DELETE' });
+  process.stdout.write(`${JSON.stringify({ schemaVersion:1, pipelineVersion:`${protocol}-baseline`, baseUrl, generatedAt:new Date().toISOString(), rows }, null, 2)}\n`);
 }
 
 main().catch(error => {

@@ -13,6 +13,10 @@
         epoch: Date.now(),
         turnId: 0,
         sessionStartedAt: null,
+        serverSessionId: null,
+        serverSessionVersion: null,
+        serverSessionPromise: null,
+        serverSessionFailed: false,
         recentObservations: [],
         workingMemory: [],
         storyMemory: null,
@@ -308,6 +312,48 @@
         }
     }
 
+    function isBetaSessionRuntime() {
+        return window.APP_BASE === '/beta' || new URLSearchParams(location.search).get('mode') === 'beta';
+    }
+
+    async function initializeServerSession(requestEpoch) {
+        if (!isBetaSessionRuntime()) return null;
+        const { task, persona, roleContext } = getCompanionContext();
+        try {
+            const response = await fetch((window.APP_BASE || '') + '/api/companion-session', {
+                method:'POST',
+                headers:{ 'Content-Type':'application/json' },
+                body:JSON.stringify({
+                    task, persona, roleContext, relationshipMemory:state.relationshipMemory,
+                    epoch:requestEpoch,
+                    sessionStartedAt:new Date(state.sessionStartedAt || Date.now()).toISOString()
+                })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || `Session HTTP ${response.status}`);
+            if (requestEpoch !== state.epoch || !state.sessionActive) return null;
+            state.serverSessionId = payload.data?.sessionId || null;
+            state.serverSessionVersion = payload.data?.stateVersion || null;
+            state.serverSessionFailed = !state.serverSessionId;
+            return state.serverSessionId;
+        } catch (error) {
+            state.serverSessionFailed = true;
+            console.warn('V2 Session unavailable; using V1 fallback:', error);
+            return null;
+        }
+    }
+
+    function closeServerSession() {
+        const sessionId = state.serverSessionId;
+        state.serverSessionId = null;
+        state.serverSessionVersion = null;
+        state.serverSessionPromise = null;
+        if (!sessionId) return;
+        fetch((window.APP_BASE || '') + `/api/companion-session?sessionId=${encodeURIComponent(sessionId)}`, {
+            method:'DELETE', keepalive:true
+        }).catch(error => console.warn('Session cleanup failed:', error));
+    }
+
     function startSession() {
         ensureAudio().catch(error => console.warn('Audio unlock failed:', error));
         cancelReaction('新专注会话');
@@ -319,6 +365,10 @@
         state.recentObservations = [];
         state.workingMemory = [];
         state.storyMemory = null;
+        state.serverSessionId = null;
+        state.serverSessionVersion = null;
+        state.serverSessionPromise = null;
+        state.serverSessionFailed = false;
         state.memoryRequestSequence = 0;
         state.latestAppliedMemoryRequest = 0;
         try {
@@ -342,6 +392,7 @@
         state.latestObservation = null;
         state.dialogueHistory = [];
         state.sessionActive = true;
+        if (isBetaSessionRuntime()) state.serverSessionPromise = initializeServerSession(state.epoch);
         setPresence('silent');
         state.paused = false;
         state.visionUnavailable = false;
@@ -352,7 +403,7 @@
     }
 
     function stopSession() {
-        consolidateSessionMemory();
+        Promise.resolve(consolidateSessionMemory()).finally(closeServerSession);
         state.sessionActive = false;
         setPresence('silent');
         state.epoch += 1;
@@ -907,21 +958,34 @@
             const sessionStartedAt = new Date(state.sessionStartedAt || Date.now()).toISOString();
             const elapsedSeconds = Math.max(0, Math.floor((Date.now() - (state.sessionStartedAt || Date.now())) / 1000));
             const recentObservations = state.recentObservations.slice(-24);
-            const response = await fetch((window.APP_BASE || '') + '/api/companion-observe', {
+            if (state.serverSessionPromise) await state.serverSessionPromise;
+            const legacyBody = {
+                image, task, persona, roleContext, epoch: requestEpoch, turnId,
+                sessionStartedAt, elapsedSeconds, recentObservations,
+                workingMemory: state.workingMemory.slice(-24),
+                storyMemory: state.storyMemory,
+                relationshipMemory: state.relationshipMemory,
+                conversationHistory: state.dialogueHistory.slice(-8),
+                policyState: state.policyState
+            };
+            let usingV2 = isBetaSessionRuntime() && state.serverSessionId && !state.serverSessionFailed;
+            let response = await fetch((window.APP_BASE || '') + '/api/companion-observe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 signal: controller.signal,
-                body: JSON.stringify({
-                    image, task, persona, roleContext, epoch: requestEpoch, turnId,
-                    sessionStartedAt, elapsedSeconds, recentObservations,
-                    workingMemory: state.workingMemory.slice(-24),
-                    storyMemory: state.storyMemory,
-                    relationshipMemory: state.relationshipMemory,
-                    conversationHistory: state.dialogueHistory.slice(-8),
-                    policyState: state.policyState
-                })
+                body: JSON.stringify(usingV2 ? { image, sessionId:state.serverSessionId, turnId, elapsedSeconds } : legacyBody)
             });
-            const payload = await response.json().catch(() => ({}));
+            let payload = await response.json().catch(() => ({}));
+            if (!response.ok && usingV2 && response.status !== 429) {
+                console.warn('V2 observation failed; retrying once with V1:', payload.error || response.status);
+                state.serverSessionFailed = true;
+                usingV2 = false;
+                response = await fetch((window.APP_BASE || '') + '/api/companion-observe', {
+                    method:'POST', headers:{ 'Content-Type':'application/json' }, signal:controller.signal,
+                    body:JSON.stringify(legacyBody)
+                });
+                payload = await response.json().catch(() => ({}));
+            }
             if (response.status === 503) {
                 state.visionUnavailable = true;
                 stopVisionLoop();
@@ -930,6 +994,7 @@
             }
             if (!response.ok) throw new Error(payload.error || `Vision HTTP ${response.status}`);
             const result = payload?.data || payload;
+            if (result.stateVersion) state.serverSessionVersion = result.stateVersion;
             if (requestEpoch !== state.epoch || state.paused || !state.sessionActive) return;
             if (!result?.decision) throw new Error('AI 没有返回发言决策');
             result.logId = logId;
@@ -948,6 +1013,7 @@
                 vision_ms: result.timings?.visionMs,
                 reaction_ms: result.timings?.reactionMs,
                 total_ms: result.timings?.totalMs
+                ,protocol: result.metrics?.session?.protocol || 'v1'
             });
             state.policyState = result.decision.policyState || state.policyState;
             setPresence(result.decision.shouldSpeak ? 'speaking' : (result.decision.silentReaction || 'silent'));

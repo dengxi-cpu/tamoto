@@ -2,6 +2,7 @@ const { CompanionPipelineError, generateReaction, generateAmbient, generateSessi
 const { assemblePersonaPrompt } = require('../lib/companion-prompt');
 const { upsertCompanionLog } = require('./companion-logs');
 const { visualPipelineTrace, memoryEventTrace, dialogueTrace } = require('../lib/companion-trace');
+const { getSession, commitSession } = require('../lib/companion-session-store');
 
 function json(res, status, body) {
   return res.status(status).json(body);
@@ -46,8 +47,8 @@ function dataUrlPayloadBytes(value) {
 async function handler(req, res) {
   if (req.method === 'GET') return json(res, 200, { success:true, data:{ prompts:getCompanionSystemPrompts() } });
   if (req.method !== 'POST') return json(res, 405, { success: false, error: 'Method not allowed' });
-  const persona = assemblePersonaPrompt(req.body?.roleContext, req.body?.persona);
-  const outputLanguage = String(req.body?.roleContext?.speechLanguage || '').toLowerCase() === 'en' ? 'en' : 'zh';
+  let persona = assemblePersonaPrompt(req.body?.roleContext, req.body?.persona);
+  let outputLanguage = String(req.body?.roleContext?.speechLanguage || '').toLowerCase() === 'en' ? 'en' : 'zh';
 
   if (req.body?.mode === 'memory_consolidation') {
     try {
@@ -232,6 +233,30 @@ async function handler(req, res) {
     }
   }
 
+  const requestedSessionId = String(req.body?.sessionId || '').trim();
+  let sessionRecord = null;
+  if (requestedSessionId) {
+    try {
+      sessionRecord = await getSession(requestedSessionId);
+    } catch (error) {
+      console.error('Companion session read failed:', error);
+      return json(res, 503, { success:false, error:'Session 暂时不可用', stage:'session' });
+    }
+    if (!sessionRecord) return json(res, 404, { success:false, error:'Session 不存在或已过期', stage:'session' });
+    const requestedTurnId = Number.isSafeInteger(req.body?.turnId) ? req.body.turnId : 1;
+    if (sessionRecord.lastTurnId === requestedTurnId && sessionRecord.lastTurnResponse) {
+      const replay = sessionRecord.lastTurnResponse;
+      replay.metrics = replay.metrics || {};
+      replay.metrics.session = { protocol:'v2', replayed:true, stateVersion:sessionRecord.stateVersion };
+      return json(res, 200, { success:true, data:replay });
+    }
+    if (sessionRecord.lastTurnId != null && requestedTurnId < sessionRecord.lastTurnId) {
+      return json(res, 409, { success:false, error:'收到过期的 turnId', stage:'session' });
+    }
+    persona = sessionRecord.state.persona;
+    outputLanguage = sessionRecord.state.outputLanguage || 'zh';
+  }
+  const visualInput = sessionRecord ? sessionRecord.state : req.body;
   const image = req.body?.image;
   if (typeof image !== 'string' || !/^data:image\/jpeg;base64,/.test(image)) {
     return json(res, 400, { success: false, error: '无效的 JPEG 图片', stage: 'input' });
@@ -240,23 +265,23 @@ async function handler(req, res) {
     return json(res, 413, { success: false, error: '图片过大', stage: 'input' });
   }
 
-  const epoch = Number.isSafeInteger(req.body?.epoch) ? req.body.epoch : 1;
+  const epoch = Number.isSafeInteger(visualInput?.epoch) ? visualInput.epoch : 1;
   const turnId = Number.isSafeInteger(req.body?.turnId) ? req.body.turnId : 1;
-  const task = String(req.body?.task || '保持专注').trim().slice(0, 200);
-  const sessionStartedAt = Number.isFinite(Date.parse(req.body?.sessionStartedAt))
-    ? new Date(req.body.sessionStartedAt).toISOString()
+  const task = String(visualInput?.task || '保持专注').trim().slice(0, 200);
+  const sessionStartedAt = Number.isFinite(Date.parse(visualInput?.sessionStartedAt))
+    ? new Date(visualInput.sessionStartedAt).toISOString()
     : new Date().toISOString();
   const elapsedSeconds = Math.max(0, Math.min(24 * 60 * 60, Number(req.body?.elapsedSeconds) || 0));
-  const recentObservations = Array.isArray(req.body?.recentObservations)
-    ? req.body.recentObservations.slice(-24).map(item => ({
+  const recentObservations = Array.isArray(visualInput?.recentObservations)
+    ? visualInput.recentObservations.slice(-24).map(item => ({
         elapsedSeconds: Math.max(0, Number(item?.elapsedSeconds) || 0),
         state: String(item?.state || 'UNKNOWN').slice(0, 20),
         scene: String(item?.scene || '').slice(0, 300),
         reaction: String(item?.reaction || '').slice(0, 100)
       }))
     : [];
-  const workingMemory = Array.isArray(req.body?.workingMemory)
-    ? req.body.workingMemory.slice(-24).map(item => ({
+  const workingMemory = Array.isArray(visualInput?.workingMemory)
+    ? visualInput.workingMemory.slice(-24).map(item => ({
         id: String(item?.id || '').slice(0, 80),
         type: ['vision', 'user_speech', 'ai_speech', 'session'].includes(item?.type) ? item.type : 'vision',
         observedAt: String(item?.observedAt || '').slice(0, 40),
@@ -275,12 +300,12 @@ async function handler(req, res) {
           expectsUserResponse: item.actorAction.expectsUserResponse !== false
         } : null
       })) : recentObservations;
-  const storyMemory = sanitizeStoryMemory(req.body?.storyMemory);
-  const relationshipMemory = sanitizeRelationshipMemory(req.body?.relationshipMemory);
-  const conversationHistory = Array.isArray(req.body?.conversationHistory)
-    ? req.body.conversationHistory.slice(-8).map(item => ({ role: item?.role === 'assistant' ? 'assistant' : 'user', content: String(item?.content || '').slice(0, 300) })) : [];
-  const policyState = req.body?.policyState && typeof req.body.policyState === 'object'
-    ? req.body.policyState : {};
+  const storyMemory = sanitizeStoryMemory(visualInput?.storyMemory);
+  const relationshipMemory = sanitizeRelationshipMemory(visualInput?.relationshipMemory);
+  const conversationHistory = Array.isArray(visualInput?.conversationHistory)
+    ? visualInput.conversationHistory.slice(-8).map(item => ({ role: item?.role === 'assistant' ? 'assistant' : 'user', content: String(item?.content || '').slice(0, 300) })) : [];
+  const policyState = visualInput?.policyState && typeof visualInput.policyState === 'object'
+    ? visualInput.policyState : {};
   const contextSummary = `专注开始：${sessionStartedAt}\n已专注：${Math.floor(elapsedSeconds / 60)}分${Math.floor(elapsedSeconds % 60)}秒`;
 
   try {
@@ -289,8 +314,8 @@ async function handler(req, res) {
       sessionStartedAt, elapsedSeconds, recentObservations, workingMemory,
       storyMemory, relationshipMemory, conversationHistory, policyState,
       outputLanguage,
-      promptOverrides: req.body?.promptOverrides && typeof req.body.promptOverrides === 'object'
-        ? req.body.promptOverrides : {}
+      promptOverrides: visualInput?.promptOverrides && typeof visualInput.promptOverrides === 'object'
+        ? visualInput.promptOverrides : {}
     });
     data.metrics = data.metrics || { schemaVersion:1, tokens:{} };
     data.metrics.bytes = {
@@ -302,6 +327,57 @@ async function handler(req, res) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       responseBytes = Buffer.byteLength(JSON.stringify({ success:true, data }), 'utf8');
       data.metrics.bytes.response = responseBytes;
+    }
+    if (sessionRecord) {
+      const memoryEvent = {
+        id:`vision-${turnId}`,
+        type:'vision',
+        observedAt:data.observation?.observedAt || new Date().toISOString(),
+        elapsedSeconds,
+        state:data.decision?.state || 'UNKNOWN',
+        observation:data.observation?.observation || data.observation?.scene || '',
+        changes:data.observation?.changes || [],
+        confidence:data.observation?.confidence || 0,
+        reaction:data.reaction || '',
+        actorAction:data.reaction ? {
+          said:data.reaction,
+          intent:data.memory?.responseIntent || '',
+          intendedUserAction:data.memory?.intendedUserAction || '',
+          outputLanguage,
+          actionType:data.memory?.actorActionType || 'comment',
+          expectsUserResponse:data.memory?.expectsUserResponse === true
+        } : null
+      };
+      const nextState = {
+        ...sessionRecord.state,
+        lastObservation:data.observation,
+        recentObservations:[...recentObservations, memoryEvent].slice(-24),
+        workingMemory:[...workingMemory, memoryEvent].slice(-24),
+        storyMemory:data.memory?.storyMemory || storyMemory,
+        conversationHistory:data.reaction ? [...conversationHistory, { role:'assistant', content:data.reaction }].slice(-8) : conversationHistory,
+        lastAIAction:data.reaction ? memoryEvent.actorAction : sessionRecord.state.lastAIAction,
+        interactionState:{
+          interactionOutcome:data.memory?.interactionOutcome?.type || '',
+          intendedUserAction:data.memory?.intendedUserAction || '',
+          expectsUserResponse:data.memory?.expectsUserResponse === true
+        },
+        policyState:{ ...data.decision?.policyState, ...(data.decision?.shouldSpeak ? { lastAnySpokenAt:Date.now() } : {}) }
+      };
+      data.metrics.session = { protocol:'v2', replayed:false, stateVersion:sessionRecord.stateVersion + 1 };
+      data.sessionId = requestedSessionId;
+      data.stateVersion = sessionRecord.stateVersion + 1;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        data.metrics.bytes.response = Buffer.byteLength(JSON.stringify({ success:true, data }), 'utf8');
+      }
+      const committed = await commitSession(requestedSessionId, sessionRecord.stateVersion, nextState, turnId, data);
+      if (!committed) {
+        const latest = await getSession(requestedSessionId);
+        if (latest?.lastTurnId === turnId && latest.lastTurnResponse) return json(res, 200, { success:true, data:latest.lastTurnResponse });
+        return json(res, 409, { success:false, error:'Session 状态已被更新，请重试', stage:'session' });
+      }
+    }
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      data.metrics.bytes.response = Buffer.byteLength(JSON.stringify({ success:true, data }), 'utf8');
     }
     await upsertCompanionLog({
       epoch, turnId, image, task, persona: `${persona}\n${contextSummary}`,

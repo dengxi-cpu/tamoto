@@ -4,7 +4,8 @@
   "description": "伴柠番茄钟",
   "scripts": {
     "dev": "node dev-server.js",
-    "baseline:v1": "node scripts/run-v1-baseline.js"
+    "baseline:v1": "node scripts/run-v1-baseline.js",
+    "baseline:v2": "node scripts/run-v1-baseline.js https://dengxi.site/beta v2"
   },
   "dependencies": {
     "cors": "^2.8.5",

@@ -5,10 +5,12 @@ let betaHtml = '';
 
 function serveBeta(req, res) {
   if (!betaHtml) {
-    betaHtml = fs.readFileSync(path.join(process.cwd(), 'index.html'), 'utf8').replace(
-      '<link id="appManifest" rel="manifest" href="./manifest.webmanifest">',
-      '<link id="appManifest" rel="manifest" href="./manifest-beta.webmanifest">'
-    );
+    betaHtml = fs.readFileSync(path.join(process.cwd(), 'index.html'), 'utf8')
+      .replace(
+        '<link id="appManifest" rel="manifest" href="./manifest.webmanifest">',
+        '<link id="appManifest" rel="manifest" href="./manifest-beta.webmanifest">'
+      )
+      .replace('frontend/js/focus-companion.js?v=45', 'frontend/js/focus-companion.js?v=46');
   }
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');

@@ -3,6 +3,7 @@
 
 require('dotenv').config({ path: '.env.local' });
 require('dotenv').config({ path: '.env.push.local', override: false });
+process.env.COMPANION_SESSION_STORE ||= 'memory';
 
 const express = require('express');
 const cors = require('cors');
@@ -45,6 +46,7 @@ const apiModules = {
   reminders: require('./api/reminders.js'),
   speech: require('./api/speech.js'),
   companionObserve: require('./api/companion-observe.js'),
+  companionSession: require('./api/companion-session.js'),
   visionHealth: require('./api/vision-health.js'),
   ttsStream: require('./api/tts-stream.js'),
   companionLogs: require('./api/companion-logs.js'),
@@ -74,6 +76,7 @@ app.all('/api/push', proxyApi(apiModules.push));
 app.all('/api/reminders', proxyApi(apiModules.reminders));
 app.post('/api/speech', proxyApi(apiModules.speech.handler));
 app.all('/api/companion-observe', proxyApi(apiModules.companionObserve.handler));
+app.all('/api/companion-session', proxyApi(apiModules.companionSession.handler));
 app.get('/api/vision-health', proxyApi(apiModules.visionHealth.handler));
 app.post('/api/tts-stream', proxyApi(apiModules.ttsStream.handler));
 app.all('/api/companion-logs', proxyApi(apiModules.companionLogs.handler));

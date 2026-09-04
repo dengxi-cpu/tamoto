@@ -17,6 +17,7 @@ test('pipeline records provider usage without adding metrics to model prompts', 
 
 test('observe response reports image, request, and response byte baselines', () => {
   assert.match(observe, /function dataUrlPayloadBytes\(/);
+  assert.match(observe, /imageEncoded: Buffer\.byteLength\(image/);
   assert.match(observe, /Buffer\.byteLength\(JSON\.stringify\(req\.body/);
   assert.match(observe, /data\.metrics\.bytes\.response/);
 });

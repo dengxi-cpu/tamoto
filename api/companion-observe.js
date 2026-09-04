@@ -305,7 +305,10 @@ async function handler(req, res) {
   const conversationHistory = Array.isArray(visualInput?.conversationHistory)
     ? visualInput.conversationHistory.slice(-8).map(item => ({ role: item?.role === 'assistant' ? 'assistant' : 'user', content: String(item?.content || '').slice(0, 300) })) : [];
   const policyState = visualInput?.policyState && typeof visualInput.policyState === 'object'
-    ? visualInput.policyState : {};
+    ? { ...visualInput.policyState } : {};
+  if (sessionRecord && Number.isFinite(Number(policyState.lastSpokenElapsedSeconds))) {
+    policyState.lastAnySpokenAt = Date.now() - Math.max(0, elapsedSeconds - Number(policyState.lastSpokenElapsedSeconds)) * 1000;
+  }
   const contextSummary = `专注开始：${sessionStartedAt}\n已专注：${Math.floor(elapsedSeconds / 60)}分${Math.floor(elapsedSeconds % 60)}秒`;
 
   try {
@@ -320,6 +323,7 @@ async function handler(req, res) {
     data.metrics = data.metrics || { schemaVersion:1, tokens:{} };
     data.metrics.bytes = {
       image: dataUrlPayloadBytes(image),
+      imageEncoded: Buffer.byteLength(image, 'utf8'),
       request: Buffer.byteLength(JSON.stringify(req.body || {}), 'utf8'),
       response: 0
     };
@@ -361,7 +365,12 @@ async function handler(req, res) {
           intendedUserAction:data.memory?.intendedUserAction || '',
           expectsUserResponse:data.memory?.expectsUserResponse === true
         },
-        policyState:{ ...data.decision?.policyState, ...(data.decision?.shouldSpeak ? { lastAnySpokenAt:Date.now() } : {}) }
+        policyState:{
+          ...data.decision?.policyState,
+          ...(data.decision?.shouldSpeak ? { lastAnySpokenAt:Date.now(), lastSpokenElapsedSeconds:elapsedSeconds } : {
+            lastSpokenElapsedSeconds:sessionRecord.state.policyState?.lastSpokenElapsedSeconds
+          })
+        }
       };
       data.metrics.session = { protocol:'v2', replayed:false, stateVersion:sessionRecord.stateVersion + 1 };
       data.sessionId = requestedSessionId;

@@ -22,3 +22,9 @@ test('session store rejects stale writes without overwriting the winner', async 
   assert.equal(await commitSession(created.sessionId, 1, { task:'写作', winner:false }, 2, { turnId:2 }), null);
   assert.equal((await getSession(created.sessionId)).state.winner, true);
 });
+
+test('session observation policy preserves simulated elapsed speech timing', () => {
+  const source = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'api', 'companion-observe.js'), 'utf8');
+  assert.match(source, /lastSpokenElapsedSeconds/);
+  assert.match(source, /elapsedSeconds - Number\(policyState\.lastSpokenElapsedSeconds\)/);
+});

@@ -6,11 +6,16 @@ process.env.VISION_API_KEY = 'vision-key';
 process.env.VISION_MODEL = 'vision-model';
 process.env.DEEPSEEK_API_KEY = 'deepseek-key';
 
-const { runCompanionPipeline, runDialogueMemoryPipeline, runMemoryEventPipeline, consolidateRelationshipMemory } = require('../lib/companion-pipeline');
+const { CompanionPipelineError, runCompanionPipeline, runDialogueMemoryPipeline, runMemoryEventPipeline, consolidateRelationshipMemory, isRetryableVisionConnectionError } = require('../lib/companion-pipeline');
 
 function jsonResponse(body) {
   return { ok: true, status: 200, json: async () => body };
 }
+
+test('Vision retries transient socket connection failures', () => {
+  assert.equal(isRetryableVisionConnectionError(new CompanionPipelineError('vision', 'vision 连接失败', 502, 'connect ETIMEDOUT 101.126.7.76:443')), true);
+  assert.equal(isRetryableVisionConnectionError(new CompanionPipelineError('vision', '视觉描述生成失败', 502, 'invalid request')), false);
+});
 
 test('visual event flows through Memory LLM and Actor LLM', async () => {
   const responses = [
